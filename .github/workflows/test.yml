@@ -24,7 +24,13 @@ jobs:
     - name: Cache Rust dependencies
       uses: Swatinem/rust-cache@v2
       with:
-        cache-on-failure: true
+        # Include Cargo.lock in cache key
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        # Cache target directory and registry
+        cache-targets: true
+        cache-all-crates: true
+        # Save cache even on failure
+        save-if: true
         
     - name: Run tests
       run: cargo test --verbose
