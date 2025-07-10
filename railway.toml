@@ -1,6 +1,6 @@
 [build]
 builder = "dockerfile"
-watchPatterns = ["!**/*.md"]
+# watchPatterns = ["!**/*.md"]
 
 
 [deploy]
