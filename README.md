@@ -45,10 +45,10 @@ This document outlines the project configuration and roadmap for the Rust-based 
 
 ### Phase 2: Logging
 
-- [ ] Suggest industry standards for logging endpoints and queries in Rust/GraphQL
-- [ ] Implement logging for existing REST endpoints and GraphQL queries (check Phase 1 for a list of endpoints and queries)
-  - [ ] For REST endpoints, log the request method, path, response status, and response time
-  - [ ] For GraphQL queries, log the query name and response time (no parameters)
+- [x] Suggest industry standards for logging endpoints and queries in Rust/GraphQL
+- [x] Implement logging for existing REST endpoints and GraphQL queries (check Phase 1 for a list of endpoints and queries)
+  - [x] For REST endpoints, log the request method, path, response status, and response time
+  - [x] For GraphQL queries, log the operation name and response time (no parameters)
 
 ### Phase 3: Password Service
 
