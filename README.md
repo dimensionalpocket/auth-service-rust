@@ -52,12 +52,12 @@ This document outlines the project configuration and roadmap for the Rust-based 
 
 ### Phase 3: Password Service
 
-- [ ] Implement `PasswordService` for user password management
-  - [ ] `generate` method to create a new password hash
+- [x] Implement `PasswordService` for user password management
+  - [x] `generate` method to create a new password hash
     - Already includes the salt generation
-  - [ ] `verify` method to check a password against a hash
-- [ ] Test the `PasswordService` methods
-- [ ] Document the `PasswordService` methods via Rust doc comments
+  - [x] `verify` method to check a password against a hash
+- [x] Test the `PasswordService` methods
+- [x] Document the `PasswordService` methods via Rust doc comments
 
 ### Phase 4: Database Configuration
 
