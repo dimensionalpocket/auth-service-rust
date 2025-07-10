@@ -32,6 +32,7 @@ jobs:
         file: ./Dockerfile
         push: false
         tags: dp-auth-service:test
+        load: true
         # Use GitHub Actions cache with better configuration
         cache-from: type=gha
         cache-to: type=gha,mode=max
