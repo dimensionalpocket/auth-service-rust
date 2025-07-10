@@ -26,8 +26,14 @@ jobs:
         file: ./Dockerfile
         push: false
         tags: dp-auth-service:test
+        # Use GitHub Actions cache with better configuration
         cache-from: type=gha
         cache-to: type=gha,mode=max
+        # Build arguments for better caching
+        build-args: |
+          BUILDKIT_INLINE_CACHE=1
+        # Use buildx features for better performance
+        platforms: linux/amd64
         
     - name: Test image exists
       run: docker images dp-auth-service:test
