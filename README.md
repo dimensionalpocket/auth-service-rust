@@ -19,25 +19,29 @@ This document outlines the project configuration and roadmap for the Rust-based 
     - Service objects have their own unit tests with full coverage
     - GraphQL Query and Mutation tests only test if they're calling the Service methods with the correct parameters
     - Service objects are stored in `src/services`
-  - SQL queries are executed via Query objects
+    - Each GraphQL query and mutation are implemented in independent files in `src/graphql/queries` and `src/graphql/mutations` respectively
+      - Files are named directly after the query or mutation they implement, e.g., `get_server_timestamp.rs` for the `getServerTimestamp` query
+      - The structs for the queries and mutations are suffixed with `Query` or `Mutation`
+        - E.g., `GetServerTimestampQuery` for the `getServerTimestamp` query
+  - SQL Queries are executed via SQL Query objects
     - E.g., `UserByIdQuery::run(user_id)`
-    - All query objects have a `run` method (arguments may vary) that executes the query and returns the result
-    - Query objects are static and do not require instantiation
-    - Query objects are stored in `src/queries`
+    - All SQL query objects have a `run` method (arguments may vary) that executes the database query and returns the result
+    - SQL Query objects are static and do not require instantiation
+    - SQL Query objects are stored in `src/queries`
 
 ## Roadmap
 
 ### Phase 1: Project Setup w/ REST Endpoints + `getServerTimestamp` query
 
-- [ ] Initialize Rust project
-- [ ] Configure `async-graphql`, `axum`, `sqlx`, and `tokio`
-- [ ] Create REST endpoints:
-  - [ ] `/` - Returns a simple "OK" message
-  - [ ] `/health` - Returns a simple "OK" message
-- [ ] Implement `getServerTimestamp` GraphQL query and associated Service object:
-  - [ ] Returns the current server timestamp (milliseconds since epoch)
-- [ ] Test the REST endpoints, `getServerTimestamp` query, and the Service object
-- [ ] Document the API endpoints and query
+- [x] Initialize Rust project
+- [x] Configure `async-graphql`, `axum`, `sqlx`, and `tokio`
+- [x] Create REST endpoints:
+  - [x] `/` - Returns a simple "OK" message
+  - [x] `/health` - Returns a simple "OK" message
+- [x] Implement `getServerTimestamp` GraphQL query and associated Service object:
+  - [x] Returns the current server timestamp (milliseconds since epoch)
+- [x] Test the REST endpoints, `getServerTimestamp` query, and the Service object
+- [x] Document the API endpoints and query
 
 ### Phase 2: Password Service
 
