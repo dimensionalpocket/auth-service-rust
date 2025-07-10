@@ -1,0 +1,16 @@
+# Build artifacts
+target/
+
+# Development files
+.env
+.env.*
+
+# Documentation
+docs/
+README.md
+
+# Git
+.git/
+
+# Data directory (mounted in production)
+data/
