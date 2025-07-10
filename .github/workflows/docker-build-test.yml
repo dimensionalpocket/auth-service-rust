@@ -43,3 +43,29 @@ jobs:
         
     - name: Test image exists
       run: docker images dp-auth-service:test
+      
+    - name: Start container and test API
+      run: |
+        # Start container in background
+        docker run -d --name test-container -p 3000:3000 dp-auth-service:test
+        
+        # Wait for server to start and test health endpoint (max 30 seconds)
+        echo "Waiting for server to start..."
+        for i in {1..30}; do
+          if curl -f http://localhost:3000/health > /dev/null 2>&1; then
+            echo "Server started successfully and health endpoint is responding!"
+            break
+          fi
+          if [ $i -eq 30 ]; then
+            echo "Server failed to start or health endpoint not responding within 30 seconds"
+            docker logs test-container
+            exit 1
+          fi
+          sleep 1
+        done
+        
+    - name: Cleanup container
+      if: always()
+      run: |
+        docker stop test-container || true
+        docker rm test-container || true
