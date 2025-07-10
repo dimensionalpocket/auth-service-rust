@@ -43,7 +43,14 @@ This document outlines the project configuration and roadmap for the Rust-based 
 - [x] Test the REST endpoints, `getServerTimestamp` query, and the Service object
 - [x] Document the API endpoints and query
 
-### Phase 2: Password Service
+### Phase 2: Logging
+
+- [ ] Suggest industry standards for logging endpoints and queries in Rust/GraphQL
+- [ ] Implement logging for existing REST endpoints and GraphQL queries (check Phase 1 for a list of endpoints and queries)
+  - [ ] For REST endpoints, log the request method, path, response status, and response time
+  - [ ] For GraphQL queries, log the query name and response time (no parameters)
+
+### Phase 3: Password Service
 
 - [ ] Implement `PasswordService` for user password management
   - [ ] `generate` method to create a new password hash
@@ -52,7 +59,7 @@ This document outlines the project configuration and roadmap for the Rust-based 
 - [ ] Test the `PasswordService` methods
 - [ ] Document the `PasswordService` methods via Rust doc comments
 
-### Phase 3: Database Configuration
+### Phase 4: Database Configuration
 
 - [ ] Configure `sqlx` to use SQLite database in `data/development.db` (filename to come from environment variable)
   - [ ] Potentially use `dotenv`

@@ -1,13 +1,17 @@
+use tracing::instrument;
+
 /// Handler for the root endpoint "/"
-/// 
+///
 /// Returns a simple "OK" string with 200 status code
+#[instrument]
 pub async fn root_handler() -> &'static str {
   "OK"
 }
 
 /// Handler for the health check endpoint "/health"
-/// 
+///
 /// Returns a simple "OK" string with 200 status code
+#[instrument]
 pub async fn health_handler() -> &'static str {
   "OK"
 }

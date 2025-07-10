@@ -1,19 +1,81 @@
+use crate::graphql::schema::AppSchema;
 use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 use axum::{
   extract::State,
-  response::{Html, IntoResponse, Response},
   http::StatusCode,
+  response::{Html, IntoResponse, Response},
 };
-use crate::graphql::schema::AppSchema;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use std::env;
+use std::time::Instant;
+use tracing::{error, info, instrument};
+
+static WHITESPACE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s+").unwrap());
 
 /// GraphQL POST handler for actual queries
+#[instrument(skip(schema, req))]
 pub async fn graphql_post_handler(
   State(schema): State<AppSchema>,
   req: GraphQLRequest,
 ) -> impl IntoResponse {
-  let response: GraphQLResponse = schema.execute(req.into_inner()).await.into();
-  response
+  let start = Instant::now();
+
+  let request = req.into_inner();
+
+  // Extract operation name from the request
+  let operation_name = request
+    .operation_name
+    .clone()
+    .unwrap_or_else(|| "Anonymous".to_string());
+  let query = if operation_name == "Anonymous" {
+    Some(
+      WHITESPACE_REGEX
+        .replace_all(&request.query, " ")
+        .to_string(),
+    )
+  } else {
+    None
+  };
+
+  let response = schema.execute(request).await;
+  let duration = start.elapsed();
+
+  // Only log non-introspection queries
+  if operation_name != "IntrospectionQuery" {
+    if response.is_ok() {
+      match &query {
+        Some(q) => info!(
+          operation_name = %operation_name,
+          query = %q,
+          duration_ms = duration.as_millis(),
+          "GraphQL Request"
+        ),
+        None => info!(
+          operation_name = %operation_name,
+          duration_ms = duration.as_millis(),
+          "GraphQL Request"
+        ),
+      }
+    } else {
+      match &query {
+        Some(q) => error!(
+          operation_name = %operation_name,
+          query = %q,
+          duration_ms = duration.as_millis(),
+          "GraphQL Request Error"
+        ),
+        None => error!(
+          operation_name = %operation_name,
+          duration_ms = duration.as_millis(),
+          "GraphQL Request Error"
+        ),
+      }
+    }
+  }
+
+  let graphql_response: GraphQLResponse = response.into();
+  graphql_response
 }
 
 /// GraphQL GET handler for playground (development only)
@@ -21,7 +83,11 @@ pub async fn graphql_get_handler() -> Response {
   if env::var("APP_ENV").unwrap_or_default() == "development" {
     Html(playground_html()).into_response()
   } else {
-    (StatusCode::METHOD_NOT_ALLOWED, "Method not allowed - POST only").into_response()
+    (
+      StatusCode::METHOD_NOT_ALLOWED,
+      "Method not allowed - POST only",
+    )
+      .into_response()
   }
 }
 

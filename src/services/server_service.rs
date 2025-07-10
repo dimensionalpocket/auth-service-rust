@@ -5,16 +5,16 @@ pub struct ServerService;
 
 impl ServerService {
   /// Returns the current server timestamp in milliseconds since Unix epoch
-  /// 
+  ///
   /// # Returns
-  /// 
+  ///
   /// Current timestamp as u64 representing milliseconds since epoch
-  /// 
+  ///
   /// # Examples
-  /// 
+  ///
   /// ```
   /// use dp_auth_service::services::ServerService;
-  /// 
+  ///
   /// let timestamp = ServerService::get_server_timestamp();
   /// assert!(timestamp > 0);
   /// ```
