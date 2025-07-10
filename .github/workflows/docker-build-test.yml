@@ -6,11 +6,13 @@ on:
     paths:
       - 'Dockerfile'
       - '.dockerignore'
+      - '.github/workflows/docker-build-test.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'Dockerfile'
       - '.dockerignore'
+      - '.github/workflows/docker-build-test.yml'
   # Allow manual trigger
   workflow_dispatch:
 
