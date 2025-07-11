@@ -93,3 +93,13 @@ This document outlines the project configuration and roadmap for the Rust-based 
     - [x] Assigns default role to the user (custom role will be defined in a later phase)
   - [x] `get_user_by_id` method to retrieve a user by ID
   - [x] `get_user_by_name` method to retrieve a user by name
+
+### Phase 7: `createUser` Mutation
+
+- [ ] Implement `createUser` GraphQL mutation
+  - [ ] Calls `UserService::create_user`
+  - [ ] Returns the created user object
+- [ ] Unit tests for the `createUser` mutation
+  - [ ] Tests should verify that the mutation calls the `UserService::create_user` method with the correct parameters
+- [ ] Integration tests for the `createUser` mutation
+  - [ ] Call the endpoint to create a user

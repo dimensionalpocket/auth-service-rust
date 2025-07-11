@@ -95,3 +95,7 @@ async fn test_graphql_endpoint() {
   assert!(body_str.contains("getServerTimestamp"));
   assert!(body_str.contains("data"));
 }
+
+// Note: createUser mutation integration tests would require database setup
+// which is not currently configured in this integration test file.
+// The mutation tests are covered in the unit tests with proper database setup.
