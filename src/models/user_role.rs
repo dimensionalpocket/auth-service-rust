@@ -1,5 +1,5 @@
-use sqlx::FromRow;
 use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 
 #[derive(Debug, FromRow, Serialize, Deserialize)]
 pub struct UserRole {
@@ -14,9 +14,7 @@ impl UserRole {
   /// Get the permissions for this role, deserializing from JSON
   pub fn permissions(&self) -> Vec<String> {
     match &self.permissions_json {
-      Some(json_str) => {
-        serde_json::from_str(json_str).unwrap_or_else(|_| vec![])
-      },
+      Some(json_str) => serde_json::from_str(json_str).unwrap_or_else(|_| vec![]),
       None => vec![],
     }
   }

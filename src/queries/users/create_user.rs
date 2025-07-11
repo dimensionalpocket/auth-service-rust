@@ -1,6 +1,6 @@
-use sqlx::SqlitePool;
 use crate::models::User;
 use crate::queries::user_roles::GetDefaultUserRoleQuery;
+use sqlx::SqlitePool;
 
 #[derive(Debug)]
 pub struct CreateUserData {
@@ -16,7 +16,7 @@ pub struct CreateUserQuery;
 impl CreateUserQuery {
   pub async fn run(pool: &SqlitePool, data: CreateUserData) -> Result<User, sqlx::Error> {
     let now = chrono::Utc::now().timestamp();
-    
+
     // Determine the role_id to use
     let role_id = match data.role_id {
       Some(id) => id,
@@ -32,12 +32,12 @@ impl CreateUserQuery {
         }
       }
     };
-    
+
     let result = sqlx::query(
       r#"
       INSERT INTO users (uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-      "#
+      "#,
     )
     .bind(&data.uuid)
     .bind(now)
@@ -48,9 +48,9 @@ impl CreateUserQuery {
     .bind(&data.metadata_json)
     .execute(pool)
     .await?;
-    
+
     let user_id = result.last_insert_rowid();
-    
+
     // Return the created user
     sqlx::query_as::<_, User>(
       "SELECT id, uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json FROM users WHERE id = ?"
@@ -70,14 +70,16 @@ mod tests {
   #[tokio::test]
   async fn test_create_user_success() {
     let (pool, _temp_file) = create_test_database().await;
-    
+
     // Insert test role first
-    let role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)")
-      .execute(&pool)
-      .await
-      .unwrap();
+    let role_result = sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
     let role_id = role_result.last_insert_rowid();
-    
+
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {
       uuid: user_uuid.clone(),
@@ -86,9 +88,9 @@ mod tests {
       password_hash: "hashed_password".to_string(),
       metadata_json: Some(r#"{"test": true}"#.to_string()),
     };
-    
+
     let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
-    
+
     assert_eq!(user.uuid, user_uuid);
     assert_eq!(user.name, "Test User");
     assert_eq!(user.role_id, role_id);
@@ -101,14 +103,16 @@ mod tests {
   #[tokio::test]
   async fn test_create_user_duplicate_uuid_fails() {
     let (pool, _temp_file) = create_test_database().await;
-    
+
     // Insert test role first
-    let role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)")
-      .execute(&pool)
-      .await
-      .unwrap();
+    let role_result = sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
     let role_id = role_result.last_insert_rowid();
-    
+
     let user_uuid = Uuid::new_v4().to_string();
     let create_data1 = CreateUserData {
       uuid: user_uuid.clone(),
@@ -117,10 +121,10 @@ mod tests {
       password_hash: "hashed_password1".to_string(),
       metadata_json: None,
     };
-    
+
     // First user should succeed
     CreateUserQuery::run(&pool, create_data1).await.unwrap();
-    
+
     // Second user with same UUID should fail
     let create_data2 = CreateUserData {
       uuid: user_uuid,
@@ -129,7 +133,7 @@ mod tests {
       password_hash: "hashed_password2".to_string(),
       metadata_json: None,
     };
-    
+
     let result = CreateUserQuery::run(&pool, create_data2).await;
     assert!(result.is_err());
   }
@@ -137,7 +141,7 @@ mod tests {
   #[tokio::test]
   async fn test_create_user_invalid_role_id_fails() {
     let (pool, _temp_file) = create_test_database().await;
-    
+
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {
       uuid: user_uuid,
@@ -146,7 +150,7 @@ mod tests {
       password_hash: "hashed_password".to_string(),
       metadata_json: None,
     };
-    
+
     let result = CreateUserQuery::run(&pool, create_data).await;
     assert!(result.is_err()); // Should fail due to foreign key constraint
   }
@@ -154,13 +158,13 @@ mod tests {
   #[tokio::test]
   async fn test_create_user_with_default_role() {
     let (pool, _temp_file) = create_test_database().await;
-    
+
     // Insert test roles with one default
     sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('admin', 1234567890, FALSE), ('user', 1234567891, TRUE)")
       .execute(&pool)
       .await
       .unwrap();
-    
+
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {
       uuid: user_uuid.clone(),
@@ -169,9 +173,9 @@ mod tests {
       password_hash: "hashed_password".to_string(),
       metadata_json: Some(r#"{"test": true}"#.to_string()),
     };
-    
+
     let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
-    
+
     assert_eq!(user.uuid, user_uuid);
     assert_eq!(user.name, "Test User");
     // Should have the default role (user role)
@@ -182,19 +186,23 @@ mod tests {
   #[tokio::test]
   async fn test_create_user_with_explicit_role() {
     let (pool, _temp_file) = create_test_database().await;
-    
+
     // Insert test roles with one default
-    let admin_result = sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('admin', 1234567890, FALSE)")
-      .execute(&pool)
-      .await
-      .unwrap();
+    let admin_result = sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('admin', 1234567890, FALSE)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
     let admin_role_id = admin_result.last_insert_rowid();
-    
-    sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567891, TRUE)")
-      .execute(&pool)
-      .await
-      .unwrap();
-    
+
+    sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567891, TRUE)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {
       uuid: user_uuid.clone(),
@@ -203,9 +211,9 @@ mod tests {
       password_hash: "hashed_password".to_string(),
       metadata_json: None,
     };
-    
+
     let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
-    
+
     assert_eq!(user.uuid, user_uuid);
     assert_eq!(user.name, "Test Admin");
     assert_eq!(user.role_id, admin_role_id); // Should have admin role, not default
@@ -214,13 +222,13 @@ mod tests {
   #[tokio::test]
   async fn test_create_user_no_default_role_fails() {
     let (pool, _temp_file) = create_test_database().await;
-    
+
     // Insert test roles with no default
     sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('admin', 1234567890, FALSE), ('moderator', 1234567891, FALSE)")
       .execute(&pool)
       .await
       .unwrap();
-    
+
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {
       uuid: user_uuid,
@@ -229,7 +237,7 @@ mod tests {
       password_hash: "hashed_password".to_string(),
       metadata_json: None,
     };
-    
+
     let result = CreateUserQuery::run(&pool, create_data).await;
     assert!(result.is_err()); // Should fail because no default role exists
   }

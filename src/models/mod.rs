@@ -1,5 +1,5 @@
-pub mod user_role;
 pub mod user;
+pub mod user_role;
 
-pub use user_role::UserRole;
 pub use user::User;
+pub use user_role::UserRole;

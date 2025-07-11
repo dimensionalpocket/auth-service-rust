@@ -1,5 +1,5 @@
-use sqlx::SqlitePool;
 use crate::models::User;
+use sqlx::SqlitePool;
 
 pub struct GetUserByIdQuery;
 
@@ -23,14 +23,16 @@ mod tests {
   #[tokio::test]
   async fn test_get_user_by_id_found() {
     let (pool, _temp_file) = create_test_database().await;
-    
+
     // Insert test role first
-    let role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)")
-      .execute(&pool)
-      .await
-      .unwrap();
+    let role_result = sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
     let role_id = role_result.last_insert_rowid();
-    
+
     // Insert test user
     let user_uuid = Uuid::new_v4().to_string();
     let user_result = sqlx::query(
@@ -41,10 +43,10 @@ mod tests {
     .execute(&pool)
     .await
     .unwrap();
-    
+
     let user_id = user_result.last_insert_rowid();
     let user = GetUserByIdQuery::run(&pool, user_id).await.unwrap();
-    
+
     assert!(user.is_some());
     let user = user.unwrap();
     assert_eq!(user.id, user_id);
@@ -58,9 +60,9 @@ mod tests {
   #[tokio::test]
   async fn test_get_user_by_id_not_found() {
     let (pool, _temp_file) = create_test_database().await;
-    
+
     let user = GetUserByIdQuery::run(&pool, 999).await.unwrap();
-    
+
     assert!(user.is_none());
   }
 }

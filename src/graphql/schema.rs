@@ -1,5 +1,5 @@
-use crate::graphql::query::Query;
 use crate::graphql::mutation::Mutation;
+use crate::graphql::query::Query;
 use async_graphql::{EmptySubscription, Schema};
 
 /// GraphQL schema type definition for the Dimensional Pocket Auth Service

@@ -1,6 +1,8 @@
 use crate::models::User;
-use crate::queries::users::{CreateUserQuery, CreateUserData, GetUserByIdQuery, GetUserByNameQuery};
-use crate::services::{PasswordService, PasswordError};
+use crate::queries::users::{
+  CreateUserData, CreateUserQuery, GetUserByIdQuery, GetUserByNameQuery,
+};
+use crate::services::{PasswordError, PasswordService};
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
@@ -20,10 +22,12 @@ pub enum UserError {
 impl std::fmt::Display for UserError {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      UserError::UsernameAlreadyExists(username) => write!(f, "Username '{}' is already in use", username),
-      UserError::PasswordHashingFailed(err) => write!(f, "Password hashing failed: {}", err),
-      UserError::DatabaseError(err) => write!(f, "Database error: {}", err),
-      UserError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
+      UserError::UsernameAlreadyExists(username) => {
+        write!(f, "Username '{username}' is already in use")
+      }
+      UserError::PasswordHashingFailed(err) => write!(f, "Password hashing failed: {err}"),
+      UserError::DatabaseError(err) => write!(f, "Database error: {err}"),
+      UserError::ValidationError(msg) => write!(f, "Validation error: {msg}"),
     }
   }
 }
@@ -47,16 +51,16 @@ pub struct UserService;
 
 impl UserService {
   /// Create a new user with validation and default role assignment
-  /// 
+  ///
   /// This method validates the input (username and password), checks for username
   /// uniqueness, hashes the password using PasswordService, and assigns the default
   /// role to the user.
-  /// 
+  ///
   /// # Arguments
   /// * `pool` - Database connection pool
   /// * `username` - The username for the new user (must be unique)
   /// * `password` - The plain text password (will be hashed)
-  /// 
+  ///
   /// # Returns
   /// * `Ok(User)` - Successfully created user
   /// * `Err(UserError)` - Creation failed due to validation, uniqueness, or database error
@@ -68,18 +72,18 @@ impl UserService {
     // Input validation
     Self::validate_username(username)?;
     Self::validate_password(password)?;
-    
+
     // Check if username already exists
     if let Some(_existing_user) = GetUserByNameQuery::run(pool, username).await? {
       return Err(UserError::UsernameAlreadyExists(username.to_string()));
     }
-    
+
     // Hash the password
     let password_hash = PasswordService::generate(password)?;
-    
+
     // Generate UUID for the user
     let user_uuid = Uuid::new_v4().to_string();
-    
+
     // Create user data
     let create_data = CreateUserData {
       uuid: user_uuid,
@@ -88,77 +92,100 @@ impl UserService {
       password_hash,
       metadata_json: None,
     };
-    
+
     // Create the user
     let user = CreateUserQuery::run(pool, create_data).await?;
-    
+
     Ok(user)
   }
-  
+
   /// Retrieve a user by ID
-  /// 
+  ///
   /// # Arguments
   /// * `pool` - Database connection pool
   /// * `user_id` - The ID of the user to retrieve
-  /// 
+  ///
   /// # Returns
   /// * `Ok(Some(User))` - User found
   /// * `Ok(None)` - User not found
   /// * `Err(sqlx::Error)` - Database error occurred
-  pub async fn get_user_by_id(pool: &SqlitePool, user_id: i64) -> Result<Option<User>, sqlx::Error> {
+  pub async fn get_user_by_id(
+    pool: &SqlitePool,
+    user_id: i64,
+  ) -> Result<Option<User>, sqlx::Error> {
     GetUserByIdQuery::run(pool, user_id).await
   }
-  
+
   /// Retrieve a user by name (case-insensitive)
-  /// 
+  ///
   /// # Arguments
   /// * `pool` - Database connection pool
   /// * `name` - The name of the user to retrieve
-  /// 
+  ///
   /// # Returns
   /// * `Ok(Some(User))` - User found
   /// * `Ok(None)` - User not found
   /// * `Err(sqlx::Error)` - Database error occurred
-  pub async fn get_user_by_name(pool: &SqlitePool, name: &str) -> Result<Option<User>, sqlx::Error> {
+  pub async fn get_user_by_name(
+    pool: &SqlitePool,
+    name: &str,
+  ) -> Result<Option<User>, sqlx::Error> {
     GetUserByNameQuery::run(pool, name).await
   }
-  
+
   /// Validate username according to business rules
   fn validate_username(username: &str) -> Result<(), UserError> {
     if username.trim().is_empty() {
-      return Err(UserError::ValidationError("Username cannot be empty".to_string()));
+      return Err(UserError::ValidationError(
+        "Username cannot be empty".to_string(),
+      ));
     }
-    
+
     if username.len() < 3 {
-      return Err(UserError::ValidationError("Username must be at least 3 characters long".to_string()));
+      return Err(UserError::ValidationError(
+        "Username must be at least 3 characters long".to_string(),
+      ));
     }
-    
+
     if username.len() > 20 {
-      return Err(UserError::ValidationError("Username cannot be longer than 20 characters".to_string()));
+      return Err(UserError::ValidationError(
+        "Username cannot be longer than 20 characters".to_string(),
+      ));
     }
-    
+
     // Check for valid characters (alphanumeric, underscore, hyphen)
-    if !username.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
-      return Err(UserError::ValidationError("Username can only contain letters, numbers, underscores, and hyphens".to_string()));
+    if !username
+      .chars()
+      .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+    {
+      return Err(UserError::ValidationError(
+        "Username can only contain letters, numbers, underscores, and hyphens".to_string(),
+      ));
     }
-    
+
     Ok(())
   }
-  
+
   /// Validate password according to business rules
   fn validate_password(password: &str) -> Result<(), UserError> {
     if password.is_empty() {
-      return Err(UserError::ValidationError("Password cannot be empty".to_string()));
+      return Err(UserError::ValidationError(
+        "Password cannot be empty".to_string(),
+      ));
     }
-    
+
     if password.len() < 6 {
-      return Err(UserError::ValidationError("Password must be at least 6 characters long".to_string()));
+      return Err(UserError::ValidationError(
+        "Password must be at least 6 characters long".to_string(),
+      ));
     }
-    
+
     if password.len() > 128 {
-      return Err(UserError::ValidationError("Password cannot be longer than 128 characters".to_string()));
+      return Err(UserError::ValidationError(
+        "Password cannot be longer than 128 characters".to_string(),
+      ));
     }
-    
+
     Ok(())
   }
 }
@@ -171,15 +198,19 @@ mod tests {
   #[tokio::test]
   async fn test_create_user_success() {
     let (pool, _temp_file) = create_test_database().await;
-    
+
     // Insert default role first
-    sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)")
-      .execute(&pool)
+    sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let user = UserService::create_user(&pool, "testuser", "password123")
       .await
       .unwrap();
-    
-    let user = UserService::create_user(&pool, "testuser", "password123").await.unwrap();
-    
+
     assert_eq!(user.name, "testuser");
     assert!(user.id > 0);
     assert!(!user.uuid.is_empty());
@@ -192,19 +223,23 @@ mod tests {
   #[tokio::test]
   async fn test_create_user_username_already_exists() {
     let (pool, _temp_file) = create_test_database().await;
-    
+
     // Insert default role first
-    sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)")
-      .execute(&pool)
+    sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    // Create first user
+    UserService::create_user(&pool, "testuser", "password123")
       .await
       .unwrap();
-    
-    // Create first user
-    UserService::create_user(&pool, "testuser", "password123").await.unwrap();
-    
+
     // Try to create second user with same username
     let result = UserService::create_user(&pool, "testuser", "password456").await;
-    
+
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::UsernameAlreadyExists(username) => assert_eq!(username, "testuser"),
@@ -215,19 +250,23 @@ mod tests {
   #[tokio::test]
   async fn test_create_user_case_insensitive_username_check() {
     let (pool, _temp_file) = create_test_database().await;
-    
+
     // Insert default role first
-    sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)")
-      .execute(&pool)
+    sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    // Create first user with lowercase
+    UserService::create_user(&pool, "testuser", "password123")
       .await
       .unwrap();
-    
-    // Create first user with lowercase
-    UserService::create_user(&pool, "testuser", "password123").await.unwrap();
-    
+
     // Try to create second user with different case
     let result = UserService::create_user(&pool, "TestUser", "password456").await;
-    
+
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::UsernameAlreadyExists(username) => assert_eq!(username, "TestUser"),
@@ -253,14 +292,20 @@ mod tests {
   async fn test_validate_username_too_short() {
     let result = UserService::validate_username("ab");
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("at least 3 characters"));
+    assert!(result
+      .unwrap_err()
+      .to_string()
+      .contains("at least 3 characters"));
   }
 
   #[tokio::test]
   async fn test_validate_username_too_long() {
     let result = UserService::validate_username("a".repeat(21).as_str());
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("longer than 20 characters"));
+    assert!(result
+      .unwrap_err()
+      .to_string()
+      .contains("longer than 20 characters"));
   }
 
   #[tokio::test]
@@ -290,14 +335,20 @@ mod tests {
   async fn test_validate_password_too_short() {
     let result = UserService::validate_password("12345");
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("at least 6 characters"));
+    assert!(result
+      .unwrap_err()
+      .to_string()
+      .contains("at least 6 characters"));
   }
 
   #[tokio::test]
   async fn test_validate_password_too_long() {
     let result = UserService::validate_password(&"a".repeat(129));
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("longer than 128 characters"));
+    assert!(result
+      .unwrap_err()
+      .to_string()
+      .contains("longer than 128 characters"));
   }
 
   #[tokio::test]
@@ -310,19 +361,23 @@ mod tests {
   #[tokio::test]
   async fn test_get_user_by_id_delegates_to_query() {
     let (pool, _temp_file) = create_test_database().await;
-    
+
     // Insert default role first
-    sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)")
-      .execute(&pool)
+    sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    // Create a user first
+    let user = UserService::create_user(&pool, "testuser", "password123")
       .await
       .unwrap();
-    
-    // Create a user first
-    let user = UserService::create_user(&pool, "testuser", "password123").await.unwrap();
-    
+
     // Retrieve by ID
     let retrieved_user = UserService::get_user_by_id(&pool, user.id).await.unwrap();
-    
+
     assert!(retrieved_user.is_some());
     let retrieved_user = retrieved_user.unwrap();
     assert_eq!(retrieved_user.id, user.id);
@@ -332,28 +387,34 @@ mod tests {
   #[tokio::test]
   async fn test_get_user_by_id_not_found() {
     let (pool, _temp_file) = create_test_database().await;
-    
+
     let user = UserService::get_user_by_id(&pool, 999).await.unwrap();
-    
+
     assert!(user.is_none());
   }
 
   #[tokio::test]
   async fn test_get_user_by_name_delegates_to_query() {
     let (pool, _temp_file) = create_test_database().await;
-    
+
     // Insert default role first
-    sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)")
-      .execute(&pool)
+    sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    // Create a user first
+    let user = UserService::create_user(&pool, "testuser", "password123")
       .await
       .unwrap();
-    
-    // Create a user first
-    let user = UserService::create_user(&pool, "testuser", "password123").await.unwrap();
-    
+
     // Retrieve by name
-    let retrieved_user = UserService::get_user_by_name(&pool, "testuser").await.unwrap();
-    
+    let retrieved_user = UserService::get_user_by_name(&pool, "testuser")
+      .await
+      .unwrap();
+
     assert!(retrieved_user.is_some());
     let retrieved_user = retrieved_user.unwrap();
     assert_eq!(retrieved_user.id, user.id);
@@ -363,19 +424,25 @@ mod tests {
   #[tokio::test]
   async fn test_get_user_by_name_case_insensitive() {
     let (pool, _temp_file) = create_test_database().await;
-    
+
     // Insert default role first
-    sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)")
-      .execute(&pool)
+    sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    // Create a user first
+    let user = UserService::create_user(&pool, "TestUser", "password123")
       .await
       .unwrap();
-    
-    // Create a user first
-    let user = UserService::create_user(&pool, "TestUser", "password123").await.unwrap();
-    
+
     // Retrieve by different case
-    let retrieved_user = UserService::get_user_by_name(&pool, "testuser").await.unwrap();
-    
+    let retrieved_user = UserService::get_user_by_name(&pool, "testuser")
+      .await
+      .unwrap();
+
     assert!(retrieved_user.is_some());
     let retrieved_user = retrieved_user.unwrap();
     assert_eq!(retrieved_user.id, user.id);
@@ -385,9 +452,11 @@ mod tests {
   #[tokio::test]
   async fn test_get_user_by_name_not_found() {
     let (pool, _temp_file) = create_test_database().await;
-    
-    let user = UserService::get_user_by_name(&pool, "nonexistent").await.unwrap();
-    
+
+    let user = UserService::get_user_by_name(&pool, "nonexistent")
+      .await
+      .unwrap();
+
     assert!(user.is_none());
   }
 }

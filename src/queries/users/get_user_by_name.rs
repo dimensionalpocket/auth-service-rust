@@ -1,5 +1,5 @@
-use sqlx::SqlitePool;
 use crate::models::User;
+use sqlx::SqlitePool;
 
 pub struct GetUserByNameQuery;
 
@@ -23,14 +23,16 @@ mod tests {
   #[tokio::test]
   async fn test_get_user_by_name_found() {
     let (pool, _temp_file) = create_test_database().await;
-    
+
     // Insert test role first
-    let role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)")
-      .execute(&pool)
-      .await
-      .unwrap();
+    let role_result = sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
     let role_id = role_result.last_insert_rowid();
-    
+
     // Insert test user
     let user_uuid = Uuid::new_v4().to_string();
     sqlx::query(
@@ -41,9 +43,9 @@ mod tests {
     .execute(&pool)
     .await
     .unwrap();
-    
+
     let user = GetUserByNameQuery::run(&pool, "TestUser").await.unwrap();
-    
+
     assert!(user.is_some());
     let user = user.unwrap();
     assert_eq!(user.uuid, user_uuid);
@@ -56,14 +58,16 @@ mod tests {
   #[tokio::test]
   async fn test_get_user_by_name_case_insensitive() {
     let (pool, _temp_file) = create_test_database().await;
-    
+
     // Insert test role first
-    let role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)")
-      .execute(&pool)
-      .await
-      .unwrap();
+    let role_result = sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
     let role_id = role_result.last_insert_rowid();
-    
+
     // Insert test user with mixed case
     let user_uuid = Uuid::new_v4().to_string();
     sqlx::query(
@@ -74,16 +78,16 @@ mod tests {
     .execute(&pool)
     .await
     .unwrap();
-    
+
     // Should find user regardless of case
     let user_lower = GetUserByNameQuery::run(&pool, "testuser").await.unwrap();
     let user_upper = GetUserByNameQuery::run(&pool, "TESTUSER").await.unwrap();
     let user_mixed = GetUserByNameQuery::run(&pool, "tEsTuSeR").await.unwrap();
-    
+
     assert!(user_lower.is_some());
     assert!(user_upper.is_some());
     assert!(user_mixed.is_some());
-    
+
     assert_eq!(user_lower.unwrap().name, "TestUser");
     assert_eq!(user_upper.unwrap().name, "TestUser");
     assert_eq!(user_mixed.unwrap().name, "TestUser");
@@ -92,9 +96,11 @@ mod tests {
   #[tokio::test]
   async fn test_get_user_by_name_not_found() {
     let (pool, _temp_file) = create_test_database().await;
-    
-    let user = GetUserByNameQuery::run(&pool, "NonExistentUser").await.unwrap();
-    
+
+    let user = GetUserByNameQuery::run(&pool, "NonExistentUser")
+      .await
+      .unwrap();
+
     assert!(user.is_none());
   }
 }

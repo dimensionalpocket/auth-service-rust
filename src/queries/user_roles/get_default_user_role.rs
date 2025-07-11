@@ -1,5 +1,5 @@
-use sqlx::SqlitePool;
 use crate::models::UserRole;
+use sqlx::SqlitePool;
 
 pub struct GetDefaultUserRoleQuery;
 
@@ -21,42 +21,42 @@ mod tests {
   #[tokio::test]
   async fn test_get_default_user_role_found() {
     let (pool, _temp_file) = create_test_database().await;
-    
+
     // Insert test roles with one default
     sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('admin', 1234567890, FALSE), ('user', 1234567891, TRUE)")
       .execute(&pool)
       .await
       .unwrap();
-    
+
     let role = GetDefaultUserRoleQuery::run(&pool).await.unwrap();
-    
+
     assert!(role.is_some());
     let role = role.unwrap();
     assert_eq!(role.name, "user");
-    assert_eq!(role.is_default, true);
+    assert!(role.is_default);
   }
 
   #[tokio::test]
   async fn test_get_default_user_role_not_found() {
     let (pool, _temp_file) = create_test_database().await;
-    
+
     // Insert test roles with no default
     sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('admin', 1234567890, FALSE), ('moderator', 1234567891, FALSE)")
       .execute(&pool)
       .await
       .unwrap();
-    
+
     let role = GetDefaultUserRoleQuery::run(&pool).await.unwrap();
-    
+
     assert!(role.is_none());
   }
 
   #[tokio::test]
   async fn test_get_default_user_role_empty_table() {
     let (pool, _temp_file) = create_test_database().await;
-    
+
     let role = GetDefaultUserRoleQuery::run(&pool).await.unwrap();
-    
+
     assert!(role.is_none());
   }
 }
