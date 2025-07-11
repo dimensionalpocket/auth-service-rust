@@ -90,16 +90,45 @@ This document outlines the project configuration and roadmap for the Rust-based 
   - [x] `create_user` method to create a new user
     - [x] Validates input (username and password) and checks for username already in use
     - [x] Uses `PasswordService` to hash the password
-    - [x] Assigns default role to the user (custom role will be defined in a later phase)
+    - [x] Assigns default role to the user
   - [x] `get_user_by_id` method to retrieve a user by ID
   - [x] `get_user_by_name` method to retrieve a user by name
 
 ### Phase 7: `createUser` Mutation
 
-- [ ] Implement `createUser` GraphQL mutation
-  - [ ] Calls `UserService::create_user`
-  - [ ] Returns the created user object
-- [ ] Unit tests for the `createUser` mutation
-  - [ ] Tests should verify that the mutation calls the `UserService::create_user` method with the correct parameters
-- [ ] Integration tests for the `createUser` mutation
-  - [ ] Call the endpoint to create a user
+- [x] Implement `createUser` GraphQL mutation
+  - [x] Calls `UserService::create_user`
+  - [x] Returns the created user object
+- [x] Unit tests for the `createUser` mutation
+  - [x] Tests should verify that the mutation calls the `UserService::create_user` method with the correct parameters
+- [x] Integration tests for the `createUser` mutation
+  - [x] Call the endpoint to create a user
+
+### Phase 8: Session Service - Token Management
+
+- [ ] Implement `SessionService` for managing session tokens
+  - [ ] We're using a custom encrypted token format, not JWT
+    - Why not JWT? Because we don't want to expose the payload structure to consumers
+    - Consumers will call a future `getCurrentSession` query to retrieve the session payload with the token in the request (header or cookie)
+  - [ ] Define the payload structure for the session token - JSON-serializable
+    - Fields: `sub` (subject - user id), `iat` (issued at timestamp), `exp` (expiration timestamp)
+  - [ ] Requires a secret key for signing tokens, stored in an environment variable (`DP_AUTH_SECRET_KEY`)
+    - Determine how the service will act if the secret key is not set
+  - [ ] `encode_token` method to create a session token from a payload
+  - [ ] `decode_token` method to decode a session token and retrieve the payload
+- [ ] Test the `SessionService` methods
+- [ ] Document the `SessionService` methods via Rust doc comments
+
+### Phase 9: Session Middleware
+
+- [ ] Implement middleware for session token management, to be used in the GraphQL API only (all queries and mutations)
+- [ ] Middleware should:
+  - [ ] Check for the session token in the request header or cookie
+  - [ ] Decode the token using `SessionService::decode_token`
+  - [ ] If valid, attach the session token payload to the request context
+  - [ ] If invalid or missing, don't attach the payload and allow the request to proceed without it (each resolver will handle the absence of the payload)
+- [ ] Allow resolvers to have access to the session token payload via the request context
+  - Resolvers can then propagate the session token payload to the Service objects on a case-by-case basis
+- [ ] Unit tests to ensure the middleware is attaching the session token payload when valid
+  - Integration tests will be implemented in a later phase, by resolvers that actually use the session token payload
+
