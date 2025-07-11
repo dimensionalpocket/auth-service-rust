@@ -74,3 +74,21 @@ This document outlines the project configuration and roadmap for the Rust-based 
 - [x] Create integration tests demonstrating complete user creation flow
 - [x] Implement seeds system with default user roles
 
+### Phase 5: User Roles and Permissions
+
+- [x] Suggest industry standards for user roles and permissions in Rust/GraphQL
+- [x] Permissions are granular (e.g., `can_create_user`, `can_delete_user`, etc.) and can be assigned to roles
+- [x] Update the database schema to store permissions for roles (details to be defined)
+- [x] Implement `UserRoleService` for managing user roles and checking permissions
+  - [x] `get_role_by_id` method to retrieve a role by ID
+  - [x] `get_role_by_name` method to retrieve a role by name
+  - [x] `check_permission` method to check if a user has a specific permission
+
+### Phase 6: User Service - User Creation and Retrieval
+
+- [ ] Implement `UserService` for user management
+  - [ ] `create_user` method to create a new user
+    - [ ] Validates input and checks for existing users
+    - [ ] Uses `PasswordService` to hash the password
+  - [ ] `get_user_by_id` method to retrieve a user by ID
+  - [ ] `get_user_by_name` method to retrieve a user by name

@@ -6,7 +6,7 @@ pub struct GetAllRolesQuery;
 impl GetAllRolesQuery {
   pub async fn run(pool: &SqlitePool) -> Result<Vec<UserRole>, sqlx::Error> {
     sqlx::query_as::<_, UserRole>(
-      "SELECT id, name, created_ts, is_default FROM user_roles ORDER BY name"
+      "SELECT id, name, created_ts, is_default, permissions_json FROM user_roles ORDER BY name"
     )
     .fetch_all(pool)
     .await

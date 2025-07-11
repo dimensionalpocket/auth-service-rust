@@ -6,7 +6,7 @@ pub struct GetDefaultUserRoleQuery;
 impl GetDefaultUserRoleQuery {
   pub async fn run(pool: &SqlitePool) -> Result<Option<UserRole>, sqlx::Error> {
     sqlx::query_as::<_, UserRole>(
-      "SELECT id, name, created_ts, is_default FROM user_roles WHERE is_default = TRUE LIMIT 1"
+      "SELECT id, name, created_ts, is_default, permissions_json FROM user_roles WHERE is_default = TRUE LIMIT 1"
     )
     .fetch_optional(pool)
     .await

@@ -6,7 +6,7 @@ pub struct GetRoleByNameQuery;
 impl GetRoleByNameQuery {
   pub async fn run(pool: &SqlitePool, name: &str) -> Result<Option<UserRole>, sqlx::Error> {
     sqlx::query_as::<_, UserRole>(
-      "SELECT id, name, created_ts, is_default FROM user_roles WHERE name = ?"
+      "SELECT id, name, created_ts, is_default, permissions_json FROM user_roles WHERE name = ?"
     )
     .bind(name)
     .fetch_optional(pool)
