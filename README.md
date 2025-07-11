@@ -86,9 +86,10 @@ This document outlines the project configuration and roadmap for the Rust-based 
 
 ### Phase 6: User Service - User Creation and Retrieval
 
-- [ ] Implement `UserService` for user management
-  - [ ] `create_user` method to create a new user
-    - [ ] Validates input and checks for existing users
-    - [ ] Uses `PasswordService` to hash the password
-  - [ ] `get_user_by_id` method to retrieve a user by ID
-  - [ ] `get_user_by_name` method to retrieve a user by name
+- [x] Implement `UserService` for user management
+  - [x] `create_user` method to create a new user
+    - [x] Validates input (username and password) and checks for username already in use
+    - [x] Uses `PasswordService` to hash the password
+    - [x] Assigns default role to the user (custom role will be defined in a later phase)
+  - [x] `get_user_by_id` method to retrieve a user by ID
+  - [x] `get_user_by_name` method to retrieve a user by name
