@@ -61,12 +61,16 @@ This document outlines the project configuration and roadmap for the Rust-based 
 
 ### Phase 4: Database Configuration
 
-- [ ] Configure `sqlx` to use SQLite database in `data/development.db` (filename to come from environment variable)
-  - [ ] Potentially use `dotenv`
-- [ ] Create database schema with `sqlx` migrations
-  - [ ] Create migration for `users` table
-  - [ ] Schema to be defined as part of this task
-  - [ ] Migrations to be stored in `config/database/migrations`
-- [ ] Run migrations to create the database schema
-- [ ] Verify support for schema dump after running migrations, to be stored in `config/database/schema.sql`
+- [x] Configure `sqlx` to use SQLite database in `data/development.db` (filename to come from environment variable)
+- [x] Create database schema with `sqlx` migrations
+  - [x] Create migration for `user_roles` table
+  - [x] Create migration for `users` table
+  - [x] Schema defined with proper foreign key constraints
+  - [x] Migrations stored in `config/database/migrations`
+- [x] Run migrations to create the database schema
+- [x] Verify support for schema dump after running migrations, to be stored in `config/database/schema.sql`
+- [x] Implement SQL Query objects following project patterns
+- [x] Create comprehensive unit tests for all query objects
+- [x] Create integration tests demonstrating complete user creation flow
+- [x] Implement seeds system with default user roles
 

@@ -1,5 +1,6 @@
 use axum::{middleware, routing::get, Router};
 use dp_auth_service::{
+  database::Database,
   graphql::schema::create_schema,
   handlers::{
     graphql::{graphql_get_handler, graphql_post_handler},
@@ -26,6 +27,10 @@ async fn main() {
   // Load environment variables from .env file
   dotenvy::dotenv().ok();
 
+  // Initialize database connection (migrations run separately via script)
+  let _database = Database::new().await.expect("Failed to connect to database");
+
+  // Create schema with database pool
   let schema = create_schema();
 
   let app = Router::new()
