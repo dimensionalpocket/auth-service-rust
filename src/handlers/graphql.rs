@@ -3,16 +3,48 @@ use crate::middleware::session::SessionContext;
 use async_graphql_axum::GraphQLResponse;
 use axum::{
   extract::{Request, State},
-  http::StatusCode,
+  http::{HeaderMap, StatusCode},
   response::{Html, IntoResponse, Response},
 };
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::env;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tracing::{error, info, instrument};
 
 static WHITESPACE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s+").unwrap());
+
+/// Container for response headers that can be set by GraphQL resolvers
+pub struct ResponseHeaders {
+  pub headers: Arc<Mutex<HeaderMap>>,
+}
+
+/// Set session cookie in response headers
+pub fn set_session_cookie(response_headers: &Arc<Mutex<HeaderMap>>, token: &str) {
+  use crate::middleware::session::SESSION_COOKIE_NAME;
+
+  let cookie_domain =
+    std::env::var("DP_AUTH_COOKIE_DOMAIN").unwrap_or_else(|_| ".api.dp-auth.localhost".to_string()); // Default for development
+
+  let is_insecure = std::env::var("DP_AUTH_INSECURE_COOKIE").is_ok();
+  let secure_flag = if is_insecure { "" } else { "; Secure" };
+
+  let cookie_value = format!(
+    "{}={}; Domain={}; Path=/; HttpOnly; SameSite=Strict{}; Max-Age={}",
+    SESSION_COOKIE_NAME,
+    token,
+    cookie_domain,
+    secure_flag,
+    3 * 24 * 60 * 60 // 3 days in seconds
+  );
+
+  if let Ok(mut headers) = response_headers.lock() {
+    if let Ok(header_value) = cookie_value.parse() {
+      headers.insert("set-cookie", header_value);
+    }
+  }
+}
 
 /// GraphQL POST handler for actual queries
 #[instrument(skip(schema, http_req))]
@@ -29,15 +61,21 @@ pub async fn graphql_post_handler(
     .cloned()
     .unwrap_or_else(|| SessionContext::new(None));
 
+  // Create response headers container for resolvers to use
+  let response_headers = ResponseHeaders {
+    headers: Arc::new(Mutex::new(HeaderMap::new())),
+  };
+
   // Parse GraphQL request from HTTP request
   let graphql_request = match parse_graphql_request(http_req).await {
     Ok(req) => req,
     Err(response) => return response,
   };
 
-  // Add session context to GraphQL request data
+  // Add session context and response headers to GraphQL request data
   let mut request = graphql_request;
   request = request.data(session_context);
+  request = request.data(response_headers.headers.clone());
 
   // Extract operation name from the request
   let operation_name = request
@@ -90,8 +128,21 @@ pub async fn graphql_post_handler(
     }
   }
 
-  let graphql_response: GraphQLResponse = response.into();
-  graphql_response.into_response()
+  // Convert GraphQL response and apply any headers set by resolvers
+  let mut http_response = {
+    let graphql_response: GraphQLResponse = response.into();
+    graphql_response.into_response()
+  };
+
+  // Apply any headers that were set by resolvers
+  if let Ok(resolver_headers) = response_headers.headers.lock() {
+    let response_headers_mut = http_response.headers_mut();
+    for (name, value) in resolver_headers.iter() {
+      response_headers_mut.insert(name, value.clone());
+    }
+  }
+
+  http_response
 }
 
 /// Parse GraphQL request from HTTP request

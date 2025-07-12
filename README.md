@@ -152,14 +152,14 @@ This document outlines the project configuration and roadmap for the Rust-based 
 
 ### Phase 11: `createSession` Mutation (sign-in)
 
-- [ ] Implement `createSession` GraphQL mutation
-  - [ ] Accepts username and password as input
-  - [ ] Calls `SessionService::create_session`
-    - [ ] On success, returns the session token and sets the cookie with the token in the response
-    - [ ] On failure, returns a user-friendly error message (not the internal error message), e.g., "Invalid credentials" for any username or password error, or "Internal server error" for unexpected errors
-  - [ ] Make a decision if errors should return 2XX or 4XX status codes, as it impacts the client-side error handling
-- [ ] Unit tests for the `createSession` mutation, ensuring it calls the `SessionService::create_session` method with the correct parameters
-- [ ] Integration tests for the `createSession` mutation, ensuring it returns a session token and sets the cookie in the response
+- [x] Implement `createSession` GraphQL mutation
+  - [x] Accepts username and password as input
+  - [x] Calls `SessionService::create_session`
+    - [x] On success, returns the session token and sets the cookie with the token in the response
+    - [x] On failure, returns a user-friendly error message (not the internal error message), e.g., "Invalid credentials" for any username or password error, or "Internal server error" for unexpected errors
+  - [x] Make a decision if errors should return 2XX or 4XX status codes, as it impacts the client-side error handling (decision: 2XX)
+- [x] Unit tests for the `createSession` mutation, ensuring it calls the `SessionService::create_session` method with the correct parameters
+- [x] Integration tests for the `createSession` mutation, ensuring it returns a session token and sets the cookie in the response
 
 ### Phase 12: `getCurrentSession` Query
 

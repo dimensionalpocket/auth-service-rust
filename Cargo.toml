@@ -28,6 +28,10 @@ tempfile = "3.0"
 aes-gcm = "0.10"
 base64 = "0.22"
 
+[features]
+default = ["test-utils"]
+test-utils = []
+
 [dev-dependencies]
 tower-test = "0.4"
 tracing-test = "0.2"

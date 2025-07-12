@@ -1,4 +1,4 @@
-use crate::graphql::mutations::CreateUserMutation;
+use crate::graphql::mutations::{CreateSessionMutation, CreateUserMutation};
 use async_graphql::MergedObject;
 
 /// Root mutation object for the Dimensional Pocket Auth Service GraphQL API.
@@ -8,14 +8,15 @@ use async_graphql::MergedObject;
 ///
 /// Available mutations:
 /// - createUser: Create a new user account
+/// - createSession: Authenticate user and create session (sign-in)
 ///
 /// Future mutations will be added here as the service expands to include
 /// user management, authentication, and other auth-related operations.
 #[derive(MergedObject, Default)]
-pub struct Mutation(CreateUserMutation);
+pub struct Mutation(CreateUserMutation, CreateSessionMutation);
 
 impl Mutation {
   pub fn new() -> Self {
-    Self(CreateUserMutation)
+    Self(CreateUserMutation, CreateSessionMutation)
   }
 }
