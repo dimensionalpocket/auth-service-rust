@@ -4,7 +4,7 @@ use dp_auth_service::{
   graphql::schema::create_schema,
   handlers::{
     graphql::{graphql_get_handler, graphql_post_handler},
-    rest::{health_handler, root_handler},
+    rest::{health_handler, not_found_handler, root_handler},
   },
   middleware::{
     logging::rest_logging_middleware, request_id::request_id_middleware,
@@ -48,6 +48,7 @@ async fn main() {
         .post(graphql_post_handler)
         .layer(middleware::from_fn(session_middleware)), // Session middleware only for GraphQL
     )
+    .fallback(not_found_handler)
     .layer(
       ServiceBuilder::new()
         .layer(middleware::from_fn(request_id_middleware))

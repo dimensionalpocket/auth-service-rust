@@ -8,7 +8,7 @@ use dp_auth_service::{
   graphql::schema::create_schema,
   handlers::{
     graphql::{graphql_get_handler, graphql_post_handler},
-    rest::{health_handler, root_handler},
+    rest::{health_handler, not_found_handler, root_handler},
   },
   middleware::session::session_middleware,
   services::UserService,
@@ -28,6 +28,7 @@ fn create_app() -> Router {
       "/graphql",
       axum::routing::get(graphql_get_handler).post(graphql_post_handler),
     )
+    .fallback(not_found_handler)
     .layer(CorsLayer::permissive())
     .with_state(schema)
 }
@@ -442,4 +443,66 @@ async fn test_get_current_session_integration_invalid_token() {
 
   assert!(data["errors"].is_null());
   assert!(data["data"]["getCurrentSession"].is_null());
+}
+
+#[tokio::test]
+async fn test_404_handler_returns_not_found() {
+  let app = create_app();
+
+  let request = Request::builder()
+    .uri("/nonexistent")
+    .body(Body::empty())
+    .unwrap();
+
+  let response = app.oneshot(request).await.unwrap();
+
+  assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+  let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+    .await
+    .unwrap();
+  let body_str = String::from_utf8(body.to_vec()).unwrap();
+  assert_eq!(body_str, "NOT FOUND");
+}
+
+#[tokio::test]
+async fn test_404_handler_with_query_string() {
+  let app = create_app();
+
+  let request = Request::builder()
+    .uri("/nonexistent?param=value")
+    .body(Body::empty())
+    .unwrap();
+
+  let response = app.oneshot(request).await.unwrap();
+
+  assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+  let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+    .await
+    .unwrap();
+  let body_str = String::from_utf8(body.to_vec()).unwrap();
+  assert_eq!(body_str, "NOT FOUND");
+}
+
+#[tokio::test]
+async fn test_404_handler_with_post_method() {
+  let app = create_app();
+
+  let request = Request::builder()
+    .method("POST")
+    .uri("/nonexistent")
+    .header("content-type", "application/json")
+    .body(Body::from(r#"{"test": "data"}"#))
+    .unwrap();
+
+  let response = app.oneshot(request).await.unwrap();
+
+  assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+  let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+    .await
+    .unwrap();
+  let body_str = String::from_utf8(body.to_vec()).unwrap();
+  assert_eq!(body_str, "NOT FOUND");
 }
