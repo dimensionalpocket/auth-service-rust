@@ -6,7 +6,7 @@ WORKDIR /app
 # Copy source code and Cargo files
 COPY . .
 
-# Build in release mode
+# Build all binaries in release mode
 RUN cargo build --release
 
 # ---- Final Stage ----
@@ -17,8 +17,9 @@ RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/
 
 WORKDIR /app
 
-# Copy compiled binary from builder
+# Copy both compiled binaries from builder
 COPY --from=builder /app/target/release/dp-auth-service /app/dp-auth-service
+COPY --from=builder /app/target/release/migrate_and_dump /app/migrate_and_dump
 
 # Set default port if not provided
 ENV PORT=3000
