@@ -138,17 +138,17 @@ This document outlines the project configuration and roadmap for the Rust-based 
 
 ### Phase 10: `SessionService::create_session` Method
 
-- [ ] Accepts username and password as input
-- [ ] Calls `UserService::get_user_by_name` to retrieve the user by username
-- [ ] Calls `PasswordService::verify` to check the password against the stored hash
-- [ ] If valid, calls `SessionService::encode_token` to create a session token
-- [ ] Returns the session token, or an error if the credentials are invalid
-  - [ ] Error message should be specific (e.g., "User is blank" or "User not found" or "Password is blank" or "Password does not match", etc)
-  - [ ] Errors should be logged using the existing logging system and must contain the given username (not the password) for debugging
-  - [ ] Errors should be logged at `info` level, not `warn` or `error` -- those errors should not raise alarms in our logs, they're just infomational
-- [ ] Verify existing CORS configuration for 'with_credentials' support
-- [ ] Unit tests for the `create_session` method
-- [ ] Document the `create_session` method via Rust doc comments
+- [x] Accepts username and password as input
+- [x] Calls `UserService::get_user_by_name` to retrieve the user by username
+- [x] Calls `PasswordService::verify` to check the password against the stored hash
+- [x] If valid, calls `SessionService::encode_token` to create a session token
+- [x] Returns the session token, or an error if the credentials are invalid
+  - [x] Error message should be specific (e.g., "User is blank" or "User not found" or "Password is blank" or "Password does not match", etc)
+  - [x] Errors should be logged using the existing logging system and must contain the given username (not the password) for debugging
+  - [x] Errors should be logged at `info` level, not `warn` or `error` -- those errors should not raise alarms in our logs, they're just infomational
+- [x] Verify existing CORS configuration for 'with_credentials' support
+- [x] Unit tests for the `create_session` method
+- [x] Document the `create_session` method via Rust doc comments
 
 ### Phase 11: `createSession` Mutation (sign-in)
 

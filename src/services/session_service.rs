@@ -1,6 +1,8 @@
+use crate::services::{PasswordService, UserService};
 use aes_gcm::{AeadCore, AeadInPlace, Aes256Gcm, Key, KeyInit, Nonce};
 use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
+use sqlx::SqlitePool;
 use std::fmt;
 
 /// Session payload structure containing user session information
@@ -31,6 +33,12 @@ pub enum SessionError {
   InvalidToken(String),
   /// JSON serialization/deserialization error
   JsonError(String),
+  /// Authentication failed - user input validation
+  AuthenticationError(String),
+  /// Database operation failed during authentication
+  DatabaseError(String),
+  /// Password verification failed
+  PasswordVerificationError(String),
 }
 
 impl fmt::Display for SessionError {
@@ -43,6 +51,11 @@ impl fmt::Display for SessionError {
       SessionError::TokenExpired => write!(f, "Token has expired"),
       SessionError::InvalidToken(msg) => write!(f, "Invalid token: {msg}"),
       SessionError::JsonError(msg) => write!(f, "JSON error: {msg}"),
+      SessionError::AuthenticationError(msg) => write!(f, "Authentication error: {msg}"),
+      SessionError::DatabaseError(msg) => write!(f, "Database error: {msg}"),
+      SessionError::PasswordVerificationError(msg) => {
+        write!(f, "Password verification error: {msg}")
+      }
     }
   }
 }
@@ -231,6 +244,120 @@ impl SessionService {
     }
   }
 
+  /// Create a new session by authenticating user credentials
+  ///
+  /// This method validates the provided username and password, retrieves the user
+  /// from the database, verifies the password against the stored hash, and creates
+  /// a new session token if authentication is successful.
+  ///
+  /// # Arguments
+  ///
+  /// * `pool` - Database connection pool for user lookup
+  /// * `username` - The username to authenticate
+  /// * `password` - The plaintext password to verify
+  ///
+  /// # Returns
+  ///
+  /// Returns a session token string on successful authentication, or a `SessionError` on failure.
+  ///
+  /// # Errors
+  ///
+  /// This function will return an error if:
+  /// - Username is blank (`AuthenticationError`)
+  /// - Password is blank (`AuthenticationError`)
+  /// - User not found (`AuthenticationError`)
+  /// - Password does not match (`AuthenticationError`)
+  /// - Database operation fails (`DatabaseError`)
+  /// - Token encoding fails (`EncodingError`)
+  ///
+  /// All authentication errors are logged at info level with the username for debugging.
+  ///
+  /// # Examples
+  ///
+  /// ```rust
+  /// use dp_auth_service::services::SessionService;
+  /// use sqlx::SqlitePool;
+  ///
+  /// # async fn example(pool: &SqlitePool) -> Result<(), Box<dyn std::error::Error>> {
+  /// let token = SessionService::create_session(pool, "john_doe", "secure_password").await?;
+  /// println!("Session token: {}", token);
+  /// # Ok(())
+  /// # }
+  /// ```
+  pub async fn create_session(
+    pool: &SqlitePool,
+    username: &str,
+    password: &str,
+  ) -> Result<String, SessionError> {
+    // Input validation
+    if username.trim().is_empty() {
+      let error_msg = "User is blank";
+      tracing::info!(username = "", error = error_msg, "Authentication failed");
+      return Err(SessionError::AuthenticationError(error_msg.to_string()));
+    }
+
+    if password.is_empty() {
+      let error_msg = "Password is blank";
+      tracing::info!(
+        username = username,
+        error = error_msg,
+        "Authentication failed"
+      );
+      return Err(SessionError::AuthenticationError(error_msg.to_string()));
+    }
+
+    // Retrieve user by username
+    let user = match UserService::get_user_by_name(pool, username).await {
+      Ok(Some(user)) => user,
+      Ok(None) => {
+        let error_msg = "User not found";
+        tracing::info!(
+          username = username,
+          error = error_msg,
+          "Authentication failed"
+        );
+        return Err(SessionError::AuthenticationError(error_msg.to_string()));
+      }
+      Err(db_error) => {
+        let error_msg = format!("Database error during user lookup: {db_error}");
+        tracing::info!(username = username, error = %db_error, "Authentication failed");
+        return Err(SessionError::DatabaseError(error_msg));
+      }
+    };
+
+    // Verify password
+    let password_matches = match PasswordService::verify(password, &user.password_hash) {
+      Ok(matches) => matches,
+      Err(password_error) => {
+        let error_msg = format!("Password verification error: {password_error}");
+        tracing::info!(username = username, error = %password_error, "Authentication failed");
+        return Err(SessionError::PasswordVerificationError(error_msg));
+      }
+    };
+
+    if !password_matches {
+      let error_msg = "Password does not match";
+      tracing::info!(
+        username = username,
+        error = error_msg,
+        "Authentication failed"
+      );
+      return Err(SessionError::AuthenticationError(error_msg.to_string()));
+    }
+
+    // Create session payload and encode token
+    let payload = Self::create_payload(user.id);
+    let token = Self::encode_token(&payload)?;
+
+    tracing::info!(
+      username = username,
+      user_id = user.id,
+      "Authentication successful"
+    );
+
+    Ok(token)
+  }
+
   /// Get the secret key from environment variable
   fn get_secret_key() -> Result<Vec<u8>, SessionError> {
     let key_str = std::env::var("DP_AUTH_SECRET_KEY").map_err(|_| SessionError::SecretKeyNotSet)?;
@@ -256,6 +383,8 @@ impl SessionService {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::database::test_utils::create_test_database;
+  use crate::services::UserService;
   use std::env;
 
   fn setup_test_key() {
@@ -383,5 +512,124 @@ mod tests {
     }
 
     assert!(matches!(result, Err(SessionError::DecodingError(_))));
+  }
+
+  async fn setup_default_role(pool: &SqlitePool) {
+    sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
+    )
+    .execute(pool)
+    .await
+    .unwrap();
+  }
+
+  #[tokio::test]
+  async fn test_create_session_success() {
+    setup_test_key();
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create a user
+    setup_default_role(&pool).await;
+    let user = UserService::create_user(&pool, "testuser", "password123")
+      .await
+      .unwrap();
+
+    // Test: Create session
+    let token = SessionService::create_session(&pool, "testuser", "password123")
+      .await
+      .unwrap();
+
+    // Verify: Token can be decoded and contains correct user ID
+    let payload = SessionService::decode_token(&token).unwrap();
+    assert_eq!(payload.sub, user.id);
+  }
+
+  #[tokio::test]
+  async fn test_create_session_blank_username() {
+    setup_test_key();
+    let (pool, _temp_file) = create_test_database().await;
+
+    let result = SessionService::create_session(&pool, "", "password123").await;
+
+    assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
+    assert!(result.unwrap_err().to_string().contains("User is blank"));
+  }
+
+  #[tokio::test]
+  async fn test_create_session_whitespace_username() {
+    setup_test_key();
+    let (pool, _temp_file) = create_test_database().await;
+
+    let result = SessionService::create_session(&pool, "   ", "password123").await;
+
+    assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
+    assert!(result.unwrap_err().to_string().contains("User is blank"));
+  }
+
+  #[tokio::test]
+  async fn test_create_session_blank_password() {
+    setup_test_key();
+    let (pool, _temp_file) = create_test_database().await;
+
+    let result = SessionService::create_session(&pool, "testuser", "").await;
+
+    assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
+    assert!(result
+      .unwrap_err()
+      .to_string()
+      .contains("Password is blank"));
+  }
+
+  #[tokio::test]
+  async fn test_create_session_user_not_found() {
+    setup_test_key();
+    let (pool, _temp_file) = create_test_database().await;
+
+    let result = SessionService::create_session(&pool, "nonexistent", "password123").await;
+
+    assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
+    assert!(result.unwrap_err().to_string().contains("User not found"));
+  }
+
+  #[tokio::test]
+  async fn test_create_session_wrong_password() {
+    setup_test_key();
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create a user
+    setup_default_role(&pool).await;
+    UserService::create_user(&pool, "testuser", "correct_password")
+      .await
+      .unwrap();
+
+    // Test: Try with wrong password
+    let result = SessionService::create_session(&pool, "testuser", "wrong_password").await;
+
+    assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
+    assert!(result
+      .unwrap_err()
+      .to_string()
+      .contains("Password does not match"));
+  }
+
+  #[tokio::test]
+  async fn test_create_session_case_insensitive_username() {
+    setup_test_key();
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create a user with mixed case
+    setup_default_role(&pool).await;
+    let user = UserService::create_user(&pool, "TestUser", "password123")
+      .await
+      .unwrap();
+
+    // Test: Login with different case
+    let token = SessionService::create_session(&pool, "testuser", "password123")
+      .await
+      .unwrap();
+
+    // Verify: Token contains correct user ID
+    let payload = SessionService::decode_token(&token).unwrap();
+    assert_eq!(payload.sub, user.id);
   }
 }
