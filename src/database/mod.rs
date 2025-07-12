@@ -131,10 +131,46 @@ impl Database {
       println!("Running seed: {}", seed_file.display());
 
       // Split by semicolon and execute each statement
-      for statement in sql_content.split(';') {
+      for (index, statement) in sql_content.split(';').enumerate() {
         let statement = statement.trim();
-        if !statement.is_empty() && !statement.starts_with("--") {
-          sqlx::query(statement).execute(&self.pool).await?;
+
+        if statement.is_empty() {
+          continue;
+        }
+
+        // Remove comment lines and extract SQL
+        let sql_lines: Vec<&str> = statement
+          .lines()
+          .filter(|line| !line.trim().is_empty() && !line.trim().starts_with("--"))
+          .collect();
+
+        if sql_lines.is_empty() {
+          continue;
+        }
+
+        let clean_sql = sql_lines.join("\n").trim().to_string();
+
+        match sqlx::query(&clean_sql).execute(&self.pool).await {
+          Ok(result) => {
+            println!(
+              "  ✅ Statement {} executed successfully, rows affected: {}",
+              index + 1,
+              result.rows_affected()
+            );
+          }
+          Err(e) => {
+            eprintln!(
+              "❌ Error executing statement {} in seed file: {}",
+              index + 1,
+              seed_file.display()
+            );
+            eprintln!("Error: {e}");
+            eprintln!("SQL that failed:");
+            eprintln!("--- START SQL ---");
+            eprintln!("{clean_sql}");
+            eprintln!("--- END SQL ---");
+            return Err(Box::new(e));
+          }
         }
       }
     }
