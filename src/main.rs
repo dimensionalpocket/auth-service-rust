@@ -6,7 +6,11 @@ use dp_auth_service::{
     graphql::{graphql_get_handler, graphql_post_handler},
     rest::{health_handler, root_handler},
   },
-  middleware::{logging::rest_logging_middleware, request_id::request_id_middleware},
+  middleware::{
+    logging::rest_logging_middleware, 
+    request_id::request_id_middleware,
+    session::session_middleware,
+  },
   services::shutdown_service::ShutdownService,
 };
 use std::env;
@@ -39,12 +43,10 @@ async fn main() {
   let app = Router::new()
     .route("/", get(root_handler))
     .route("/health", get(health_handler))
-    .route(
-      "/graphql",
-      get(graphql_get_handler).post(graphql_post_handler),
-    )
+    .route("/graphql", get(graphql_get_handler).post(graphql_post_handler))
     .layer(
       ServiceBuilder::new()
+        .layer(middleware::from_fn(session_middleware)) // Session middleware (only processes GraphQL)
         .layer(middleware::from_fn(request_id_middleware))
         .layer(middleware::from_fn(rest_logging_middleware))
         .layer(CorsLayer::permissive()),

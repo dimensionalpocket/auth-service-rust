@@ -123,10 +123,14 @@ This document outlines the project configuration and roadmap for the Rust-based 
 
 - [ ] Implement middleware for session token management, to be used in the GraphQL API only (all queries and mutations)
 - [ ] Middleware should:
-  - [ ] Check for the session token in the request header or cookie
+  - [ ] Check for the session token in the request header or cookie, in that order (if both present, prefer the header)
+    - Do not fallback to cookie if the header token is present but invalid
   - [ ] Decode the token using `SessionService::decode_token`
   - [ ] If valid, attach the decoded session token payload to the request context
   - [ ] If invalid or missing, don't attach the payload and allow the request to proceed without it (each resolver will handle the absence of the payload)
+- [ ] Decisions to make:
+  - [ ] What is the prefix for the auth header, considering it's a custom encrypted token? ("Bearer" or something else?)
+  - [ ] Do we need to know the cookie name? If so, use `DpAuthSession` as the cookie name and store this string in a constant
 - [ ] Allow resolvers to have access to the session token payload via the request context
   - Resolvers can then propagate the session token payload to the Service objects on a case-by-case basis
 - [ ] Unit tests to ensure the middleware is attaching the session token payload when valid
@@ -167,6 +171,7 @@ This document outlines the project configuration and roadmap for the Rust-based 
 ## Future Phases
 
 - Email support
+- Cookie-less session management (using custom headers in response)
 - Password change (when logged in)
 - Password reset (requires email support)
 - Username change

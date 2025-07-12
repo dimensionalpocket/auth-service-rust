@@ -1,7 +1,8 @@
 use crate::graphql::schema::AppSchema;
-use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
+use crate::middleware::session::SessionContext;
+use async_graphql_axum::GraphQLResponse;
 use axum::{
-  extract::State,
+  extract::{Request, State},
   http::StatusCode,
   response::{Html, IntoResponse, Response},
 };
@@ -14,14 +15,29 @@ use tracing::{error, info, instrument};
 static WHITESPACE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s+").unwrap());
 
 /// GraphQL POST handler for actual queries
-#[instrument(skip(schema, req))]
+#[instrument(skip(schema, http_req))]
 pub async fn graphql_post_handler(
   State(schema): State<AppSchema>,
-  req: GraphQLRequest,
+  http_req: Request,
 ) -> impl IntoResponse {
   let start = Instant::now();
 
-  let request = req.into_inner();
+  // Extract session context from HTTP request extensions (set by middleware)
+  let session_context = http_req
+    .extensions()
+    .get::<SessionContext>()
+    .cloned()
+    .unwrap_or_else(|| SessionContext::new(None));
+
+  // Parse GraphQL request from HTTP request
+  let graphql_request = match parse_graphql_request(http_req).await {
+    Ok(req) => req,
+    Err(response) => return response,
+  };
+
+  // Add session context to GraphQL request data
+  let mut request = graphql_request;
+  request = request.data(session_context);
 
   // Extract operation name from the request
   let operation_name = request
@@ -75,7 +91,56 @@ pub async fn graphql_post_handler(
   }
 
   let graphql_response: GraphQLResponse = response.into();
-  graphql_response
+  graphql_response.into_response()
+}
+
+/// Parse GraphQL request from HTTP request
+async fn parse_graphql_request(req: Request) -> Result<async_graphql::Request, Response> {
+  use axum::body::to_bytes;
+  
+  // Extract headers and body
+  let (parts, body) = req.into_parts();
+  let headers = &parts.headers;
+  
+  // Read the body
+  let body_bytes = match to_bytes(body, usize::MAX).await {
+    Ok(bytes) => bytes,
+    Err(_) => {
+      return Err((StatusCode::BAD_REQUEST, "Failed to read request body").into_response());
+    }
+  };
+  
+  // Parse based on content type
+  let content_type = headers
+    .get("content-type")
+    .and_then(|v| v.to_str().ok())
+    .unwrap_or("");
+  
+  if content_type.contains("application/json") {
+    // Parse JSON GraphQL request
+    match serde_json::from_slice::<serde_json::Value>(&body_bytes) {
+      Ok(json) => {
+        let query = json.get("query").and_then(|v| v.as_str()).unwrap_or("");
+        let operation_name = json.get("operationName").and_then(|v| v.as_str());
+        let variables = json.get("variables").cloned().unwrap_or(serde_json::Value::Null);
+        
+        let mut request = async_graphql::Request::new(query);
+        if let Some(name) = operation_name {
+          request = request.operation_name(name);
+        }
+        if !variables.is_null() {
+          if let Ok(vars) = serde_json::from_value(variables) {
+            request = request.variables(vars);
+          }
+        }
+        
+        Ok(request)
+      }
+      Err(_) => Err((StatusCode::BAD_REQUEST, "Invalid JSON").into_response()),
+    }
+  } else {
+    Err((StatusCode::BAD_REQUEST, "Unsupported content type").into_response())
+  }
 }
 
 /// GraphQL GET handler for playground (development only)
