@@ -11,6 +11,3 @@ README.md
 
 # Git
 .git/
-
-# Data directory (mounted in production)
-data/
