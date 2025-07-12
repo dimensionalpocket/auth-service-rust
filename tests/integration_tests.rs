@@ -295,3 +295,151 @@ async fn test_create_session_mutation_with_missing_user() {
   assert!(body_str.contains("errors"));
   assert!(body_str.contains("Invalid credentials"));
 }
+
+#[tokio::test]
+async fn test_get_current_session_integration_authenticated() {
+  setup_test_environment();
+  let (app, pool, _temp_file) = create_app_with_database().await;
+
+  // Setup: Create a user
+  setup_default_role(&pool).await;
+  UserService::create_user(&pool, "testuser", "password123")
+    .await
+    .unwrap();
+
+  // Create session first
+  let create_session_query = r#"
+    {
+      "query": "mutation { createSession(input: { username: \"testuser\", password: \"password123\" }) { token message } }"
+    }
+  "#;
+
+  let create_session_response = app
+    .clone()
+    .oneshot(
+      Request::builder()
+        .method("POST")
+        .uri("/graphql")
+        .header("content-type", "application/json")
+        .body(Body::from(create_session_query))
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+
+  assert_eq!(create_session_response.status(), StatusCode::OK);
+
+  let create_session_body = axum::body::to_bytes(create_session_response.into_body(), usize::MAX)
+    .await
+    .unwrap();
+  let create_session_str = String::from_utf8(create_session_body.to_vec()).unwrap();
+  let session_data: serde_json::Value = serde_json::from_str(&create_session_str).unwrap();
+  let token = session_data["data"]["createSession"]["token"]
+    .as_str()
+    .unwrap();
+
+  // Test getCurrentSession with token in header
+  let get_session_query = r#"
+    {
+      "query": "{ getCurrentSession { sub iat exp } }"
+    }
+  "#;
+
+  let response = app
+    .oneshot(
+      Request::builder()
+        .method("POST")
+        .uri("/graphql")
+        .header("content-type", "application/json")
+        .header("authorization", format!("Bearer {token}"))
+        .body(Body::from(get_session_query))
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+
+  assert_eq!(response.status(), StatusCode::OK);
+
+  let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+    .await
+    .unwrap();
+  let body_str = String::from_utf8(body.to_vec()).unwrap();
+  let data: serde_json::Value = serde_json::from_str(&body_str).unwrap();
+
+  assert!(data["errors"].is_null());
+  assert!(!data["data"]["getCurrentSession"].is_null());
+  assert!(data["data"]["getCurrentSession"]["sub"].as_i64().unwrap() > 0);
+  assert!(data["data"]["getCurrentSession"]["iat"].as_i64().unwrap() > 0);
+  assert!(data["data"]["getCurrentSession"]["exp"].as_i64().unwrap() > 0);
+}
+
+#[tokio::test]
+async fn test_get_current_session_integration_unauthenticated() {
+  setup_test_environment();
+  let (app, _pool, _temp_file) = create_app_with_database().await;
+
+  let query = r#"
+    {
+      "query": "{ getCurrentSession { sub iat exp } }"
+    }
+  "#;
+
+  let response = app
+    .oneshot(
+      Request::builder()
+        .method("POST")
+        .uri("/graphql")
+        .header("content-type", "application/json")
+        .body(Body::from(query))
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+
+  assert_eq!(response.status(), StatusCode::OK);
+
+  let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+    .await
+    .unwrap();
+  let body_str = String::from_utf8(body.to_vec()).unwrap();
+  let data: serde_json::Value = serde_json::from_str(&body_str).unwrap();
+
+  assert!(data["errors"].is_null());
+  assert!(data["data"]["getCurrentSession"].is_null());
+}
+
+#[tokio::test]
+async fn test_get_current_session_integration_invalid_token() {
+  setup_test_environment();
+  let (app, _pool, _temp_file) = create_app_with_database().await;
+
+  let query = r#"
+    {
+      "query": "{ getCurrentSession { sub iat exp } }"
+    }
+  "#;
+
+  let response = app
+    .oneshot(
+      Request::builder()
+        .method("POST")
+        .uri("/graphql")
+        .header("content-type", "application/json")
+        .header("authorization", "Bearer invalid_token")
+        .body(Body::from(query))
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+
+  assert_eq!(response.status(), StatusCode::OK);
+
+  let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+    .await
+    .unwrap();
+  let body_str = String::from_utf8(body.to_vec()).unwrap();
+  let data: serde_json::Value = serde_json::from_str(&body_str).unwrap();
+
+  assert!(data["errors"].is_null());
+  assert!(data["data"]["getCurrentSession"].is_null());
+}

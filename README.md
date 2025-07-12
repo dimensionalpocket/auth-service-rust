@@ -163,10 +163,10 @@ This document outlines the project configuration and roadmap for the Rust-based 
 
 ### Phase 12: `getCurrentSession` Query
 
-- [ ] Returns the current session token payload, set by the session middleware
-- [ ] Make a decision if the query should return 2XX or 401 status code if the session token is not present or invalid
-- [ ] Unit tests for the `getCurrentSession` query
-- [ ] Integration tests for the `getCurrentSession` query
+- [x] Returns the current session token payload, set by the session middleware
+- [x] Make a decision if the query should return 2XX or 401 status code if the session token is not present or invalid
+- [x] Unit tests for the `getCurrentSession` query
+- [x] Integration tests for the `getCurrentSession` query
 
 ## Future Phases
 
