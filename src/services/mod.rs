@@ -1,5 +1,6 @@
 pub mod password_service;
 pub mod server_service;
+pub mod shutdown_service;
 pub mod user_role_service;
 pub mod user_service;
 

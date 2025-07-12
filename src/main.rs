@@ -7,6 +7,7 @@ use dp_auth_service::{
     rest::{health_handler, root_handler},
   },
   middleware::{logging::rest_logging_middleware, request_id::request_id_middleware},
+  services::shutdown_service::ShutdownService,
 };
 use std::env;
 use tower::ServiceBuilder;
@@ -57,5 +58,17 @@ async fn main() {
   let listener = tokio::net::TcpListener::bind(&bind_address).await.unwrap();
 
   println!("Server running on http://{bind_address}");
-  axum::serve(listener, app).await.unwrap();
+
+  // Create the server with graceful shutdown
+  let server = axum::serve(listener, app).with_graceful_shutdown(async {
+    let signal_name = ShutdownService::wait_for_shutdown_signal().await;
+    ShutdownService::log_shutdown_start(signal_name);
+    // The actual graceful shutdown is handled by axum's with_graceful_shutdown
+    // This future completes when the signal is received, triggering axum's shutdown
+  });
+
+  // Run the server
+  if let Err(e) = server.await {
+    tracing::error!("Server error: {}", e);
+  }
 }
