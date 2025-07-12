@@ -386,6 +386,10 @@ mod tests {
   use crate::database::test_utils::create_test_database;
   use crate::services::UserService;
   use std::env;
+  use std::sync::Mutex;
+
+  // Mutex to serialize tests that modify environment variables
+  static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
   fn setup_test_key() {
     // Use a proper 32-byte key for testing (generated with openssl rand -base64 32)
@@ -455,6 +459,7 @@ mod tests {
 
   #[test]
   fn test_missing_secret_key() {
+    let _guard = ENV_MUTEX.lock().unwrap();
     let original_key = env::var("DP_AUTH_SECRET_KEY").ok();
     env::remove_var("DP_AUTH_SECRET_KEY");
 
@@ -464,6 +469,8 @@ mod tests {
     // Restore original key if it existed
     if let Some(key) = original_key {
       env::set_var("DP_AUTH_SECRET_KEY", key);
+    } else {
+      env::remove_var("DP_AUTH_SECRET_KEY");
     }
 
     assert!(matches!(result, Err(SessionError::SecretKeyNotSet)));
@@ -471,6 +478,7 @@ mod tests {
 
   #[test]
   fn test_invalid_secret_key() {
+    let _guard = ENV_MUTEX.lock().unwrap();
     let original_key = env::var("DP_AUTH_SECRET_KEY").ok();
 
     // Set a key that's too short
@@ -482,6 +490,8 @@ mod tests {
     // Restore original key if it existed
     if let Some(key) = original_key {
       env::set_var("DP_AUTH_SECRET_KEY", key);
+    } else {
+      env::remove_var("DP_AUTH_SECRET_KEY");
     }
 
     assert!(matches!(result, Err(SessionError::InvalidSecretKey(_))));
@@ -489,6 +499,7 @@ mod tests {
 
   #[test]
   fn test_encode_decode_with_different_keys() {
+    let _guard = ENV_MUTEX.lock().unwrap();
     let original_key = env::var("DP_AUTH_SECRET_KEY").ok();
 
     // Encode with one key (32 bytes)
@@ -509,6 +520,8 @@ mod tests {
     // Restore original key if it existed
     if let Some(key) = original_key {
       env::set_var("DP_AUTH_SECRET_KEY", key);
+    } else {
+      env::remove_var("DP_AUTH_SECRET_KEY");
     }
 
     assert!(matches!(result, Err(SessionError::DecodingError(_))));
