@@ -53,10 +53,14 @@ mod tests {
   fn test_log_shutdown_start_logs_correct_message() {
     // Test that log_shutdown_start logs the expected messages
     ShutdownService::log_shutdown_start("SIGTERM");
-    
+
     // Verify the log messages were written
-    assert!(logs_contain("Starting graceful shutdown due to SIGTERM signal"));
-    assert!(logs_contain("Waiting for existing connections to complete..."));
+    assert!(logs_contain(
+      "Starting graceful shutdown due to SIGTERM signal"
+    ));
+    assert!(logs_contain(
+      "Waiting for existing connections to complete..."
+    ));
   }
 
   #[test]
@@ -64,10 +68,14 @@ mod tests {
   fn test_log_shutdown_start_with_sigint() {
     // Test with SIGINT signal
     ShutdownService::log_shutdown_start("SIGINT");
-    
+
     // Verify the log messages were written
-    assert!(logs_contain("Starting graceful shutdown due to SIGINT signal"));
-    assert!(logs_contain("Waiting for existing connections to complete..."));
+    assert!(logs_contain(
+      "Starting graceful shutdown due to SIGINT signal"
+    ));
+    assert!(logs_contain(
+      "Waiting for existing connections to complete..."
+    ));
   }
 
   #[test]
@@ -75,9 +83,13 @@ mod tests {
   fn test_log_shutdown_start_with_custom_signal() {
     // Test with a custom signal name
     ShutdownService::log_shutdown_start("TEST_SIGNAL");
-    
+
     // Verify the log messages were written
-    assert!(logs_contain("Starting graceful shutdown due to TEST_SIGNAL signal"));
-    assert!(logs_contain("Waiting for existing connections to complete..."));
+    assert!(logs_contain(
+      "Starting graceful shutdown due to TEST_SIGNAL signal"
+    ));
+    assert!(logs_contain(
+      "Waiting for existing connections to complete..."
+    ));
   }
 }
