@@ -106,18 +106,18 @@ This document outlines the project configuration and roadmap for the Rust-based 
 
 ### Phase 8: Session Service - Token Management
 
-- [ ] Implement `SessionService` for managing session tokens
-  - [ ] We're using a custom encrypted token format, not JWT
+- [x] Implement `SessionService` for managing session tokens
+  - [x] We're using a custom encrypted token format, not JWT
     - Why not JWT? Because we don't want to expose the payload structure to consumers
     - Consumers will call a future `getCurrentSession` query to retrieve the session payload with the token in the request (header or cookie)
-  - [ ] Define the payload structure for the session token - JSON-serializable
+  - [x] Define the payload structure for the session token - JSON-serializable
     - Fields: `sub` (subject - user id), `iat` (issued at timestamp), `exp` (expiration timestamp)
-  - [ ] Requires a secret key for signing tokens, stored in an environment variable (`DP_AUTH_SECRET_KEY`)
+  - [x] Requires a secret key for signing tokens, stored in an environment variable (`DP_AUTH_SECRET_KEY`)
     - Determine how the service will act if the secret key is not set
-  - [ ] `encode_token` method to create a session token from a payload
-  - [ ] `decode_token` method to decode a session token and retrieve the payload
-- [ ] Test the `SessionService` methods
-- [ ] Document the `SessionService` methods via Rust doc comments
+  - [x] `encode_token` method to create a session token from a payload
+  - [x] `decode_token` method to decode a session token and retrieve the payload
+- [x] Test the `SessionService` methods
+- [x] Document the `SessionService` methods via Rust doc comments
 
 ### Phase 9: Session Middleware
 
@@ -125,10 +125,50 @@ This document outlines the project configuration and roadmap for the Rust-based 
 - [ ] Middleware should:
   - [ ] Check for the session token in the request header or cookie
   - [ ] Decode the token using `SessionService::decode_token`
-  - [ ] If valid, attach the session token payload to the request context
+  - [ ] If valid, attach the decoded session token payload to the request context
   - [ ] If invalid or missing, don't attach the payload and allow the request to proceed without it (each resolver will handle the absence of the payload)
 - [ ] Allow resolvers to have access to the session token payload via the request context
   - Resolvers can then propagate the session token payload to the Service objects on a case-by-case basis
 - [ ] Unit tests to ensure the middleware is attaching the session token payload when valid
   - Integration tests will be implemented in a later phase, by resolvers that actually use the session token payload
 
+### Phase 10: `SessionService::create_session` Method
+
+- [ ] Accepts username and password as input
+- [ ] Calls `UserService::get_user_by_name` to retrieve the user by username
+- [ ] Calls `PasswordService::verify` to check the password against the stored hash
+- [ ] If valid, calls `SessionService::encode_token` to create a session token
+- [ ] Returns the session token, or an error if the credentials are invalid
+  - [ ] Error message should be specific (e.g., "User is blank" or "User not found" or "Password is blank" or "Password does not match", etc)
+  - [ ] Errors should be logged using the existing logging system and must contain the given username (not the password) for debugging
+  - [ ] Errors should be logged at `info` level, not `warn` or `error` -- those errors should not raise alarms in our logs, they're just infomational
+- [ ] Verify existing CORS configuration for 'with_credentials' support
+- [ ] Unit tests for the `create_session` method
+- [ ] Document the `create_session` method via Rust doc comments
+
+### Phase 11: `createSession` Mutation (sign-in)
+
+- [ ] Implement `createSession` GraphQL mutation
+  - [ ] Accepts username and password as input
+  - [ ] Calls `SessionService::create_session`
+    - [ ] On success, returns the session token and sets the cookie with the token in the response
+    - [ ] On failure, returns a user-friendly error message (not the internal error message), e.g., "Invalid credentials" for any username or password error, or "Internal server error" for unexpected errors
+  - [ ] Make a decision if errors should return 2XX or 4XX status codes, as it impacts the client-side error handling
+- [ ] Unit tests for the `createSession` mutation, ensuring it calls the `SessionService::create_session` method with the correct parameters
+- [ ] Integration tests for the `createSession` mutation, ensuring it returns a session token and sets the cookie in the response
+
+### Phase 12: `getCurrentSession` Query
+
+- [ ] Returns the current session token payload, set by the session middleware
+- [ ] Make a decision if the query should return 2XX or 401 status code if the session token is not present or invalid
+- [ ] Unit tests for the `getCurrentSession` query
+- [ ] Integration tests for the `getCurrentSession` query
+
+## Future Phases
+
+- Email support
+- Password change (when logged in)
+- Password reset (requires email support)
+- Username change
+- User deletion/redaction
+- `user_sessions` table to track user sessions and make tokens revocable
