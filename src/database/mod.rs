@@ -41,21 +41,16 @@ impl Database {
     // Additional performance optimizations (commented out for conservative defaults)
     // Uncomment and adjust these based on your specific performance requirements:
 
-    // Set cache size to 64MB (negative value = KB, positive = pages)
-    // Larger cache improves performance for read-heavy workloads
-    // "PRAGMA cache_size = -65536;",
-
+    // Set cache size to 2MB (negative value = KB, positive = pages)
+    "PRAGMA cache_size = -2000;",
+    // Set page size to 4MB (memory usage considering cache size: 8MB)
+    "PRAGMA page_size = 4096;",
     // Enable memory-mapped I/O for better performance
-    // Uses 256MB of memory-mapped I/O
-    // "PRAGMA mmap_size = 268435456;",
-
-    // Set temp store to memory for temporary tables and indices
-    // Faster than disk-based temporary storage
-    // "PRAGMA temp_store = MEMORY;",
-
-    // Optimize for faster writes at the cost of some durability
-    // Only use in development; consider removing in production
-    // "PRAGMA wal_autocheckpoint = 1000;",
+    // Uses 1MB of memory-mapped I/O
+    "PRAGMA mmap_size = 1048576;",
+    // Set the maximum size of the journal file
+    // This limits the size of the WAL file to 26MB
+    "PRAGMA journal_size_limit = 27103364;",
   ];
 
   /// Configure SQLite settings for optimal performance and data integrity

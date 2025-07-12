@@ -83,11 +83,7 @@ pub async fn graphql_get_handler() -> Response {
   if env::var("APP_ENV").unwrap_or_default() == "development" {
     Html(playground_html()).into_response()
   } else {
-    (
-      StatusCode::METHOD_NOT_ALLOWED,
-      "Method not allowed",
-    )
-      .into_response()
+    (StatusCode::METHOD_NOT_ALLOWED, "Method not allowed").into_response()
   }
 }
 
