@@ -21,6 +21,8 @@ WORKDIR /app
 COPY --from=builder /app/target/release/dp-auth-service /app/dp-auth-service
 COPY --from=builder /app/target/release/migrate_and_dump /app/migrate_and_dump
 
+RUN mkdir -p data
+
 # Set default port if not provided
 ENV PORT=3000
 
