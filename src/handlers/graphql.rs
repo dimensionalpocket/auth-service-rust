@@ -97,11 +97,11 @@ pub async fn graphql_post_handler(
 /// Parse GraphQL request from HTTP request
 async fn parse_graphql_request(req: Request) -> Result<async_graphql::Request, Response> {
   use axum::body::to_bytes;
-  
+
   // Extract headers and body
   let (parts, body) = req.into_parts();
   let headers = &parts.headers;
-  
+
   // Read the body
   let body_bytes = match to_bytes(body, usize::MAX).await {
     Ok(bytes) => bytes,
@@ -109,21 +109,24 @@ async fn parse_graphql_request(req: Request) -> Result<async_graphql::Request, R
       return Err((StatusCode::BAD_REQUEST, "Failed to read request body").into_response());
     }
   };
-  
+
   // Parse based on content type
   let content_type = headers
     .get("content-type")
     .and_then(|v| v.to_str().ok())
     .unwrap_or("");
-  
+
   if content_type.contains("application/json") {
     // Parse JSON GraphQL request
     match serde_json::from_slice::<serde_json::Value>(&body_bytes) {
       Ok(json) => {
         let query = json.get("query").and_then(|v| v.as_str()).unwrap_or("");
         let operation_name = json.get("operationName").and_then(|v| v.as_str());
-        let variables = json.get("variables").cloned().unwrap_or(serde_json::Value::Null);
-        
+        let variables = json
+          .get("variables")
+          .cloned()
+          .unwrap_or(serde_json::Value::Null);
+
         let mut request = async_graphql::Request::new(query);
         if let Some(name) = operation_name {
           request = request.operation_name(name);
@@ -133,7 +136,7 @@ async fn parse_graphql_request(req: Request) -> Result<async_graphql::Request, R
             request = request.variables(vars);
           }
         }
-        
+
         Ok(request)
       }
       Err(_) => Err((StatusCode::BAD_REQUEST, "Invalid JSON").into_response()),

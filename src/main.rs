@@ -7,8 +7,7 @@ use dp_auth_service::{
     rest::{health_handler, root_handler},
   },
   middleware::{
-    logging::rest_logging_middleware, 
-    request_id::request_id_middleware,
+    logging::rest_logging_middleware, request_id::request_id_middleware,
     session::session_middleware,
   },
   services::shutdown_service::ShutdownService,
@@ -43,10 +42,11 @@ async fn main() {
   let app = Router::new()
     .route("/", get(root_handler))
     .route("/health", get(health_handler))
-    .route("/graphql", 
+    .route(
+      "/graphql",
       get(graphql_get_handler)
         .post(graphql_post_handler)
-        .layer(middleware::from_fn(session_middleware)) // Session middleware only for GraphQL
+        .layer(middleware::from_fn(session_middleware)), // Session middleware only for GraphQL
     )
     .layer(
       ServiceBuilder::new()

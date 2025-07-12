@@ -1,6 +1,6 @@
-use axum::{extract::Request, middleware::Next, response::Response};
-use async_graphql::Context;
 use crate::services::{SessionPayload, SessionService};
+use async_graphql::Context;
+use axum::{extract::Request, middleware::Next, response::Response};
 
 /// Session context that gets attached to GraphQL requests
 #[derive(Debug, Clone)]
@@ -12,20 +12,22 @@ impl SessionContext {
   pub fn new(payload: Option<SessionPayload>) -> Self {
     Self { payload }
   }
-  
+
   pub fn authenticated(&self) -> bool {
     self.payload.is_some()
   }
-  
+
   pub fn user_id(&self) -> Option<i64> {
     self.payload.as_ref().map(|p| p.sub)
   }
-  
+
   /// Get session context from GraphQL context
-  /// 
+  ///
   /// This method should always succeed since the session middleware always sets the context.
   /// If the context is missing, it indicates a configuration error and returns an internal server error.
-  pub fn from_context<'a>(ctx: &'a Context<'a>) -> Result<&'a SessionContext, async_graphql::Error> {
+  pub fn from_context<'a>(
+    ctx: &'a Context<'a>,
+  ) -> Result<&'a SessionContext, async_graphql::Error> {
     match ctx.data_opt::<SessionContext>() {
       Some(context) => Ok(context),
       None => {
@@ -39,14 +41,13 @@ impl SessionContext {
 /// Cookie name for session tokens
 pub const SESSION_COOKIE_NAME: &str = "DpAuthSession";
 
-
 /// Session middleware for GraphQL requests
 pub async fn session_middleware(mut request: Request, next: Next) -> Response {
   let session_context = extract_and_validate_session_sync(&request);
-  
+
   // Attach session context to request extensions
   request.extensions_mut().insert(session_context);
-  
+
   next.run(request).await
 }
 
@@ -60,14 +61,14 @@ fn extract_and_validate_session_sync(request: &Request) -> SessionContext {
     // If header token is invalid, don't try cookie
     return SessionContext::new(None);
   }
-  
+
   // Try cookie if no header
   if let Some(token) = extract_token_from_cookie(request) {
     if let Ok(payload) = SessionService::decode_token(&token) {
       return SessionContext::new(Some(payload));
     }
   }
-  
+
   SessionContext::new(None)
 }
 
@@ -85,13 +86,13 @@ fn extract_token_from_header(request: &Request) -> Option<String> {
 /// Extract token from cookie
 fn extract_token_from_cookie(request: &Request) -> Option<String> {
   let cookie_header = request.headers().get("cookie")?.to_str().ok()?;
-  
+
   for cookie in cookie_header.split(';') {
     let cookie = cookie.trim();
-    if let Some(value) = cookie.strip_prefix(&format!("{}=", SESSION_COOKIE_NAME)) {
+    if let Some(value) = cookie.strip_prefix(&format!("{SESSION_COOKIE_NAME}=")) {
       return Some(value.to_string());
     }
   }
-  
+
   None
 }
