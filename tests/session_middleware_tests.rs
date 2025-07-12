@@ -1,6 +1,6 @@
 use dp_auth_service::{
   middleware::session::{session_middleware, SessionContext, SESSION_COOKIE_NAME},
-  services::SessionPayload,
+  services::{SessionPayload, SessionService},
 };
 use axum::{
   body::Body, 
@@ -53,5 +53,202 @@ async fn test_session_context_helper_methods() {
 fn test_session_cookie_name_constant() {
   // Test that the cookie name constant is correct
   assert_eq!(SESSION_COOKIE_NAME, "DpAuthSession");
+}
+
+fn setup_test_key() {
+  // Use a proper 32-byte key for testing (same as in SessionService tests)
+  std::env::set_var(
+    "DP_AUTH_SECRET_KEY",
+    "QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=",
+  );
+}
+
+#[tokio::test]
+async fn test_session_middleware_with_valid_header_token() {
+  setup_test_key();
+  
+  // Create a valid session payload and token
+  let payload = SessionService::create_payload(123);
+  let token = SessionService::encode_token(&payload).unwrap();
+  
+  // Create a test app with session middleware
+  let app = Router::new()
+    .route("/graphql", get(|req: Request| async move {
+      // Check that session context was attached
+      let context = req.extensions().get::<SessionContext>().unwrap();
+      assert!(context.authenticated());
+      assert_eq!(context.user_id(), Some(123));
+      Response::new(Body::empty())
+    }))
+    .layer(middleware::from_fn(session_middleware));
+  
+  // Create request with Authorization header
+  let request = Request::builder()
+    .uri("/graphql")
+    .header("authorization", format!("Bearer {}", token))
+    .body(Body::empty())
+    .unwrap();
+  
+  // Send request through the app
+  let response = app.oneshot(request).await.unwrap();
+  assert_eq!(response.status(), 200);
+}
+
+#[tokio::test]
+async fn test_session_middleware_with_valid_cookie_token() {
+  setup_test_key();
+  
+  // Create a valid session payload and token
+  let payload = SessionService::create_payload(456);
+  let token = SessionService::encode_token(&payload).unwrap();
+  
+  // Create a test app with session middleware
+  let app = Router::new()
+    .route("/graphql", get(|req: Request| async move {
+      // Check that session context was attached
+      let context = req.extensions().get::<SessionContext>().unwrap();
+      assert!(context.authenticated());
+      assert_eq!(context.user_id(), Some(456));
+      Response::new(Body::empty())
+    }))
+    .layer(middleware::from_fn(session_middleware));
+  
+  // Create request with cookie
+  let request = Request::builder()
+    .uri("/graphql")
+    .header("cookie", format!("{}={}", SESSION_COOKIE_NAME, token))
+    .body(Body::empty())
+    .unwrap();
+  
+  // Send request through the app
+  let response = app.oneshot(request).await.unwrap();
+  assert_eq!(response.status(), 200);
+}
+
+#[tokio::test]
+async fn test_session_middleware_prefers_header_over_cookie() {
+  setup_test_key();
+  
+  // Create two different tokens
+  let header_payload = SessionService::create_payload(111);
+  let header_token = SessionService::encode_token(&header_payload).unwrap();
+  
+  let cookie_payload = SessionService::create_payload(222);
+  let cookie_token = SessionService::encode_token(&cookie_payload).unwrap();
+  
+  // Create a test app with session middleware
+  let app = Router::new()
+    .route("/graphql", get(|req: Request| async move {
+      // Should use header token (user_id 111), not cookie token (user_id 222)
+      let context = req.extensions().get::<SessionContext>().unwrap();
+      assert!(context.authenticated());
+      assert_eq!(context.user_id(), Some(111)); // Header token user_id
+      Response::new(Body::empty())
+    }))
+    .layer(middleware::from_fn(session_middleware));
+  
+  // Create request with both header and cookie
+  let request = Request::builder()
+    .uri("/graphql")
+    .header("authorization", format!("Bearer {}", header_token))
+    .header("cookie", format!("{}={}", SESSION_COOKIE_NAME, cookie_token))
+    .body(Body::empty())
+    .unwrap();
+  
+  // Send request through the app
+  let response = app.oneshot(request).await.unwrap();
+  assert_eq!(response.status(), 200);
+}
+
+#[tokio::test]
+async fn test_session_middleware_invalid_header_no_cookie_fallback() {
+  setup_test_key();
+  
+  // Create a valid cookie token
+  let cookie_payload = SessionService::create_payload(333);
+  let cookie_token = SessionService::encode_token(&cookie_payload).unwrap();
+  
+  // Create a test app with session middleware
+  let app = Router::new()
+    .route("/graphql", get(|req: Request| async move {
+      // Should NOT fallback to cookie when header is invalid
+      let context = req.extensions().get::<SessionContext>().unwrap();
+      assert!(!context.authenticated());
+      assert_eq!(context.user_id(), None);
+      Response::new(Body::empty())
+    }))
+    .layer(middleware::from_fn(session_middleware));
+  
+  // Create request with invalid header and valid cookie
+  let request = Request::builder()
+    .uri("/graphql")
+    .header("authorization", "Bearer invalid-token")
+    .header("cookie", format!("{}={}", SESSION_COOKIE_NAME, cookie_token))
+    .body(Body::empty())
+    .unwrap();
+  
+  // Send request through the app
+  let response = app.oneshot(request).await.unwrap();
+  assert_eq!(response.status(), 200);
+}
+
+#[tokio::test]
+async fn test_session_middleware_no_token() {
+  // Create a test app with session middleware
+  let app = Router::new()
+    .route("/graphql", get(|req: Request| async move {
+      // Should have empty session context
+      let context = req.extensions().get::<SessionContext>().unwrap();
+      assert!(!context.authenticated());
+      assert_eq!(context.user_id(), None);
+      Response::new(Body::empty())
+    }))
+    .layer(middleware::from_fn(session_middleware));
+  
+  // Create request with no authentication
+  let request = Request::builder()
+    .uri("/graphql")
+    .body(Body::empty())
+    .unwrap();
+  
+  // Send request through the app
+  let response = app.oneshot(request).await.unwrap();
+  assert_eq!(response.status(), 200);
+}
+
+#[tokio::test]
+async fn test_session_middleware_expired_token() {
+  setup_test_key();
+  
+  // Create expired payload
+  let current_time = chrono::Utc::now().timestamp();
+  let expired_payload = SessionPayload {
+    sub: 789,
+    iat: current_time - 3600, // 1 hour ago
+    exp: current_time - 1800, // 30 minutes ago (expired)
+  };
+  let expired_token = SessionService::encode_token(&expired_payload).unwrap();
+  
+  // Create a test app with session middleware
+  let app = Router::new()
+    .route("/graphql", get(|req: Request| async move {
+      // Should have empty session context due to expired token
+      let context = req.extensions().get::<SessionContext>().unwrap();
+      assert!(!context.authenticated());
+      assert_eq!(context.user_id(), None);
+      Response::new(Body::empty())
+    }))
+    .layer(middleware::from_fn(session_middleware));
+  
+  // Create request with expired token
+  let request = Request::builder()
+    .uri("/graphql")
+    .header("authorization", format!("Bearer {}", expired_token))
+    .body(Body::empty())
+    .unwrap();
+  
+  // Send request through the app
+  let response = app.oneshot(request).await.unwrap();
+  assert_eq!(response.status(), 200);
 }
 

@@ -22,15 +22,10 @@ impl SessionContext {
   }
   
   /// Get session context from GraphQL context
-  pub fn from_graphql_context<'a>(ctx: &'a Context<'a>) -> Option<&'a SessionContext> {
-    ctx.data_opt::<SessionContext>()
-  }
-  
-  /// Get session context from GraphQL context with error logging
   /// 
-  /// This is the recommended method for resolvers as it logs missing context
-  /// as a server error and returns a user-friendly error message.
-  pub fn from_graphql_context_or_error<'a>(ctx: &'a Context<'a>) -> Result<&'a SessionContext, async_graphql::Error> {
+  /// This method should always succeed since the session middleware always sets the context.
+  /// If the context is missing, it indicates a configuration error and returns an internal server error.
+  pub fn from_context<'a>(ctx: &'a Context<'a>) -> Result<&'a SessionContext, async_graphql::Error> {
     match ctx.data_opt::<SessionContext>() {
       Some(context) => Ok(context),
       None => {
@@ -45,15 +40,12 @@ impl SessionContext {
 pub const SESSION_COOKIE_NAME: &str = "DpAuthSession";
 
 
-/// Session middleware for all requests (only processes GraphQL requests)
+/// Session middleware for GraphQL requests
 pub async fn session_middleware(mut request: Request, next: Next) -> Response {
-  // Only process session tokens for GraphQL requests
-  if request.uri().path() == "/graphql" {
-    let session_context = extract_and_validate_session_sync(&request);
-    
-    // Attach session context to request extensions
-    request.extensions_mut().insert(session_context);
-  }
+  let session_context = extract_and_validate_session_sync(&request);
+  
+  // Attach session context to request extensions
+  request.extensions_mut().insert(session_context);
   
   next.run(request).await
 }

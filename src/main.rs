@@ -43,10 +43,13 @@ async fn main() {
   let app = Router::new()
     .route("/", get(root_handler))
     .route("/health", get(health_handler))
-    .route("/graphql", get(graphql_get_handler).post(graphql_post_handler))
+    .route("/graphql", 
+      get(graphql_get_handler)
+        .post(graphql_post_handler)
+        .layer(middleware::from_fn(session_middleware)) // Session middleware only for GraphQL
+    )
     .layer(
       ServiceBuilder::new()
-        .layer(middleware::from_fn(session_middleware)) // Session middleware (only processes GraphQL)
         .layer(middleware::from_fn(request_id_middleware))
         .layer(middleware::from_fn(rest_logging_middleware))
         .layer(CorsLayer::permissive()),
