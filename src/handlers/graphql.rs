@@ -85,7 +85,7 @@ pub async fn graphql_get_handler() -> Response {
   } else {
     (
       StatusCode::METHOD_NOT_ALLOWED,
-      "Method not allowed - POST only",
+      "Method not allowed",
     )
       .into_response()
   }
