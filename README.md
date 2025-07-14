@@ -170,10 +170,10 @@ This document outlines the project configuration and roadmap for the Rust-based 
 
 ### Phase 13: Handle 404s in the REST API
 
-- [ ] Implement a 404 handler for the REST API
-- [ ] Requests to non-existent endpoints should return a 404 status code with a plain "NOT FOUND" message
-- [ ] Requests should be logged with the request method, path, querystring, and body size (if present); log level should be `info`
-- [ ] Integration tests for the 404 handler
+- [x] Implement a 404 handler for the REST API
+- [x] Requests to non-existent endpoints should return a 404 status code with a plain "NOT FOUND" message
+- [x] Requests should be logged with the request method, path, querystring, and body size (if present); log level should be `info`
+- [x] Integration tests for the 404 handler
 
 ## Future Phases
 

@@ -1,0 +1,10 @@
+# Run with: `artillery run loadtest.yml`
+config:
+  target: "https://auth.api.animus-conquest.com"
+  phases:
+    - duration: 20
+      arrivalRate: 20
+scenarios:
+  - flow:
+      - get:
+          url: "/"
