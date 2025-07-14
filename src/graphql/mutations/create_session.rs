@@ -69,8 +69,7 @@ fn map_session_error_to_user_message(error: &SessionError) -> &'static str {
     SessionError::AuthenticationError(_) => "Invalid credentials",
     SessionError::DatabaseError(_) => "Internal server error",
     SessionError::PasswordVerificationError(_) => "Internal server error",
-    SessionError::EncodingError(_) => "Internal server error",
-    _ => "Internal server error",
+    SessionError::AuthSessionError(_) => "Internal server error",
   }
 }
 
@@ -210,6 +209,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_map_session_error_to_user_message() {
+    use dp_auth_session_service::DpAuthSessionError;
+
     assert_eq!(
       map_session_error_to_user_message(&SessionError::AuthenticationError("test".to_string())),
       "Invalid credentials"
@@ -228,7 +229,9 @@ mod tests {
     );
 
     assert_eq!(
-      map_session_error_to_user_message(&SessionError::EncodingError("test".to_string())),
+      map_session_error_to_user_message(&SessionError::AuthSessionError(
+        DpAuthSessionError::EncodingError("test".to_string())
+      )),
       "Internal server error"
     );
   }

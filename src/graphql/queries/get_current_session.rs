@@ -72,8 +72,8 @@ impl GetCurrentSessionQuery {
 mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::services::SessionPayload as ServiceSessionPayload;
   use async_graphql::*;
+  use dp_auth_session_service::DpAuthSessionPayload as ServiceSessionPayload;
 
   #[tokio::test]
   async fn test_get_current_session_with_authenticated_user() {

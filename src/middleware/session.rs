@@ -1,7 +1,10 @@
-use crate::services::{SessionPayload, SessionService};
+use dp_auth_session_service::DpAuthSessionService;
+
+// Re-export for backward compatibility
 use crate::utils::get_secret_from_env::{get_secret_from_env, SecretError};
 use async_graphql::Context;
 use axum::{extract::Request, middleware::Next, response::Response};
+pub use dp_auth_session_service::DpAuthSessionPayload as SessionPayload;
 use std::sync::OnceLock;
 
 /// Session context that gets attached to GraphQL requests
@@ -82,7 +85,7 @@ fn extract_and_validate_session_sync(request: &Request) -> SessionContext {
 
   // Try header first
   if let Some(token) = extract_token_from_header(request) {
-    if let Ok(payload) = SessionService::decode_token(&token, secret) {
+    if let Ok(payload) = DpAuthSessionService::decode_token(&token, secret) {
       return SessionContext::new(Some(payload));
     }
     // If header token is invalid, don't try cookie
@@ -91,7 +94,7 @@ fn extract_and_validate_session_sync(request: &Request) -> SessionContext {
 
   // Try cookie if no header
   if let Some(token) = extract_token_from_cookie(request) {
-    if let Ok(payload) = SessionService::decode_token(&token, secret) {
+    if let Ok(payload) = DpAuthSessionService::decode_token(&token, secret) {
       return SessionContext::new(Some(payload));
     }
   }

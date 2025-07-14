@@ -27,6 +27,7 @@ chrono = { version = "0.4", features = ["serde"] }
 tempfile = "3.0"
 aes-gcm = "0.10"
 base64 = "0.22"
+dp-auth-session-service = { git = "https://github.com/dimensionalpocket/auth-session-service", tag = "0.1.0" }
 
 [features]
 default = ["test-utils"]

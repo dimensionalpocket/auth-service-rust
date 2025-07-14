@@ -1,10 +1,8 @@
 use axum::{body::Body, extract::Request, middleware, response::Response, routing::get, Router};
-use dp_auth_service::{
-  middleware::session::{
-    init_session_secret, session_middleware, SessionContext, SESSION_COOKIE_NAME,
-  },
-  services::{SessionPayload, SessionService},
+use dp_auth_service::middleware::session::{
+  init_session_secret, session_middleware, SessionContext, SESSION_COOKIE_NAME,
 };
+use dp_auth_session_service::{DpAuthSessionPayload, DpAuthSessionService};
 use std::{env, sync::Once};
 use tower::ServiceExt;
 
@@ -57,7 +55,7 @@ async fn test_session_context_helper_methods() {
   assert!(!empty_context.authenticated());
   assert_eq!(empty_context.user_id(), None);
 
-  let payload = SessionPayload {
+  let payload = DpAuthSessionPayload {
     sub: 123,
     iat: 1000,
     exp: 2000,
@@ -78,8 +76,8 @@ async fn test_session_middleware_with_valid_header_token() {
   setup_test_environment();
 
   // Create a valid session payload and token
-  let payload = SessionService::create_payload(123);
-  let token = SessionService::encode_token(&payload, get_test_secret()).unwrap();
+  let payload = DpAuthSessionService::create_payload(123);
+  let token = DpAuthSessionService::encode_token(&payload, get_test_secret()).unwrap();
 
   // Create a test app with session middleware
   let app = Router::new()
@@ -112,8 +110,8 @@ async fn test_session_middleware_with_valid_cookie_token() {
   setup_test_environment();
 
   // Create a valid session payload and token
-  let payload = SessionService::create_payload(456);
-  let token = SessionService::encode_token(&payload, get_test_secret()).unwrap();
+  let payload = DpAuthSessionService::create_payload(456);
+  let token = DpAuthSessionService::encode_token(&payload, get_test_secret()).unwrap();
 
   // Create a test app with session middleware
   let app = Router::new()
@@ -146,11 +144,13 @@ async fn test_session_middleware_prefers_header_over_cookie() {
   setup_test_environment();
 
   // Create two different tokens
-  let header_payload = SessionService::create_payload(111);
-  let header_token = SessionService::encode_token(&header_payload, get_test_secret()).unwrap();
+  let header_payload = DpAuthSessionService::create_payload(111);
+  let header_token =
+    DpAuthSessionService::encode_token(&header_payload, get_test_secret()).unwrap();
 
-  let cookie_payload = SessionService::create_payload(222);
-  let cookie_token = SessionService::encode_token(&cookie_payload, get_test_secret()).unwrap();
+  let cookie_payload = DpAuthSessionService::create_payload(222);
+  let cookie_token =
+    DpAuthSessionService::encode_token(&cookie_payload, get_test_secret()).unwrap();
 
   // Create a test app with session middleware
   let app = Router::new()
@@ -184,8 +184,9 @@ async fn test_session_middleware_invalid_header_no_cookie_fallback() {
   setup_test_environment();
 
   // Create a valid cookie token
-  let cookie_payload = SessionService::create_payload(333);
-  let cookie_token = SessionService::encode_token(&cookie_payload, get_test_secret()).unwrap();
+  let cookie_payload = DpAuthSessionService::create_payload(333);
+  let cookie_token =
+    DpAuthSessionService::encode_token(&cookie_payload, get_test_secret()).unwrap();
 
   // Create a test app with session middleware
   let app = Router::new()
@@ -247,12 +248,13 @@ async fn test_session_middleware_expired_token() {
 
   // Create expired payload
   let current_time = chrono::Utc::now().timestamp();
-  let expired_payload = SessionPayload {
+  let expired_payload = DpAuthSessionPayload {
     sub: 789,
     iat: current_time - 3600, // 1 hour ago
     exp: current_time - 1800, // 30 minutes ago (expired)
   };
-  let expired_token = SessionService::encode_token(&expired_payload, get_test_secret()).unwrap();
+  let expired_token =
+    DpAuthSessionService::encode_token(&expired_payload, get_test_secret()).unwrap();
 
   // Create a test app with session middleware
   let app = Router::new()

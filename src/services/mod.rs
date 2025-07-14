@@ -7,6 +7,8 @@ pub mod user_service;
 
 pub use password_service::{PasswordError, PasswordService};
 pub use server_service::ServerService;
-pub use session_service::{SessionError, SessionPayload, SessionService};
+pub use session_service::{SessionError, SessionService};
+// Re-export SessionPayload from the new crate for backward compatibility
+pub use dp_auth_session_service::DpAuthSessionPayload as SessionPayload;
 pub use user_role_service::UserRoleService;
 pub use user_service::{UserError, UserService};

@@ -612,6 +612,7 @@ dependencies = [
  "base64",
  "chrono",
  "dotenvy",
+ "dp-auth-session-service",
  "once_cell",
  "rand 0.8.5",
  "regex",
@@ -628,6 +629,19 @@ dependencies = [
  "tracing-subscriber",
  "tracing-test",
  "uuid",
+]
+
+[[package]]
+name = "dp-auth-session-service"
+version = "0.1.0"
+source = "git+https://github.com/dimensionalpocket/auth-session-service?tag=0.1.0#a506049350f0b5a4d3971d4609492094f2c82e76"
+dependencies = [
+ "aes-gcm",
+ "base64",
+ "chrono",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
