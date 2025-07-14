@@ -1,12 +1,37 @@
 use axum::{body::Body, extract::Request, middleware, response::Response, routing::get, Router};
 use dp_auth_service::{
-  middleware::session::{session_middleware, SessionContext, SESSION_COOKIE_NAME},
+  middleware::session::{
+    init_session_secret, session_middleware, SessionContext, SESSION_COOKIE_NAME,
+  },
   services::{SessionPayload, SessionService},
 };
+use std::{env, sync::Once};
 use tower::ServiceExt;
+
+static INIT: Once = Once::new();
+
+fn setup_test_environment() {
+  INIT.call_once(|| {
+    env::set_var(
+      "DP_AUTH_SECRET_KEY",
+      "QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=",
+    );
+    // Initialize session secret - fail test if this fails
+    init_session_secret().expect("Failed to initialize session secret for test");
+  });
+}
+
+// Helper function to get test secret for token creation
+// This should match the secret that gets loaded from the environment variable
+fn get_test_secret() -> &'static [u8] {
+  use dp_auth_service::middleware::session::get_session_secret;
+  get_session_secret()
+}
 
 #[tokio::test]
 async fn test_session_middleware_can_be_applied_to_router() {
+  setup_test_environment();
+
   // Test that the session middleware compiles and can be applied to a router
   let app = Router::new()
     .route("/graphql", get(|| async { Response::new(Body::empty()) }))
@@ -48,21 +73,13 @@ fn test_session_cookie_name_constant() {
   assert_eq!(SESSION_COOKIE_NAME, "DpAuthSession");
 }
 
-fn setup_test_key() {
-  // Use a proper 32-byte key for testing (same as in SessionService tests)
-  std::env::set_var(
-    "DP_AUTH_SECRET_KEY",
-    "QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=",
-  );
-}
-
 #[tokio::test]
 async fn test_session_middleware_with_valid_header_token() {
-  setup_test_key();
+  setup_test_environment();
 
   // Create a valid session payload and token
   let payload = SessionService::create_payload(123);
-  let token = SessionService::encode_token(&payload).unwrap();
+  let token = SessionService::encode_token(&payload, get_test_secret()).unwrap();
 
   // Create a test app with session middleware
   let app = Router::new()
@@ -92,11 +109,11 @@ async fn test_session_middleware_with_valid_header_token() {
 
 #[tokio::test]
 async fn test_session_middleware_with_valid_cookie_token() {
-  setup_test_key();
+  setup_test_environment();
 
   // Create a valid session payload and token
   let payload = SessionService::create_payload(456);
-  let token = SessionService::encode_token(&payload).unwrap();
+  let token = SessionService::encode_token(&payload, get_test_secret()).unwrap();
 
   // Create a test app with session middleware
   let app = Router::new()
@@ -126,14 +143,14 @@ async fn test_session_middleware_with_valid_cookie_token() {
 
 #[tokio::test]
 async fn test_session_middleware_prefers_header_over_cookie() {
-  setup_test_key();
+  setup_test_environment();
 
   // Create two different tokens
   let header_payload = SessionService::create_payload(111);
-  let header_token = SessionService::encode_token(&header_payload).unwrap();
+  let header_token = SessionService::encode_token(&header_payload, get_test_secret()).unwrap();
 
   let cookie_payload = SessionService::create_payload(222);
-  let cookie_token = SessionService::encode_token(&cookie_payload).unwrap();
+  let cookie_token = SessionService::encode_token(&cookie_payload, get_test_secret()).unwrap();
 
   // Create a test app with session middleware
   let app = Router::new()
@@ -164,11 +181,11 @@ async fn test_session_middleware_prefers_header_over_cookie() {
 
 #[tokio::test]
 async fn test_session_middleware_invalid_header_no_cookie_fallback() {
-  setup_test_key();
+  setup_test_environment();
 
   // Create a valid cookie token
   let cookie_payload = SessionService::create_payload(333);
-  let cookie_token = SessionService::encode_token(&cookie_payload).unwrap();
+  let cookie_token = SessionService::encode_token(&cookie_payload, get_test_secret()).unwrap();
 
   // Create a test app with session middleware
   let app = Router::new()
@@ -226,7 +243,7 @@ async fn test_session_middleware_no_token() {
 
 #[tokio::test]
 async fn test_session_middleware_expired_token() {
-  setup_test_key();
+  setup_test_environment();
 
   // Create expired payload
   let current_time = chrono::Utc::now().timestamp();
@@ -235,7 +252,7 @@ async fn test_session_middleware_expired_token() {
     iat: current_time - 3600, // 1 hour ago
     exp: current_time - 1800, // 30 minutes ago (expired)
   };
-  let expired_token = SessionService::encode_token(&expired_payload).unwrap();
+  let expired_token = SessionService::encode_token(&expired_payload, get_test_secret()).unwrap();
 
   // Create a test app with session middleware
   let app = Router::new()

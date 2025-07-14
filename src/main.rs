@@ -7,8 +7,9 @@ use dp_auth_service::{
     rest::{health_handler, not_found_handler, root_handler},
   },
   middleware::{
-    logging::rest_logging_middleware, request_id::request_id_middleware,
-    session::session_middleware,
+    logging::rest_logging_middleware,
+    request_id::request_id_middleware,
+    session::{get_session_secret, init_session_secret, session_middleware},
   },
   services::shutdown_service::ShutdownService,
 };
@@ -30,6 +31,12 @@ async fn main() {
 
   // Load environment variables from .env file
   dotenvy::dotenv().ok();
+
+  // Initialize session secret - crash if this fails
+  init_session_secret().expect("Failed to initialize session secret");
+
+  // Validate that the secret is accessible (additional safety check)
+  let _ = get_session_secret(); // This will panic if secret is not properly initialized
 
   // Initialize database connection (migrations run separately via script)
   let _database = Database::new()

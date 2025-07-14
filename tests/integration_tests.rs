@@ -14,7 +14,7 @@ use dp_auth_service::{
   services::UserService,
 };
 use sqlx::SqlitePool;
-use std::env;
+use std::{env, sync::Once};
 use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
 
@@ -58,14 +58,23 @@ async fn create_app_with_database() -> (Router, SqlitePool, tempfile::NamedTempF
   (app, pool, temp_file)
 }
 
+static INIT: Once = Once::new();
+
 fn setup_test_environment() {
-  // Set up test environment variables
-  env::set_var(
-    "DP_AUTH_SECRET_KEY",
-    "QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=",
-  );
-  env::set_var("DP_AUTH_INSECURE_COOKIE", "true");
-  env::set_var("DP_AUTH_COOKIE_DOMAIN", ".api.dp-auth.localhost");
+  INIT.call_once(|| {
+    // Set up test environment variables
+    env::set_var(
+      "DP_AUTH_SECRET_KEY",
+      "QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=",
+    );
+    env::set_var("DP_AUTH_INSECURE_COOKIE", "true");
+    env::set_var("DP_AUTH_COOKIE_DOMAIN", ".api.dp-auth.localhost");
+
+    // Initialize session secret cache
+    use dp_auth_service::middleware::session::init_session_secret;
+    // Initialize session secret - fail test if this fails
+    init_session_secret().expect("Failed to initialize session secret for test");
+  });
 }
 
 async fn setup_default_role(pool: &SqlitePool) {

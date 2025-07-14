@@ -19,10 +19,6 @@ pub struct SessionPayload {
 /// Custom error type for session operations
 #[derive(Debug)]
 pub enum SessionError {
-  /// Secret key not configured
-  SecretKeyNotSet,
-  /// Invalid secret key format
-  InvalidSecretKey(String),
   /// Token encoding failed
   EncodingError(String),
   /// Token decoding failed
@@ -44,8 +40,6 @@ pub enum SessionError {
 impl fmt::Display for SessionError {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      SessionError::SecretKeyNotSet => write!(f, "Secret key not configured"),
-      SessionError::InvalidSecretKey(msg) => write!(f, "Invalid secret key: {msg}"),
       SessionError::EncodingError(msg) => write!(f, "Token encoding error: {msg}"),
       SessionError::DecodingError(msg) => write!(f, "Token decoding error: {msg}"),
       SessionError::TokenExpired => write!(f, "Token has expired"),
@@ -78,6 +72,7 @@ impl SessionService {
   /// # Arguments
   ///
   /// * `payload` - The session payload containing user ID and timestamps
+  /// * `secret` - The 32-byte secret key for AES-256-GCM encryption
   ///
   /// # Returns
   ///
@@ -86,8 +81,6 @@ impl SessionService {
   /// # Errors
   ///
   /// This function will return an error if:
-  /// - The secret key is not configured (`SecretKeyNotSet`)
-  /// - The secret key format is invalid (`InvalidSecretKey`)
   /// - JSON serialization fails (`JsonError`)
   /// - Encryption fails (`EncodingError`)
   ///
@@ -96,18 +89,15 @@ impl SessionService {
   /// ```rust
   /// use dp_auth_service::services::{SessionService, SessionPayload};
   ///
-  /// // First set the environment variable with a valid 32-byte base64 key
-  /// std::env::set_var("DP_AUTH_SECRET_KEY", "QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=");
-  ///
+  /// // Use a 32-byte secret key
+  /// let secret = &[0u8; 32]; // In practice, use a proper secret
   /// let payload = SessionService::create_payload(123);
-  /// let token = SessionService::encode_token(&payload)?;
+  /// let token = SessionService::encode_token(&payload, secret)?;
   /// println!("Generated token: {}", token);
   /// # Ok::<(), Box<dyn std::error::Error>>(())
   /// ```
-  pub fn encode_token(payload: &SessionPayload) -> Result<String, SessionError> {
-    // Get the secret key from environment
-    let key_bytes = Self::get_secret_key()?;
-    let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
+  pub fn encode_token(payload: &SessionPayload, secret: &[u8]) -> Result<String, SessionError> {
+    let key = Key::<Aes256Gcm>::from_slice(secret);
     let cipher = Aes256Gcm::new(key);
 
     // Serialize payload to JSON
@@ -139,6 +129,7 @@ impl SessionService {
   /// # Arguments
   ///
   /// * `token` - The base64-encoded encrypted token string
+  /// * `secret` - The 32-byte secret key for AES-256-GCM decryption
   ///
   /// # Returns
   ///
@@ -147,8 +138,6 @@ impl SessionService {
   /// # Errors
   ///
   /// This function will return an error if:
-  /// - The secret key is not configured (`SecretKeyNotSet`)
-  /// - The secret key format is invalid (`InvalidSecretKey`)
   /// - The token format is invalid (`InvalidToken`)
   /// - Decryption fails (`DecodingError`)
   /// - JSON deserialization fails (`JsonError`)
@@ -159,24 +148,22 @@ impl SessionService {
   /// ```rust
   /// use dp_auth_service::services::{SessionService, SessionPayload};
   ///
-  /// // First set the environment variable with a valid 32-byte base64 key
-  /// std::env::set_var("DP_AUTH_SECRET_KEY", "QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=");
+  /// // Use a 32-byte secret key
+  /// let secret = &[0u8; 32]; // In practice, use a proper secret
   ///
   /// // Create and encode a token first
   /// let payload = SessionService::create_payload(123);
-  /// let token = SessionService::encode_token(&payload)?;
+  /// let token = SessionService::encode_token(&payload, secret)?;
   ///
   /// // Then decode it
-  /// match SessionService::decode_token(&token) {
+  /// match SessionService::decode_token(&token, secret) {
   ///     Ok(decoded_payload) => println!("User ID: {}", decoded_payload.sub),
   ///     Err(e) => println!("Token validation failed: {}", e),
   /// }
   /// # Ok::<(), Box<dyn std::error::Error>>(())
   /// ```
-  pub fn decode_token(token: &str) -> Result<SessionPayload, SessionError> {
-    // Get the secret key from environment
-    let key_bytes = Self::get_secret_key()?;
-    let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
+  pub fn decode_token(token: &str, secret: &[u8]) -> Result<SessionPayload, SessionError> {
+    let key = Key::<Aes256Gcm>::from_slice(secret);
     let cipher = Aes256Gcm::new(key);
 
     // Base64 decode the token
@@ -255,6 +242,7 @@ impl SessionService {
   /// * `pool` - Database connection pool for user lookup
   /// * `username` - The username to authenticate
   /// * `password` - The plaintext password to verify
+  /// * `secret` - The 32-byte secret key for token encryption
   ///
   /// # Returns
   ///
@@ -279,7 +267,8 @@ impl SessionService {
   /// use sqlx::SqlitePool;
   ///
   /// # async fn example(pool: &SqlitePool) -> Result<(), Box<dyn std::error::Error>> {
-  /// let token = SessionService::create_session(pool, "john_doe", "secure_password").await?;
+  /// let secret = &[0u8; 32]; // In practice, use a proper secret
+  /// let token = SessionService::create_session(pool, "john_doe", "secure_password", secret).await?;
   /// println!("Session token: {}", token);
   /// # Ok(())
   /// # }
@@ -288,6 +277,7 @@ impl SessionService {
     pool: &SqlitePool,
     username: &str,
     password: &str,
+    secret: &[u8],
   ) -> Result<String, SessionError> {
     // Input validation
     if username.trim().is_empty() {
@@ -347,7 +337,7 @@ impl SessionService {
 
     // Create session payload and encode token
     let payload = Self::create_payload(user.id);
-    let token = Self::encode_token(&payload)?;
+    let token = Self::encode_token(&payload, secret)?;
 
     tracing::info!(
       username = username,
@@ -357,27 +347,6 @@ impl SessionService {
 
     Ok(token)
   }
-
-  /// Get the secret key from environment variable
-  fn get_secret_key() -> Result<Vec<u8>, SessionError> {
-    let key_str = std::env::var("DP_AUTH_SECRET_KEY").map_err(|_| SessionError::SecretKeyNotSet)?;
-
-    // Decode base64 key
-    let key_bytes = general_purpose::STANDARD
-      .decode(&key_str)
-      .map_err(|e| SessionError::InvalidSecretKey(format!("Base64 decode error: {e}")))?;
-
-    // Ensure key is at least 32 bytes for AES-256
-    if key_bytes.len() < 32 {
-      return Err(SessionError::InvalidSecretKey(format!(
-        "Key too short: {} bytes, need at least 32",
-        key_bytes.len()
-      )));
-    }
-
-    // Use exactly 32 bytes for AES-256
-    Ok(key_bytes[..32].to_vec())
-  }
 }
 
 #[cfg(test)]
@@ -385,19 +354,12 @@ mod tests {
   use super::*;
   use crate::database::test_utils::create_test_database;
   use crate::services::UserService;
-  use std::env;
-  use std::sync::Mutex;
 
-  // Mutex to serialize tests that modify environment variables
-  static ENV_MUTEX: Mutex<()> = Mutex::new(());
-
-  fn setup_test_key() {
-    // Use a proper 32-byte key for testing (generated with openssl rand -base64 32)
-    env::set_var(
-      "DP_AUTH_SECRET_KEY",
-      "QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=",
-    );
-  }
+  // Test secret - 32 bytes for AES-256 (base64-decoded from QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=)
+  const TEST_SECRET: &[u8] = &[
+    0x42, 0xf4, 0x25, 0xc2, 0x93, 0x2e, 0x8c, 0xaf, 0xaa, 0xcd, 0xd4, 0x5b, 0x50, 0x28, 0xa4, 0x8d,
+    0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74, 0x4d, 0xb8,
+  ];
 
   #[test]
   fn test_create_payload() {
@@ -414,19 +376,15 @@ mod tests {
 
   #[test]
   fn test_encode_decode_roundtrip() {
-    setup_test_key();
-
     let payload = SessionService::create_payload(456);
-    let token = SessionService::encode_token(&payload).unwrap();
-    let decoded_payload = SessionService::decode_token(&token).unwrap();
+    let token = SessionService::encode_token(&payload, TEST_SECRET).unwrap();
+    let decoded_payload = SessionService::decode_token(&token, TEST_SECRET).unwrap();
 
     assert_eq!(payload, decoded_payload);
   }
 
   #[test]
   fn test_decode_expired_token() {
-    setup_test_key();
-
     // Create payload with past expiration
     let expired_payload = SessionPayload {
       sub: 789,
@@ -434,95 +392,37 @@ mod tests {
       exp: chrono::Utc::now().timestamp() - 1800, // 30 minutes ago (expired)
     };
 
-    let token = SessionService::encode_token(&expired_payload).unwrap();
-    let result = SessionService::decode_token(&token);
+    let token = SessionService::encode_token(&expired_payload, TEST_SECRET).unwrap();
+    let result = SessionService::decode_token(&token, TEST_SECRET);
 
     assert!(matches!(result, Err(SessionError::TokenExpired)));
   }
 
   #[test]
   fn test_decode_invalid_token() {
-    setup_test_key();
-
     // Test empty token
-    let result = SessionService::decode_token("");
+    let result = SessionService::decode_token("", TEST_SECRET);
     assert!(matches!(result, Err(SessionError::InvalidToken(_))));
 
     // Test invalid base64
-    let result = SessionService::decode_token("invalid-base64!");
+    let result = SessionService::decode_token("invalid-base64!", TEST_SECRET);
     assert!(matches!(result, Err(SessionError::InvalidToken(_))));
 
     // Test too short token
-    let result = SessionService::decode_token("dGVzdA=="); // "test" in base64 (too short)
+    let result = SessionService::decode_token("dGVzdA==", TEST_SECRET); // "test" in base64 (too short)
     assert!(matches!(result, Err(SessionError::InvalidToken(_))));
   }
 
   #[test]
-  fn test_missing_secret_key() {
-    let _guard = ENV_MUTEX.lock().unwrap();
-    let original_key = env::var("DP_AUTH_SECRET_KEY").ok();
-    env::remove_var("DP_AUTH_SECRET_KEY");
-
+  fn test_encode_decode_with_different_secrets() {
     let payload = SessionService::create_payload(123);
-    let result = SessionService::encode_token(&payload);
 
-    // Restore original key if it existed
-    if let Some(key) = original_key {
-      env::set_var("DP_AUTH_SECRET_KEY", key);
-    } else {
-      env::remove_var("DP_AUTH_SECRET_KEY");
-    }
+    // Encode with one secret
+    let token = SessionService::encode_token(&payload, TEST_SECRET).unwrap();
 
-    assert!(matches!(result, Err(SessionError::SecretKeyNotSet)));
-  }
-
-  #[test]
-  fn test_invalid_secret_key() {
-    let _guard = ENV_MUTEX.lock().unwrap();
-    let original_key = env::var("DP_AUTH_SECRET_KEY").ok();
-
-    // Set a key that's too short
-    env::set_var("DP_AUTH_SECRET_KEY", "c2hvcnQ="); // "short" in base64 (too short)
-
-    let payload = SessionService::create_payload(123);
-    let result = SessionService::encode_token(&payload);
-
-    // Restore original key if it existed
-    if let Some(key) = original_key {
-      env::set_var("DP_AUTH_SECRET_KEY", key);
-    } else {
-      env::remove_var("DP_AUTH_SECRET_KEY");
-    }
-
-    assert!(matches!(result, Err(SessionError::InvalidSecretKey(_))));
-  }
-
-  #[test]
-  fn test_encode_decode_with_different_keys() {
-    let _guard = ENV_MUTEX.lock().unwrap();
-    let original_key = env::var("DP_AUTH_SECRET_KEY").ok();
-
-    // Encode with one key (32 bytes)
-    env::set_var(
-      "DP_AUTH_SECRET_KEY",
-      "QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=",
-    );
-    let payload = SessionService::create_payload(123);
-    let token = SessionService::encode_token(&payload).unwrap();
-
-    // Try to decode with different key (also 32 bytes)
-    env::set_var(
-      "DP_AUTH_SECRET_KEY",
-      "465c4b/KryoNecAbP6TsNqO5L8CYb28bID+MgiK5Y+o=",
-    );
-    let result = SessionService::decode_token(&token);
-
-    // Restore original key if it existed
-    if let Some(key) = original_key {
-      env::set_var("DP_AUTH_SECRET_KEY", key);
-    } else {
-      env::remove_var("DP_AUTH_SECRET_KEY");
-    }
+    // Try to decode with different secret
+    let different_secret = &[0u8; 32]; // All zeros
+    let result = SessionService::decode_token(&token, different_secret);
 
     assert!(matches!(result, Err(SessionError::DecodingError(_))));
   }
@@ -538,7 +438,6 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_session_success() {
-    setup_test_key();
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user
@@ -548,21 +447,20 @@ mod tests {
       .unwrap();
 
     // Test: Create session
-    let token = SessionService::create_session(&pool, "testuser", "password123")
+    let token = SessionService::create_session(&pool, "testuser", "password123", TEST_SECRET)
       .await
       .unwrap();
 
     // Verify: Token can be decoded and contains correct user ID
-    let payload = SessionService::decode_token(&token).unwrap();
+    let payload = SessionService::decode_token(&token, TEST_SECRET).unwrap();
     assert_eq!(payload.sub, user.id);
   }
 
   #[tokio::test]
   async fn test_create_session_blank_username() {
-    setup_test_key();
     let (pool, _temp_file) = create_test_database().await;
 
-    let result = SessionService::create_session(&pool, "", "password123").await;
+    let result = SessionService::create_session(&pool, "", "password123", TEST_SECRET).await;
 
     assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
     assert!(result.unwrap_err().to_string().contains("User is blank"));
@@ -570,10 +468,9 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_session_whitespace_username() {
-    setup_test_key();
     let (pool, _temp_file) = create_test_database().await;
 
-    let result = SessionService::create_session(&pool, "   ", "password123").await;
+    let result = SessionService::create_session(&pool, "   ", "password123", TEST_SECRET).await;
 
     assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
     assert!(result.unwrap_err().to_string().contains("User is blank"));
@@ -581,10 +478,9 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_session_blank_password() {
-    setup_test_key();
     let (pool, _temp_file) = create_test_database().await;
 
-    let result = SessionService::create_session(&pool, "testuser", "").await;
+    let result = SessionService::create_session(&pool, "testuser", "", TEST_SECRET).await;
 
     assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
     assert!(result
@@ -595,10 +491,10 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_session_user_not_found() {
-    setup_test_key();
     let (pool, _temp_file) = create_test_database().await;
 
-    let result = SessionService::create_session(&pool, "nonexistent", "password123").await;
+    let result =
+      SessionService::create_session(&pool, "nonexistent", "password123", TEST_SECRET).await;
 
     assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
     assert!(result.unwrap_err().to_string().contains("User not found"));
@@ -606,7 +502,6 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_session_wrong_password() {
-    setup_test_key();
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user
@@ -616,7 +511,8 @@ mod tests {
       .unwrap();
 
     // Test: Try with wrong password
-    let result = SessionService::create_session(&pool, "testuser", "wrong_password").await;
+    let result =
+      SessionService::create_session(&pool, "testuser", "wrong_password", TEST_SECRET).await;
 
     assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
     assert!(result
@@ -627,7 +523,6 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_session_case_insensitive_username() {
-    setup_test_key();
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user with mixed case
@@ -637,12 +532,12 @@ mod tests {
       .unwrap();
 
     // Test: Login with different case
-    let token = SessionService::create_session(&pool, "testuser", "password123")
+    let token = SessionService::create_session(&pool, "testuser", "password123", TEST_SECRET)
       .await
       .unwrap();
 
     // Verify: Token contains correct user ID
-    let payload = SessionService::decode_token(&token).unwrap();
+    let payload = SessionService::decode_token(&token, TEST_SECRET).unwrap();
     assert_eq!(payload.sub, user.id);
   }
 }

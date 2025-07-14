@@ -49,8 +49,10 @@ jobs:
       
     - name: Start container and test API
       run: |
-        # Start container in background with database migration
-        docker run -d --name test-container -p 3000:3000 dp-auth-service:test sh -c "./migrate_and_dump && ./dp-auth-service"
+        # Start container in background with database migration and secret key
+        docker run -d --name test-container -p 3000:3000 \
+          -e DP_AUTH_SECRET_KEY="QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=" \
+          dp-auth-service:test sh -c "./migrate_and_dump && ./dp-auth-service"
         
         # Wait for server to start and test health endpoint (max 30 seconds)
         echo "Waiting for server to start..."
