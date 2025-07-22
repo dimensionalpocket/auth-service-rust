@@ -1,3 +1,7 @@
 data/
 target/
 .env
+
+# Executables copied to project root for testing
+dp-auth-service
+migrate_and_dump
