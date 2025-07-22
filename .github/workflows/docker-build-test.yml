@@ -7,12 +7,20 @@ on:
       - 'Dockerfile'
       - '.dockerignore'
       - '.github/workflows/docker-build-test.yml'
+      - 'src/**'
+      - 'tests/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
   pull_request:
     branches: [ main ]
     paths:
       - 'Dockerfile'
       - '.dockerignore'
       - '.github/workflows/docker-build-test.yml'
+      - 'src/**'
+      - 'tests/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
   # Allow manual trigger
   workflow_dispatch:
 
