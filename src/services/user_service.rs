@@ -1,7 +1,5 @@
 use crate::models::User;
-use crate::queries::users::{
-  CreateUserData, CreateUserQuery, GetUserByIdQuery, GetUserByNameQuery,
-};
+use crate::queries::users::{CreateUserData, CreateUserQuery, GetUserByNameQuery};
 use crate::services::{PasswordError, PasswordService};
 use sqlx::SqlitePool;
 use uuid::Uuid;
@@ -99,23 +97,6 @@ impl UserService {
     Ok(user)
   }
 
-  /// Retrieve a user by ID
-  ///
-  /// # Arguments
-  /// * `pool` - Database connection pool
-  /// * `user_id` - The ID of the user to retrieve
-  ///
-  /// # Returns
-  /// * `Ok(Some(User))` - User found
-  /// * `Ok(None)` - User not found
-  /// * `Err(sqlx::Error)` - Database error occurred
-  pub async fn get_user_by_id(
-    pool: &SqlitePool,
-    user_id: i64,
-  ) -> Result<Option<User>, sqlx::Error> {
-    GetUserByIdQuery::run(pool, user_id).await
-  }
-
   /// Retrieve a user by name (case-insensitive)
   ///
   /// # Arguments
@@ -194,6 +175,7 @@ impl UserService {
 mod tests {
   use super::*;
   use crate::database::test_utils::create_test_database;
+  use crate::queries::users::GetUserByIdQuery;
 
   #[tokio::test]
   async fn test_create_user_success() {
@@ -359,7 +341,7 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn test_get_user_by_id_delegates_to_query() {
+  async fn test_get_user_by_id_query_works_correctly() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert default role first
@@ -375,8 +357,7 @@ mod tests {
       .await
       .unwrap();
 
-    // Retrieve by ID
-    let retrieved_user = UserService::get_user_by_id(&pool, user.id).await.unwrap();
+    let retrieved_user = GetUserByIdQuery::run(&pool, user.id).await.unwrap();
 
     assert!(retrieved_user.is_some());
     let retrieved_user = retrieved_user.unwrap();
@@ -385,10 +366,10 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn test_get_user_by_id_not_found() {
+  async fn test_get_user_by_id_query_not_found() {
     let (pool, _temp_file) = create_test_database().await;
 
-    let user = UserService::get_user_by_id(&pool, 999).await.unwrap();
+    let user = GetUserByIdQuery::run(&pool, 999).await.unwrap();
 
     assert!(user.is_none());
   }
