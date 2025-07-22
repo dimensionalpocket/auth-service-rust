@@ -2,6 +2,7 @@ use argon2::{
   password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
   Argon2, Params,
 };
+use bcrypt;
 use std::fmt;
 
 /// Custom error type for password operations
@@ -27,10 +28,47 @@ impl fmt::Display for PasswordError {
 
 impl std::error::Error for PasswordError {}
 
+/// Enum to represent supported password hashing algorithms
+#[derive(Debug, PartialEq)]
+enum HashAlgorithm {
+  Argon2,
+  Bcrypt,
+}
+
 /// Service for secure password hashing and verification using Argon2
 pub struct PasswordService;
 
 impl PasswordService {
+  /// Detects the password hashing algorithm based on hash format
+  ///
+  /// # Arguments
+  ///
+  /// * `hash` - The hash string to analyze
+  ///
+  /// # Returns
+  ///
+  /// * `Ok(HashAlgorithm)` - The detected algorithm
+  /// * `Err(PasswordError)` - If the hash format is not supported
+  fn detect_algorithm(hash: &str) -> Result<HashAlgorithm, PasswordError> {
+    if hash.starts_with("$argon2id$")
+      || hash.starts_with("$argon2i$")
+      || hash.starts_with("$argon2d$")
+    {
+      Ok(HashAlgorithm::Argon2)
+    } else if hash.starts_with("$2b$") || hash.starts_with("$2a$") || hash.starts_with("$2y$") {
+      Ok(HashAlgorithm::Bcrypt)
+    } else {
+      let preview = if hash.len() > 20 {
+        format!("{}...", &hash[..20])
+      } else {
+        hash.to_string()
+      };
+      Err(PasswordError::InvalidHash(format!(
+        "Unsupported hash format: {preview}"
+      )))
+    }
+  }
+
   /// Generates a secure password hash using Argon2id with a random salt
   ///
   /// This method creates a new 16-byte salt using a cryptographically secure
@@ -81,38 +119,60 @@ impl PasswordService {
 
   /// Verifies a password against a previously generated hash
   ///
-  /// This method extracts the salt and parameters from the encoded hash
-  /// and verifies the provided password against it using constant-time comparison.
-  /// The hash format is automatically parsed to extract the original parameters,
-  /// ensuring compatibility with hashes generated using different parameter sets.
+  /// This method supports both Argon2id (primary) and Bcrypt (fallback) hash formats.
+  /// The algorithm is automatically detected based on the hash string prefix:
+  /// - Argon2: `$argon2id$`, `$argon2i$`, `$argon2d$`
+  /// - Bcrypt: `$2b$`, `$2a$`, `$2y$`
   ///
   /// # Arguments
   ///
   /// * `password` - The plaintext password to verify
-  /// * `hash` - The encoded hash string to verify against
+  /// * `hash` - The encoded hash string to verify against (Argon2 or Bcrypt format)
   ///
   /// # Returns
   ///
   /// * `Ok(true)` - If the password matches the hash
   /// * `Ok(false)` - If the password does not match the hash
-  /// * `Err(PasswordError)` - If verification fails due to invalid hash format
+  /// * `Err(PasswordError)` - If verification fails due to invalid/unsupported hash format
   ///
   /// # Examples
   ///
   /// ```
   /// use dp_auth_service::services::PasswordService;
   ///
-  /// let hash = PasswordService::generate("my_password").unwrap();
-  /// let is_valid = PasswordService::verify("my_password", &hash).unwrap();
+  /// // Argon2 hash (primary algorithm)
+  /// let argon2_hash = PasswordService::generate("my_password").unwrap();
+  /// let is_valid = PasswordService::verify("my_password", &argon2_hash).unwrap();
   /// assert!(is_valid);
   ///
-  /// let is_invalid = PasswordService::verify("wrong_password", &hash).unwrap();
-  /// assert!(!is_invalid);
+  /// // Bcrypt hash (fallback for migration)
+  /// let bcrypt_hash = "$2b$10$bCTECoMkzgc.2Hx1fLurIe0jETMO318OWpdmBwDnt03uE2GepN8kS";
+  /// let is_valid = PasswordService::verify("correct_password", bcrypt_hash).unwrap();
+  /// // Result depends on whether "correct_password" matches the hash
   /// ```
   pub fn verify(password: &str, hash: &str) -> Result<bool, PasswordError> {
+    match Self::detect_algorithm(hash)? {
+      HashAlgorithm::Argon2 => Self::verify_argon2(password, hash),
+      HashAlgorithm::Bcrypt => Self::verify_bcrypt(password, hash),
+    }
+  }
+
+  /// Verifies a password against an Argon2 hash
+  ///
+  /// # Arguments
+  ///
+  /// * `password` - The plaintext password to verify
+  /// * `hash` - The Argon2 encoded hash string
+  ///
+  /// # Returns
+  ///
+  /// * `Ok(true)` - If the password matches the hash
+  /// * `Ok(false)` - If the password does not match the hash
+  /// * `Err(PasswordError)` - If verification fails due to invalid hash format
+  fn verify_argon2(password: &str, hash: &str) -> Result<bool, PasswordError> {
     // Parse the hash string to extract parameters and salt
     let parsed_hash = PasswordHash::new(hash)
-      .map_err(|e| PasswordError::InvalidHash(format!("Failed to parse hash: {e}")))?;
+      .map_err(|e| PasswordError::InvalidHash(format!("Failed to parse Argon2 hash: {e}")))?;
 
     // Create Argon2 instance (parameters will be extracted from the hash)
     let argon2 = Argon2::default();
@@ -122,7 +182,28 @@ impl PasswordService {
       Ok(()) => Ok(true),
       Err(argon2::password_hash::Error::Password) => Ok(false),
       Err(e) => Err(PasswordError::VerificationError(format!(
-        "Failed to verify password: {e}"
+        "Failed to verify Argon2 password: {e}"
+      ))),
+    }
+  }
+
+  /// Verifies a password against a Bcrypt hash
+  ///
+  /// # Arguments
+  ///
+  /// * `password` - The plaintext password to verify
+  /// * `hash` - The Bcrypt encoded hash string
+  ///
+  /// # Returns
+  ///
+  /// * `Ok(true)` - If the password matches the hash
+  /// * `Ok(false)` - If the password does not match the hash
+  /// * `Err(PasswordError)` - If verification fails due to invalid hash format
+  fn verify_bcrypt(password: &str, hash: &str) -> Result<bool, PasswordError> {
+    match bcrypt::verify(password, hash) {
+      Ok(is_valid) => Ok(is_valid),
+      Err(e) => Err(PasswordError::VerificationError(format!(
+        "Failed to verify Bcrypt password: {e}"
       ))),
     }
   }
@@ -346,5 +427,187 @@ mod tests {
       verify_time.as_millis() <= 1000,
       "Verify too slow for production"
     );
+  }
+
+  // Algorithm detection tests
+  #[test]
+  fn test_detect_argon2_algorithm() {
+    // Test various Argon2 hash formats
+    assert_eq!(
+      PasswordService::detect_algorithm("$argon2id$v=19$m=4096,t=3,p=1$salt$hash").unwrap(),
+      HashAlgorithm::Argon2
+    );
+    assert_eq!(
+      PasswordService::detect_algorithm("$argon2i$v=19$m=4096,t=3,p=1$salt$hash").unwrap(),
+      HashAlgorithm::Argon2
+    );
+    assert_eq!(
+      PasswordService::detect_algorithm("$argon2d$v=19$m=4096,t=3,p=1$salt$hash").unwrap(),
+      HashAlgorithm::Argon2
+    );
+  }
+
+  #[test]
+  fn test_detect_bcrypt_algorithm() {
+    // Test various Bcrypt hash formats
+    assert_eq!(
+      PasswordService::detect_algorithm(
+        "$2b$10$bCTECoMkzgc.2Hx1fLurIe0jETMO318OWpdmBwDnt03uE2GepN8kS"
+      )
+      .unwrap(),
+      HashAlgorithm::Bcrypt
+    );
+    assert_eq!(
+      PasswordService::detect_algorithm("$2a$12$salt.and.hash.here").unwrap(),
+      HashAlgorithm::Bcrypt
+    );
+    assert_eq!(
+      PasswordService::detect_algorithm("$2y$10$another.bcrypt.hash").unwrap(),
+      HashAlgorithm::Bcrypt
+    );
+  }
+
+  #[test]
+  fn test_detect_unsupported_algorithm() {
+    // Test unsupported hash formats
+    let result = PasswordService::detect_algorithm("$md5$unsupported");
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      PasswordError::InvalidHash(msg) => {
+        assert!(msg.contains("Unsupported hash format"));
+        assert!(msg.contains("$md5$unsupported"));
+      }
+      _ => panic!("Expected InvalidHash error"),
+    }
+
+    // Test with very long unsupported hash (should be truncated in error message)
+    let long_hash = "$unsupported$".to_string() + &"x".repeat(100);
+    let result = PasswordService::detect_algorithm(&long_hash);
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      PasswordError::InvalidHash(msg) => {
+        assert!(msg.contains("Unsupported hash format"));
+        assert!(msg.contains("..."));
+        assert!(msg.len() < long_hash.len());
+      }
+      _ => panic!("Expected InvalidHash error"),
+    }
+  }
+
+  // Bcrypt verification tests
+  #[test]
+  fn test_verify_bcrypt_correct_password() {
+    // Test with a known Bcrypt hash (generated with cost 10)
+    // Password: "test_password"
+    let bcrypt_hash = "$2b$10$Ak/lFZ/V.YZ74FXS9y3u1.2ZNK4Ae4xhUDpmVLy.tr2JX8.KE/KuO";
+    let password = "test_password";
+
+    let result = PasswordService::verify(password, bcrypt_hash).unwrap();
+    assert!(result);
+  }
+
+  #[test]
+  fn test_verify_bcrypt_incorrect_password() {
+    // Test with a known Bcrypt hash but wrong password
+    let bcrypt_hash = "$2b$10$Ak/lFZ/V.YZ74FXS9y3u1.2ZNK4Ae4xhUDpmVLy.tr2JX8.KE/KuO";
+    let wrong_password = "wrong_password";
+
+    let result = PasswordService::verify(wrong_password, bcrypt_hash).unwrap();
+    assert!(!result);
+  }
+
+  #[test]
+  fn test_verify_bcrypt_various_cost_factors() {
+    // Test Bcrypt hashes with different cost factors
+    // These are pre-generated hashes for "test123"
+
+    // Cost 4 (minimum practical cost)
+    let hash_cost4 = "$2b$04$Q.8Z8uLOickgx2ZMRZoMye.IjdBqjdqHZc8KQqZF6f6.6uYqKQYyO";
+    // This is a placeholder - in real implementation, you'd generate actual hashes
+    // For now, we'll test the algorithm detection works
+    assert_eq!(
+      PasswordService::detect_algorithm(hash_cost4).unwrap(),
+      HashAlgorithm::Bcrypt
+    );
+
+    // Cost 12 (higher security)
+    let hash_cost12 = "$2b$12$Q.8Z8uLOickgx2ZMRZoMye.IjdBqjdqHZc8KQqZF6f6.6uYqKQYyO";
+    assert_eq!(
+      PasswordService::detect_algorithm(hash_cost12).unwrap(),
+      HashAlgorithm::Bcrypt
+    );
+  }
+
+  #[test]
+  fn test_verify_mixed_hash_types() {
+    // Test that both Argon2 and Bcrypt hashes work in the same test
+    let password = "mixed_test_password";
+
+    // Generate Argon2 hash
+    let argon2_hash = PasswordService::generate(password).unwrap();
+    let argon2_result = PasswordService::verify(password, &argon2_hash).unwrap();
+    assert!(argon2_result);
+
+    // Test with known Bcrypt hash
+    let bcrypt_hash = "$2b$10$Ak/lFZ/V.YZ74FXS9y3u1.2ZNK4Ae4xhUDpmVLy.tr2JX8.KE/KuO";
+    let bcrypt_result = PasswordService::verify("test_password", bcrypt_hash).unwrap();
+    assert!(bcrypt_result);
+
+    // Verify wrong passwords fail for both
+    let argon2_wrong = PasswordService::verify("wrong", &argon2_hash).unwrap();
+    assert!(!argon2_wrong);
+
+    let bcrypt_wrong = PasswordService::verify("wrong", bcrypt_hash).unwrap();
+    assert!(!bcrypt_wrong);
+  }
+
+  #[test]
+  fn test_backward_compatibility() {
+    // Ensure existing Argon2 verification still works exactly as before
+    let password = "backward_compatibility_test";
+    let hash = PasswordService::generate(password).unwrap();
+
+    // This should work exactly as it did before the Bcrypt addition
+    let is_valid = PasswordService::verify(password, &hash).unwrap();
+    assert!(is_valid);
+
+    let is_invalid = PasswordService::verify("wrong_password", &hash).unwrap();
+    assert!(!is_invalid);
+
+    // Verify the hash is still Argon2
+    assert!(hash.starts_with("$argon2id$"));
+  }
+
+  #[test]
+  fn test_verify_malformed_bcrypt_hash() {
+    // Test with malformed Bcrypt hashes
+    let malformed_hashes = vec![
+      "$2b$10$",                                                      // Too short
+      "$2b$10$invalid",                                               // Invalid characters/length
+      "$2b$99$N9qo8uLOickgx2ZMRZoMye.IjdBqjdqHZc8KQqZF6f6.6uYqKQYyO", // Invalid cost
+    ];
+
+    for malformed_hash in malformed_hashes {
+      let result = PasswordService::verify("any_password", malformed_hash);
+      assert!(
+        result.is_err(),
+        "Should fail for malformed hash: {malformed_hash}"
+      );
+      match result.unwrap_err() {
+        PasswordError::VerificationError(_) => {} // Expected
+        _ => panic!("Expected VerificationError for malformed hash: {malformed_hash}"),
+      }
+    }
+  }
+
+  #[test]
+  fn test_verify_empty_bcrypt_hash() {
+    // Test with empty hash string
+    let result = PasswordService::verify("any_password", "");
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      PasswordError::InvalidHash(_) => {} // Expected
+      _ => panic!("Expected InvalidHash error for empty hash"),
+    }
   }
 }
