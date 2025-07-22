@@ -1,6 +1,8 @@
 [build]
 builder = "dockerfile"
-# watchPatterns = ["!**/*.md"]
+
+# Only deploy on ReleasePlease release
+watchPatterns = [".release-please-manifest.json"]
 
 [deploy]
 startCommand = "./start.sh"
