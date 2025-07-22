@@ -3,8 +3,7 @@ builder = "dockerfile"
 # watchPatterns = ["!**/*.md"]
 
 [deploy]
-startCommand = "./dp-auth-service"
-preDeployCommand = "./migrate_and_dump"
+startCommand = "./start.sh"
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 sleepApplication = false

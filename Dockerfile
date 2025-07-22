@@ -24,6 +24,9 @@ COPY --from=builder /app/target/release/migrate_and_dump /app/migrate_and_dump
 # Copy database configuration (migrations, seeds, schema)
 COPY --from=builder /app/config/database /app/config/database
 
+# Copy startup script (will be made executable before copying)
+COPY start.sh /app/start.sh
+
 RUN mkdir -p data
 
 # Set default port if not provided
@@ -32,5 +35,5 @@ ENV PORT=3000
 # Expose port from environment variable
 EXPOSE $PORT
 
-# Run the server
-CMD ["./dp-auth-service"]
+# Run the startup script
+CMD ["./start.sh"]
