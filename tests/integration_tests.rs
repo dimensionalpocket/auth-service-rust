@@ -10,7 +10,8 @@ use dp_auth_service::{
     graphql::{graphql_get_handler, graphql_post_handler},
     rest::{health_handler, not_found_handler, root_handler},
   },
-  middleware::session::session_middleware,
+  middleware::session::{create_session_middleware, init_session_secret},
+  utils::get_secret_from_env::get_secret_from_env,
   services::UserService,
 };
 use sqlx::SqlitePool;
@@ -44,6 +45,10 @@ async fn create_app_with_database() -> (Router, SqlitePool, tempfile::NamedTempF
     .data(pool.clone())
     .finish();
 
+  // Get session secret for middleware
+  let session_secret = get_secret_from_env("DP_AUTH_SECRET_KEY", 32)
+    .expect("Failed to read session secret for test");
+
   let app = Router::new()
     .route("/", axum::routing::get(root_handler))
     .route("/health", axum::routing::get(health_handler))
@@ -51,7 +56,7 @@ async fn create_app_with_database() -> (Router, SqlitePool, tempfile::NamedTempF
       "/graphql",
       axum::routing::get(graphql_get_handler).post(graphql_post_handler),
     )
-    .layer(axum::middleware::from_fn(session_middleware))
+    .layer(axum::middleware::from_fn(create_session_middleware(session_secret)))
     .layer(CorsLayer::permissive())
     .with_state(schema);
 
@@ -70,8 +75,7 @@ fn setup_test_environment() {
     env::set_var("DP_AUTH_INSECURE_COOKIE", "true");
     env::set_var("DP_AUTH_COOKIE_DOMAIN", ".api.dp-auth.localhost");
 
-    // Initialize session secret cache
-    use dp_auth_service::middleware::session::init_session_secret;
+    // Initialize session secret cache (for backward compatibility during Phase 2)
     // Initialize session secret - fail test if this fails
     init_session_secret().expect("Failed to initialize session secret for test");
   });

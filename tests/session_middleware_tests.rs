@@ -1,7 +1,8 @@
 use axum::{body::Body, extract::Request, middleware, response::Response, routing::get, Router};
 use dp_auth_service::middleware::session::{
-  init_session_secret, session_middleware, SessionContext, SESSION_COOKIE_NAME,
+  create_session_middleware, init_session_secret, SessionContext, SESSION_COOKIE_NAME,
 };
+use dp_auth_service::utils::get_secret_from_env::get_secret_from_env;
 use dp_auth_session_service::{DpAuthSessionPayload, DpAuthSessionService};
 use std::{env, sync::Once};
 use tower::ServiceExt;
@@ -21,9 +22,9 @@ fn setup_test_environment() {
 
 // Helper function to get test secret for token creation
 // This should match the secret that gets loaded from the environment variable
-fn get_test_secret() -> &'static [u8] {
-  use dp_auth_service::middleware::session::get_session_secret;
-  get_session_secret()
+fn get_test_secret() -> Vec<u8> {
+  get_secret_from_env("DP_AUTH_SECRET_KEY", 32)
+    .expect("Failed to read test secret")
 }
 
 #[tokio::test]
@@ -31,9 +32,10 @@ async fn test_session_middleware_can_be_applied_to_router() {
   setup_test_environment();
 
   // Test that the session middleware compiles and can be applied to a router
+  let secret = get_test_secret();
   let app = Router::new()
     .route("/graphql", get(|| async { Response::new(Body::empty()) }))
-    .layer(middleware::from_fn(session_middleware));
+    .layer(middleware::from_fn(create_session_middleware(secret)));
 
   // Create a simple request
   let request = Request::builder()
@@ -76,8 +78,9 @@ async fn test_session_middleware_with_valid_header_token() {
   setup_test_environment();
 
   // Create a valid session payload and token
+  let secret = get_test_secret();
   let payload = DpAuthSessionService::create_payload(123);
-  let token = DpAuthSessionService::encode_token(&payload, get_test_secret()).unwrap();
+  let token = DpAuthSessionService::encode_token(&payload, &secret).unwrap();
 
   // Create a test app with session middleware
   let app = Router::new()
@@ -91,7 +94,7 @@ async fn test_session_middleware_with_valid_header_token() {
         Response::new(Body::empty())
       }),
     )
-    .layer(middleware::from_fn(session_middleware));
+    .layer(middleware::from_fn(create_session_middleware(secret)));
 
   // Create request with Authorization header
   let request = Request::builder()
@@ -110,8 +113,9 @@ async fn test_session_middleware_with_valid_cookie_token() {
   setup_test_environment();
 
   // Create a valid session payload and token
+  let secret = get_test_secret();
   let payload = DpAuthSessionService::create_payload(456);
-  let token = DpAuthSessionService::encode_token(&payload, get_test_secret()).unwrap();
+  let token = DpAuthSessionService::encode_token(&payload, &secret).unwrap();
 
   // Create a test app with session middleware
   let app = Router::new()
@@ -125,7 +129,7 @@ async fn test_session_middleware_with_valid_cookie_token() {
         Response::new(Body::empty())
       }),
     )
-    .layer(middleware::from_fn(session_middleware));
+    .layer(middleware::from_fn(create_session_middleware(secret)));
 
   // Create request with cookie
   let request = Request::builder()
@@ -144,13 +148,14 @@ async fn test_session_middleware_prefers_header_over_cookie() {
   setup_test_environment();
 
   // Create two different tokens
+  let secret = get_test_secret();
   let header_payload = DpAuthSessionService::create_payload(111);
   let header_token =
-    DpAuthSessionService::encode_token(&header_payload, get_test_secret()).unwrap();
+    DpAuthSessionService::encode_token(&header_payload, &secret).unwrap();
 
   let cookie_payload = DpAuthSessionService::create_payload(222);
   let cookie_token =
-    DpAuthSessionService::encode_token(&cookie_payload, get_test_secret()).unwrap();
+    DpAuthSessionService::encode_token(&cookie_payload, &secret).unwrap();
 
   // Create a test app with session middleware
   let app = Router::new()
@@ -164,7 +169,7 @@ async fn test_session_middleware_prefers_header_over_cookie() {
         Response::new(Body::empty())
       }),
     )
-    .layer(middleware::from_fn(session_middleware));
+    .layer(middleware::from_fn(create_session_middleware(secret)));
 
   // Create request with both header and cookie
   let request = Request::builder()
@@ -184,9 +189,10 @@ async fn test_session_middleware_invalid_header_no_cookie_fallback() {
   setup_test_environment();
 
   // Create a valid cookie token
+  let secret = get_test_secret();
   let cookie_payload = DpAuthSessionService::create_payload(333);
   let cookie_token =
-    DpAuthSessionService::encode_token(&cookie_payload, get_test_secret()).unwrap();
+    DpAuthSessionService::encode_token(&cookie_payload, &secret).unwrap();
 
   // Create a test app with session middleware
   let app = Router::new()
@@ -200,7 +206,7 @@ async fn test_session_middleware_invalid_header_no_cookie_fallback() {
         Response::new(Body::empty())
       }),
     )
-    .layer(middleware::from_fn(session_middleware));
+    .layer(middleware::from_fn(create_session_middleware(secret)));
 
   // Create request with invalid header and valid cookie
   let request = Request::builder()
@@ -217,7 +223,10 @@ async fn test_session_middleware_invalid_header_no_cookie_fallback() {
 
 #[tokio::test]
 async fn test_session_middleware_no_token() {
+  setup_test_environment();
+  
   // Create a test app with session middleware
+  let secret = get_test_secret();
   let app = Router::new()
     .route(
       "/graphql",
@@ -229,7 +238,7 @@ async fn test_session_middleware_no_token() {
         Response::new(Body::empty())
       }),
     )
-    .layer(middleware::from_fn(session_middleware));
+    .layer(middleware::from_fn(create_session_middleware(secret)));
 
   // Create request with no authentication
   let request = Request::builder()
@@ -253,8 +262,9 @@ async fn test_session_middleware_expired_token() {
     iat: current_time - 3600, // 1 hour ago
     exp: current_time - 1800, // 30 minutes ago (expired)
   };
+  let secret = get_test_secret();
   let expired_token =
-    DpAuthSessionService::encode_token(&expired_payload, get_test_secret()).unwrap();
+    DpAuthSessionService::encode_token(&expired_payload, &secret).unwrap();
 
   // Create a test app with session middleware
   let app = Router::new()
@@ -268,7 +278,7 @@ async fn test_session_middleware_expired_token() {
         Response::new(Body::empty())
       }),
     )
-    .layer(middleware::from_fn(session_middleware));
+    .layer(middleware::from_fn(create_session_middleware(secret)));
 
   // Create request with expired token
   let request = Request::builder()
