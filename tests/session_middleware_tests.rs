@@ -1,6 +1,6 @@
 use axum::{body::Body, extract::Request, middleware, response::Response, routing::get, Router};
 use dp_auth_service::middleware::session::{
-  create_session_middleware, init_session_secret, SessionContext, SESSION_COOKIE_NAME,
+  create_session_middleware, SessionContext, SESSION_COOKIE_NAME,
 };
 use dp_auth_service::utils::get_secret_from_env::get_secret_from_env;
 use dp_auth_session_service::{DpAuthSessionPayload, DpAuthSessionService};
@@ -15,8 +15,6 @@ fn setup_test_environment() {
       "DP_AUTH_SECRET_KEY",
       "QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=",
     );
-    // Initialize session secret - fail test if this fails
-    init_session_secret().expect("Failed to initialize session secret for test");
   });
 }
 

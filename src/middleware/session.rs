@@ -1,7 +1,6 @@
 use dp_auth_session_service::DpAuthSessionService;
 
 // Re-export for backward compatibility
-use crate::utils::get_secret_from_env::SecretError;
 use async_graphql::Context;
 use axum::{extract::Request, middleware::Next, response::Response};
 pub use dp_auth_session_service::DpAuthSessionPayload as SessionPayload;
@@ -62,27 +61,6 @@ pub fn create_session_middleware(
 }
 
 
-/// Temporary global secret storage for backward compatibility during Phase 2
-/// This will be removed in Phase 3 when GraphQL handlers are refactored
-use std::sync::OnceLock;
-static TEMP_SESSION_SECRET: OnceLock<Vec<u8>> = OnceLock::new();
-
-/// Temporary function to initialize session secret for backward compatibility
-/// This will be removed in Phase 3
-pub fn init_session_secret() -> Result<(), SecretError> {
-  let secret = crate::utils::get_secret_from_env::get_secret_from_env("DP_AUTH_SECRET_KEY", 32)?;
-  TEMP_SESSION_SECRET
-    .set(secret)
-    .map_err(|_| SecretError::AlreadyInitialized)?;
-  Ok(())
-}
-
-/// Temporary function to get session secret for backward compatibility
-/// This will be removed in Phase 3
-pub fn get_session_secret() -> &'static [u8] {
-  TEMP_SESSION_SECRET.get()
-    .expect("Session secret not initialized - call init_session_secret() during startup")
-}
 
 /// Extract session token from request and validate it (synchronous version)
 fn extract_and_validate_session_sync(request: &Request, secret: &[u8]) -> SessionContext {

@@ -1,16 +1,18 @@
 use axum::{
   body::Body,
+  extract::State,
   http::{Request, StatusCode},
+  response::Response,
   Router,
 };
 use dp_auth_service::{
   database::test_utils::create_test_database,
-  graphql::schema::create_schema,
+  graphql::schema::{create_schema, AppSchema},
   handlers::{
     graphql::{graphql_get_handler, graphql_post_handler},
     rest::{health_handler, not_found_handler, root_handler},
   },
-  middleware::session::{create_session_middleware, init_session_secret},
+  middleware::session::create_session_middleware,
   utils::get_secret_from_env::get_secret_from_env,
   services::UserService,
 };
@@ -18,6 +20,40 @@ use sqlx::SqlitePool;
 use std::{env, sync::Once};
 use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
+
+// Test wrapper functions for GraphQL handlers
+async fn test_graphql_get_handler() -> Response {
+  graphql_get_handler(true).await
+}
+
+async fn test_graphql_post_handler(
+  State(schema): State<AppSchema>,
+  request: Request<Body>,
+) -> impl axum::response::IntoResponse {
+  graphql_post_handler(
+    State(schema),
+    request,
+    ".api.dp-auth.localhost".to_string(),
+    true, // insecure_cookie for tests
+    true, // development_mode for tests
+    vec![0u8; 32], // dummy secret for basic tests
+  ).await
+}
+
+async fn test_graphql_post_handler_with_session(
+  State(schema): State<AppSchema>,
+  request: Request<Body>,
+  session_secret: Vec<u8>,
+) -> impl axum::response::IntoResponse {
+  graphql_post_handler(
+    State(schema),
+    request,
+    ".api.dp-auth.localhost".to_string(),
+    true, // insecure_cookie for tests
+    true, // development_mode for tests
+    session_secret,
+  ).await
+}
 
 fn create_app() -> Router {
   let schema = create_schema();
@@ -27,7 +63,7 @@ fn create_app() -> Router {
     .route("/health", axum::routing::get(health_handler))
     .route(
       "/graphql",
-      axum::routing::get(graphql_get_handler).post(graphql_post_handler),
+      axum::routing::get(test_graphql_get_handler).post(test_graphql_post_handler),
     )
     .fallback(not_found_handler)
     .layer(CorsLayer::permissive())
@@ -54,7 +90,16 @@ async fn create_app_with_database() -> (Router, SqlitePool, tempfile::NamedTempF
     .route("/health", axum::routing::get(health_handler))
     .route(
       "/graphql",
-      axum::routing::get(graphql_get_handler).post(graphql_post_handler),
+      axum::routing::get(test_graphql_get_handler)
+        .post({
+          let session_secret = session_secret.clone();
+          move |state, request| {
+            let session_secret = session_secret.clone();
+            async move {
+              test_graphql_post_handler_with_session(state, request, session_secret).await
+            }
+          }
+        }),
     )
     .layer(axum::middleware::from_fn(create_session_middleware(session_secret)))
     .layer(CorsLayer::permissive())
@@ -75,9 +120,6 @@ fn setup_test_environment() {
     env::set_var("DP_AUTH_INSECURE_COOKIE", "true");
     env::set_var("DP_AUTH_COOKIE_DOMAIN", ".api.dp-auth.localhost");
 
-    // Initialize session secret cache (for backward compatibility during Phase 2)
-    // Initialize session secret - fail test if this fails
-    init_session_secret().expect("Failed to initialize session secret for test");
   });
 }
 

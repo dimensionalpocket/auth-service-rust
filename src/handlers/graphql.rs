@@ -8,7 +8,6 @@ use axum::{
 };
 use once_cell::sync::Lazy;
 use regex::Regex;
-use std::env;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tracing::{error, info, instrument};
@@ -21,14 +20,14 @@ pub struct ResponseHeaders {
 }
 
 /// Set session cookie in response headers
-pub fn set_session_cookie(response_headers: &Arc<Mutex<HeaderMap>>, token: &str) {
+pub fn set_session_cookie(
+  response_headers: &Arc<Mutex<HeaderMap>>, 
+  token: &str,
+  cookie_domain: &str,
+  insecure_cookie: bool
+) {
   use crate::middleware::session::SESSION_COOKIE_NAME;
-
-  let cookie_domain =
-    std::env::var("DP_AUTH_COOKIE_DOMAIN").unwrap_or_else(|_| ".api.dp-auth.localhost".to_string()); // Default for development
-
-  let is_insecure = std::env::var("DP_AUTH_INSECURE_COOKIE").is_ok();
-  let secure_flag = if is_insecure { "" } else { "; Secure" };
+  let secure_flag = if insecure_cookie { "" } else { "; Secure" };
 
   let cookie_value = format!(
     "{}={}; Domain={}; Path=/; HttpOnly; SameSite=Strict{}; Max-Age={}",
@@ -51,6 +50,10 @@ pub fn set_session_cookie(response_headers: &Arc<Mutex<HeaderMap>>, token: &str)
 pub async fn graphql_post_handler(
   State(schema): State<AppSchema>,
   http_req: Request,
+  cookie_domain: String,
+  insecure_cookie: bool,
+  development_mode: bool,
+  session_secret: Vec<u8>,
 ) -> impl IntoResponse {
   let start = Instant::now();
 
@@ -72,10 +75,13 @@ pub async fn graphql_post_handler(
     Err(response) => return response,
   };
 
-  // Add session context and response headers to GraphQL request data
+  // Add session context, response headers, and config to GraphQL request data
   let mut request = graphql_request;
   request = request.data(session_context);
   request = request.data(response_headers.headers.clone());
+  request = request.data(cookie_domain);
+  request = request.data(insecure_cookie);
+  request = request.data(session_secret);
 
   // Extract operation name from the request
   let operation_name = request
@@ -198,8 +204,8 @@ async fn parse_graphql_request(req: Request) -> Result<async_graphql::Request, R
 }
 
 /// GraphQL GET handler for playground (development only)
-pub async fn graphql_get_handler() -> Response {
-  if env::var("APP_ENV").unwrap_or_default() == "development" {
+pub async fn graphql_get_handler(development_mode: bool) -> Response {
+  if development_mode {
     Html(playground_html()).into_response()
   } else {
     (StatusCode::METHOD_NOT_ALLOWED, "Method not allowed").into_response()

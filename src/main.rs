@@ -33,9 +33,13 @@ async fn main() {
   // Load environment variables from .env file
   dotenvy::dotenv().ok();
 
-  // Read session secret from environment
+  // Read all configuration from environment
   let session_secret = get_secret_from_env("DP_AUTH_SECRET_KEY", 32)
     .expect("Failed to read session secret from DP_AUTH_SECRET_KEY");
+  let cookie_domain = env::var("DP_AUTH_COOKIE_DOMAIN")
+    .unwrap_or_else(|_| ".api.dp-auth.localhost".to_string());
+  let insecure_cookie = env::var("DP_AUTH_INSECURE_COOKIE").is_ok();
+  let development_mode = env::var("APP_ENV").unwrap_or_default() == "development";
 
   // Get database URL from environment (temporary - will be moved in later phases)
   let database_url = env::var("DATABASE_URL")
@@ -54,9 +58,17 @@ async fn main() {
     .route("/health", get(health_handler))
     .route(
       "/graphql",
-      get(graphql_get_handler)
-        .post(graphql_post_handler)
-        .layer(middleware::from_fn(create_session_middleware(session_secret))), // Session middleware only for GraphQL
+      get({
+        move || graphql_get_handler(development_mode)
+      })
+      .post({
+        let cookie_domain = cookie_domain.clone();
+        let session_secret = session_secret.clone();
+        move |state, request| {
+          graphql_post_handler(state, request, cookie_domain, insecure_cookie, development_mode, session_secret)
+        }
+      })
+      .layer(middleware::from_fn(create_session_middleware(session_secret))), // Session middleware only for GraphQL
     )
     .fallback(not_found_handler)
     .layer(

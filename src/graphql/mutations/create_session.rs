@@ -1,5 +1,4 @@
 use crate::handlers::graphql::set_session_cookie;
-use crate::middleware::session::get_session_secret;
 use crate::services::{SessionError, SessionService};
 use async_graphql::{Context, InputObject, Object, Result, SimpleObject};
 use axum::http::HeaderMap;
@@ -39,15 +38,16 @@ impl CreateSessionMutation {
     input: CreateSessionInput,
   ) -> Result<CreateSessionResponse> {
     let pool = ctx.data::<SqlitePool>()?;
+    let session_secret = ctx.data::<Vec<u8>>()?;
 
-    // Get the cached secret (no environment variable reading per request)
-    let secret = get_session_secret();
-
-    match SessionService::create_session(pool, &input.username, &input.password, secret).await {
+    match SessionService::create_session(pool, &input.username, &input.password, session_secret).await {
       Ok(token) => {
         // Set cookie in response headers
         if let Ok(response_headers) = ctx.data::<Arc<Mutex<HeaderMap>>>() {
-          set_session_cookie(response_headers, &token);
+          let default_domain = ".api.dp-auth.localhost".to_string();
+          let cookie_domain = ctx.data::<String>().unwrap_or(&default_domain);
+          let insecure_cookie = *ctx.data::<bool>().unwrap_or(&false);
+          set_session_cookie(response_headers, &token, cookie_domain, insecure_cookie);
         }
 
         Ok(CreateSessionResponse {
@@ -77,19 +77,14 @@ fn map_session_error_to_user_message(error: &SessionError) -> &'static str {
 mod tests {
   use super::*;
   use crate::database::test_utils::create_test_database;
-  use crate::middleware::session::init_session_secret;
   use crate::services::UserService;
   use async_graphql::{EmptySubscription, Schema};
-  use std::env;
 
-  fn setup_test_environment() {
-    env::set_var(
-      "DP_AUTH_SECRET_KEY",
-      "QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=",
-    );
-    // Try to initialize, but ignore if already initialized
-    let _ = init_session_secret();
-  }
+  // Test secret - 32 bytes for AES-256 (base64-decoded from QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=)
+  const TEST_SECRET: &[u8] = &[
+    0x42, 0xf4, 0x25, 0xc2, 0x93, 0x2e, 0x8c, 0xaf, 0xaa, 0xcd, 0xd4, 0x5b, 0x50, 0x28, 0xa4, 0x8d,
+    0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74, 0x4d, 0xb8,
+  ];
 
   async fn setup_default_role(pool: &SqlitePool) {
     sqlx::query(
@@ -102,7 +97,6 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_session_calls_service_with_correct_parameters() {
-    setup_test_environment();
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user
@@ -118,6 +112,7 @@ mod tests {
       EmptySubscription,
     )
     .data(pool)
+    .data(TEST_SECRET.to_vec())
     .finish();
 
     // Test: Call the mutation
@@ -151,7 +146,6 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_session_maps_authentication_error() {
-    setup_test_environment();
     let (pool, _temp_file) = create_test_database().await;
 
     let schema = Schema::build(
@@ -160,6 +154,7 @@ mod tests {
       EmptySubscription,
     )
     .data(pool)
+    .data(TEST_SECRET.to_vec())
     .finish();
 
     // Test: Call with non-existent user
@@ -181,14 +176,13 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_session_maps_database_error() {
-    setup_test_environment();
-
     // Create a schema without database pool to trigger database error
     let schema = Schema::build(
       async_graphql::EmptyMutation,
       CreateSessionMutation,
       EmptySubscription,
     )
+    .data(TEST_SECRET.to_vec())
     .finish();
 
     let query = r#"
