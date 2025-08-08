@@ -44,8 +44,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
   println!("Starting database migration, seeding, and schema dump...");
 
+  // Get database URL from environment
+  let database_url = env::var("DATABASE_URL")
+    .unwrap_or_else(|_| "sqlite:data/development.db".to_string());
+
   // Initialize database and run migrations
-  let database = Database::new().await?;
+  let database = Database::new(&database_url).await?;
   database.migrate().await?;
   println!("✅ Migrations completed successfully");
 

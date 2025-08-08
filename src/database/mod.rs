@@ -1,24 +1,22 @@
 use sqlx::{migrate::MigrateDatabase, Row, Sqlite, SqlitePool};
-use std::{env, fs};
+use std::fs;
 
 pub struct Database {
   pub pool: SqlitePool,
 }
 
 impl Database {
-  pub async fn new() -> Result<Self, sqlx::Error> {
-    let database_url =
-      env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:data/development.db".to_string());
+  pub async fn new(database_url: &str) -> Result<Self, sqlx::Error> {
 
     // Create database if it doesn't exist
-    if !Sqlite::database_exists(&database_url)
+    if !Sqlite::database_exists(database_url)
       .await
       .unwrap_or(false)
     {
-      Sqlite::create_database(&database_url).await?;
+      Sqlite::create_database(database_url).await?;
     }
 
-    let pool = SqlitePool::connect(&database_url).await?;
+    let pool = SqlitePool::connect(database_url).await?;
 
     // Configure SQLite settings after connection
     Self::configure_sqlite(&pool).await?;

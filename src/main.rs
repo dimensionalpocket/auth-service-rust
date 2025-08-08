@@ -38,8 +38,12 @@ async fn main() {
   // Validate that the secret is accessible (additional safety check)
   let _ = get_session_secret(); // This will panic if secret is not properly initialized
 
+  // Get database URL from environment (temporary - will be moved in later phases)
+  let database_url = env::var("DATABASE_URL")
+    .unwrap_or_else(|_| "sqlite:data/development.db".to_string());
+
   // Initialize database connection (migrations run separately via script)
-  let _database = Database::new()
+  let _database = Database::new(&database_url)
     .await
     .expect("Failed to connect to database");
 
