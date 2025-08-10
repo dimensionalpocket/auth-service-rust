@@ -7,12 +7,8 @@ pub struct Database {
 
 impl Database {
   pub async fn new(database_url: &str) -> Result<Self, sqlx::Error> {
-
     // Create database if it doesn't exist
-    if !Sqlite::database_exists(database_url)
-      .await
-      .unwrap_or(false)
-    {
+    if !Sqlite::database_exists(database_url).await.unwrap_or(false) {
       Sqlite::create_database(database_url).await?;
     }
 

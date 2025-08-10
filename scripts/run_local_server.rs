@@ -1,39 +1,39 @@
-use dp_auth_service::{start_server, ServerConfig};
 use dp_auth_service::utils::get_secret_from_env::get_secret_from_env;
+use dp_auth_service::{start_server, ServerConfig};
 use std::env;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Load environment variables from .env file for local development
-    dotenvy::dotenv().ok();
+  // Load environment variables from .env file for local development
+  dotenvy::dotenv().ok();
 
-    // Read configuration from environment variables
-    let port = env::var("PORT")
-        .unwrap_or_else(|_| "3000".to_string())
-        .parse::<u16>()
-        .expect("PORT must be a valid number");
+  // Read configuration from environment variables
+  let port = env::var("PORT")
+    .unwrap_or_else(|_| "3000".to_string())
+    .parse::<u16>()
+    .expect("PORT must be a valid number");
 
-    let database_url = env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "sqlite:data/development.db".to_string());
+  let database_url =
+    env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite:data/development.db".to_string());
 
-    let session_secret = get_secret_from_env("DP_AUTH_SECRET_KEY", 32)
-        .expect("DP_AUTH_SECRET_KEY environment variable is required");
+  let session_secret = get_secret_from_env("DP_AUTH_SECRET_KEY", 32)
+    .expect("DP_AUTH_SECRET_KEY environment variable is required");
 
-    let cookie_domain = env::var("DP_AUTH_COOKIE_DOMAIN")
-        .unwrap_or_else(|_| ".api.dp-auth.localhost".to_string());
+  let cookie_domain =
+    env::var("DP_AUTH_COOKIE_DOMAIN").unwrap_or_else(|_| ".api.dp-auth.localhost".to_string());
 
-    let insecure_cookie = env::var("DP_AUTH_INSECURE_COOKIE").is_ok();
+  let insecure_cookie = env::var("DP_AUTH_INSECURE_COOKIE").is_ok();
 
-    let development_mode = env::var("APP_ENV").unwrap_or_default() == "development";
+  let development_mode = env::var("APP_ENV").unwrap_or_default() == "development";
 
-    let config = ServerConfig::new(
-        port,
-        database_url,
-        session_secret,
-        cookie_domain,
-        insecure_cookie,
-        development_mode,
-    )?;
+  let config = ServerConfig::new(
+    port,
+    database_url,
+    session_secret,
+    cookie_domain,
+    insecure_cookie,
+    development_mode,
+  )?;
 
-    start_server(config).await
+  start_server(config).await
 }

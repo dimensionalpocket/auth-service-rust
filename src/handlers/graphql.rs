@@ -21,10 +21,10 @@ pub struct ResponseHeaders {
 
 /// Set session cookie in response headers
 pub fn set_session_cookie(
-  response_headers: &Arc<Mutex<HeaderMap>>, 
+  response_headers: &Arc<Mutex<HeaderMap>>,
   token: &str,
   cookie_domain: &str,
-  insecure_cookie: bool
+  insecure_cookie: bool,
 ) {
   use crate::middleware::session::SESSION_COOKIE_NAME;
   let secure_flag = if insecure_cookie { "" } else { "; Secure" };

@@ -47,8 +47,9 @@ pub const SESSION_COOKIE_NAME: &str = "DpAuthSession";
 /// Create session middleware with the provided secret
 /// Returns a middleware function that can be used with axum
 pub fn create_session_middleware(
-  secret: Vec<u8>
-) -> impl Fn(Request, Next) -> std::pin::Pin<Box<dyn std::future::Future<Output = Response> + Send>> + Clone {
+  secret: Vec<u8>,
+) -> impl Fn(Request, Next) -> std::pin::Pin<Box<dyn std::future::Future<Output = Response> + Send>>
+     + Clone {
   move |request: Request, next: Next| {
     let secret = secret.clone();
     Box::pin(async move {
@@ -60,11 +61,8 @@ pub fn create_session_middleware(
   }
 }
 
-
-
 /// Extract session token from request and validate it (synchronous version)
 fn extract_and_validate_session_sync(request: &Request, secret: &[u8]) -> SessionContext {
-
   // Try header first
   if let Some(token) = extract_token_from_header(request) {
     if let Ok(payload) = DpAuthSessionService::decode_token(&token, secret) {

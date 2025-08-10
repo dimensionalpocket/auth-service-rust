@@ -21,8 +21,7 @@ fn setup_test_environment() {
 // Helper function to get test secret for token creation
 // This should match the secret that gets loaded from the environment variable
 fn get_test_secret() -> Vec<u8> {
-  get_secret_from_env("DP_AUTH_SECRET_KEY", 32)
-    .expect("Failed to read test secret")
+  get_secret_from_env("DP_AUTH_SECRET_KEY", 32).expect("Failed to read test secret")
 }
 
 #[tokio::test]
@@ -148,12 +147,10 @@ async fn test_session_middleware_prefers_header_over_cookie() {
   // Create two different tokens
   let secret = get_test_secret();
   let header_payload = DpAuthSessionService::create_payload(111);
-  let header_token =
-    DpAuthSessionService::encode_token(&header_payload, &secret).unwrap();
+  let header_token = DpAuthSessionService::encode_token(&header_payload, &secret).unwrap();
 
   let cookie_payload = DpAuthSessionService::create_payload(222);
-  let cookie_token =
-    DpAuthSessionService::encode_token(&cookie_payload, &secret).unwrap();
+  let cookie_token = DpAuthSessionService::encode_token(&cookie_payload, &secret).unwrap();
 
   // Create a test app with session middleware
   let app = Router::new()
@@ -189,8 +186,7 @@ async fn test_session_middleware_invalid_header_no_cookie_fallback() {
   // Create a valid cookie token
   let secret = get_test_secret();
   let cookie_payload = DpAuthSessionService::create_payload(333);
-  let cookie_token =
-    DpAuthSessionService::encode_token(&cookie_payload, &secret).unwrap();
+  let cookie_token = DpAuthSessionService::encode_token(&cookie_payload, &secret).unwrap();
 
   // Create a test app with session middleware
   let app = Router::new()
@@ -222,7 +218,7 @@ async fn test_session_middleware_invalid_header_no_cookie_fallback() {
 #[tokio::test]
 async fn test_session_middleware_no_token() {
   setup_test_environment();
-  
+
   // Create a test app with session middleware
   let secret = get_test_secret();
   let app = Router::new()
@@ -261,8 +257,7 @@ async fn test_session_middleware_expired_token() {
     exp: current_time - 1800, // 30 minutes ago (expired)
   };
   let secret = get_test_secret();
-  let expired_token =
-    DpAuthSessionService::encode_token(&expired_payload, &secret).unwrap();
+  let expired_token = DpAuthSessionService::encode_token(&expired_payload, &secret).unwrap();
 
   // Create a test app with session middleware
   let app = Router::new()

@@ -13,8 +13,8 @@ use dp_auth_service::{
     rest::{health_handler, not_found_handler, root_handler},
   },
   middleware::session::create_session_middleware,
-  utils::get_secret_from_env::get_secret_from_env,
   services::UserService,
+  utils::get_secret_from_env::get_secret_from_env,
 };
 use sqlx::SqlitePool;
 use std::{env, sync::Once};
@@ -34,10 +34,11 @@ async fn test_graphql_post_handler(
     State(schema),
     request,
     ".api.dp-auth.localhost".to_string(),
-    true, // insecure_cookie for tests
-    true, // development_mode for tests
+    true,          // insecure_cookie for tests
+    true,          // development_mode for tests
     vec![0u8; 32], // dummy secret for basic tests
-  ).await
+  )
+  .await
 }
 
 async fn test_graphql_post_handler_with_session(
@@ -52,7 +53,8 @@ async fn test_graphql_post_handler_with_session(
     true, // insecure_cookie for tests
     true, // development_mode for tests
     session_secret,
-  ).await
+  )
+  .await
 }
 
 fn create_app() -> Router {
@@ -82,8 +84,8 @@ async fn create_app_with_database() -> (Router, SqlitePool, tempfile::NamedTempF
     .finish();
 
   // Get session secret for middleware
-  let session_secret = get_secret_from_env("DP_AUTH_SECRET_KEY", 32)
-    .expect("Failed to read session secret for test");
+  let session_secret =
+    get_secret_from_env("DP_AUTH_SECRET_KEY", 32).expect("Failed to read session secret for test");
 
   let app = Router::new()
     .route("/", axum::routing::get(root_handler))
@@ -119,7 +121,6 @@ fn setup_test_environment() {
     );
     env::set_var("DP_AUTH_INSECURE_COOKIE", "true");
     env::set_var("DP_AUTH_COOKIE_DOMAIN", ".api.dp-auth.localhost");
-
   });
 }
 

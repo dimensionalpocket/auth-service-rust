@@ -40,7 +40,9 @@ impl CreateSessionMutation {
     let pool = ctx.data::<SqlitePool>()?;
     let session_secret = ctx.data::<Vec<u8>>()?;
 
-    match SessionService::create_session(pool, &input.username, &input.password, session_secret).await {
+    match SessionService::create_session(pool, &input.username, &input.password, session_secret)
+      .await
+    {
       Ok(token) => {
         // Set cookie in response headers
         if let Ok(response_headers) = ctx.data::<Arc<Mutex<HeaderMap>>>() {
