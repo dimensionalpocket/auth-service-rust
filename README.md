@@ -1,186 +1,94 @@
-# Dimensional Pocket - Auth Service
+# dp-auth-service
 
-This document outlines the project configuration and roadmap for the Rust-based GraphQL Auth Service for Dimensional Pocket. The service will provide REST endpoints, a GraphQL API, and user management functionalities.
+A Rust library providing GraphQL-based authentication and user management services.
 
-## Project Configuration
+## Features
 
-- **Project Name**: `dp-auth-service`
-- **Indentation**: Use 2 spaces for Rust code (not the standard 4 spaces)
-- **GraphQL Library**: `async-graphql`
-- **Database**: `sqlx` with SQLite on a file in the repo root's `data` directory (will be mounted in production)
-- **REST endpoints**: `/` and `/health`, via `axum`
-- **GraphQL Endpoint**: `/graphql`
-- **Async Runtime**: `tokio`
-- **Password Hashing**: `argon2`; 16-byte salt generated with `rand::rngs::OsRng`
-- **Design Patterns**:
-  - GraphQL queries and mutations only call Service objects and handle the response
-    - E.g., `getServerTimestamp` query calls `ServerService::get_server_timestamp`
-    - Service objects are static and do not require instantiation
-    - Service objects have their own unit tests with full coverage
-    - GraphQL Query and Mutation tests only test if they're calling the Service methods with the correct parameters
-    - Service objects are stored in `src/services`
-    - Each GraphQL query and mutation are implemented in independent files in `src/graphql/queries` and `src/graphql/mutations` respectively
-      - Files are named directly after the query or mutation they implement, e.g., `get_server_timestamp.rs` for the `getServerTimestamp` query
-      - The structs for the queries and mutations are suffixed with `Query` or `Mutation`
-        - E.g., `GetServerTimestampQuery` for the `getServerTimestamp` query
-  - SQL Queries are executed via SQL Query objects
-    - E.g., `UserByIdQuery::run(user_id)`
-    - All SQL query objects have a `run` method (arguments may vary) that executes the database query and returns the result
-    - SQL Query objects are static and do not require instantiation
-    - SQL Query objects are stored in `src/queries`
+- GraphQL API with authentication mutations and queries
+- User management with role-based permissions
+- Session token management with encrypted tokens
+- Password hashing with Argon2
+- SQLite database with migrations
+- REST endpoints for health checks
 
-## Roadmap
+## Installation
 
-### Phase 1: Project Setup w/ REST Endpoints + `getServerTimestamp` query
+Add this to your `Cargo.toml`:
 
-- [x] Initialize Rust project
-- [x] Configure `async-graphql`, `axum`, `sqlx`, and `tokio`
-- [x] Create REST endpoints:
-  - [x] `/` - Returns a simple "OK" message
-  - [x] `/health` - Returns a simple "OK" message
-- [x] Implement `getServerTimestamp` GraphQL query and associated Service object:
-  - [x] Returns the current server timestamp (milliseconds since epoch)
-- [x] Test the REST endpoints, `getServerTimestamp` query, and the Service object
-- [x] Document the API endpoints and query
+```toml
+[dependencies]
+dp-auth-service = { git = "https://github.com/dimensionalpocket/auth-service-rust", tag = "0.1.0" }
+```
 
-### Phase 2: Logging
+## Usage
 
-- [x] Suggest industry standards for logging endpoints and queries in Rust/GraphQL
-- [x] Implement logging for existing REST endpoints and GraphQL queries (check Phase 1 for a list of endpoints and queries)
-  - [x] For REST endpoints, log the request method, path, response status, and response time
-  - [x] For GraphQL queries, log the operation name and response time (no parameters)
+```rust
+use dp_auth_service::{start_server, ServerConfig};
 
-### Phase 3: Password Service
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = ServerConfig::new(
+        3000, // port
+        "sqlite:data/production.db".to_string(), // database_url
+        your_32_byte_secret, // session_secret (Vec<u8>)
+        ".yourdomain.com".to_string(), // cookie_domain
+        false, // insecure_cookie
+        false, // development_mode
+    )?;
 
-- [x] Implement `PasswordService` for user password management
-  - [x] `generate` method to create a new password hash
-    - Already includes the salt generation
-  - [x] `verify` method to check a password against a hash
-- [x] Test the `PasswordService` methods
-- [x] Document the `PasswordService` methods via Rust doc comments
+    start_server(config).await
+}
+```
 
-### Phase 4: Database Configuration
+## Configuration
 
-- [x] Configure `sqlx` to use SQLite database in `data/development.db` (filename to come from environment variable)
-- [x] Create database schema with `sqlx` migrations
-  - [x] Create migration for `user_roles` table
-  - [x] Create migration for `users` table
-  - [x] Schema defined with proper foreign key constraints
-  - [x] Migrations stored in `config/database/migrations`
-- [x] Run migrations to create the database schema
-- [x] Verify support for schema dump after running migrations, to be stored in `config/database/schema.sql`
-- [x] Implement SQL Query objects following project patterns
-- [x] Create comprehensive unit tests for all query objects
-- [x] Create integration tests demonstrating complete user creation flow
-- [x] Implement seeds system with default user roles
+The `ServerConfig` struct accepts the following parameters:
 
-### Phase 5: User Roles and Permissions
+- `port`: Server port (u16)
+- `database_url`: SQLite database file path (String)
+- `session_secret`: 32-byte secret for session encryption (Vec<u8>)
+- `cookie_domain`: Domain for session cookies (String)
+- `insecure_cookie`: Whether to use insecure cookies for development (bool)
+- `development_mode`: Enable development features like GraphQL playground (bool)
 
-- [x] Suggest industry standards for user roles and permissions in Rust/GraphQL
-- [x] Permissions are granular (e.g., `can_create_user`, `can_delete_user`, etc.) and can be assigned to roles
-- [x] Update the database schema to store permissions for roles (details to be defined)
-- [x] Implement `UserRoleService` for managing user roles and checking permissions
-  - [x] `get_role_by_id` method to retrieve a role by ID
-  - [x] `get_role_by_name` method to retrieve a role by name
-  - [x] `check_permission` method to check if a user has a specific permission
+## Local Development
 
-### Phase 6: User Service - User Creation and Retrieval
+For local development, use the provided script:
 
-- [x] Implement `UserService` for user management
-  - [x] `create_user` method to create a new user
-    - [x] Validates input (username and password) and checks for username already in use
-    - [x] Uses `PasswordService` to hash the password
-    - [x] Assigns default role to the user
-  - [x] `get_user_by_id` method to retrieve a user by ID
-  - [x] `get_user_by_name` method to retrieve a user by name
+```bash
+# Set environment variables in .env file
+cargo run --bin run_local_server
+```
 
-### Phase 7: `createUser` Mutation
+Required environment variables:
+- `DP_AUTH_SECRET_KEY`: Base64-encoded 32-byte secret
+- `DATABASE_URL`: SQLite database path (optional, defaults to "sqlite:data/development.db")
+- `PORT`: Server port (optional, defaults to "3000")
+- `DP_AUTH_COOKIE_DOMAIN`: Cookie domain (optional, defaults to ".api.dp-auth.localhost")
+- `DP_AUTH_INSECURE_COOKIE`: Set to enable insecure cookies (optional)
+- `APP_ENV`: Set to "development" to enable development mode (optional)
 
-- [x] Implement `createUser` GraphQL mutation
-  - [x] Calls `UserService::create_user`
-  - [x] Returns the created user object
-- [x] Unit tests for the `createUser` mutation
-  - [x] Tests should verify that the mutation calls the `UserService::create_user` method with the correct parameters
-- [x] Integration tests for the `createUser` mutation
-  - [x] Call the endpoint to create a user
+## Database Setup
 
-### Phase 8: Session Service - Token Management
+Run migrations and seed data:
 
-- [x] Implement `SessionService` for managing session tokens
-  - [x] We're using a custom encrypted token format, not JWT
-    - Why not JWT? Because we don't want to expose the payload structure to consumers
-    - Consumers will call a future `getCurrentSession` query to retrieve the session payload with the token in the request (header or cookie)
-  - [x] Define the payload structure for the session token - JSON-serializable
-    - Fields: `sub` (subject - user id), `iat` (issued at timestamp), `exp` (expiration timestamp)
-  - [x] Requires a secret key for signing tokens, stored in an environment variable (`DP_AUTH_SECRET_KEY`)
-    - Determine how the service will act if the secret key is not set
-  - [x] `encode_token` method to create a session token from a payload
-  - [x] `decode_token` method to decode a session token and retrieve the payload
-- [x] Test the `SessionService` methods
-- [x] Document the `SessionService` methods via Rust doc comments
+```bash
+cargo run --bin migrate_and_dump
+```
 
-### Phase 9: Session Middleware
+## API Endpoints
 
-- [x] Implement middleware for session token management, to be used in the GraphQL API only (all queries and mutations)
-- [x] Middleware should:
-  - [x] Check for the session token in the request header or cookie, in that order (if both present, prefer the header)
-    - Do not fallback to cookie if the header token is present but invalid
-  - [x] Decode the token using `SessionService::decode_token`
-  - [x] If valid, attach the decoded session token payload to the request context
-  - [x] If invalid or missing, don't attach the payload and allow the request to proceed without it (each resolver will handle the absence of the payload)
-- [x] Decisions to make:
-  - [x] What is the prefix for the auth header, considering it's a custom encrypted token? ("Bearer" or something else?)
-  - [x] Do we need to know the cookie name? If so, use `DpAuthSession` as the cookie name and store this string in a constant
-- [x] Allow resolvers to have access to the session token payload via the request context
-  - Resolvers can then propagate the session token payload to the Service objects on a case-by-case basis
-- [x] Unit tests to ensure the middleware is attaching the session token payload when valid
-  - Integration tests will be implemented in a later phase, by resolvers that actually use the session token payload
+- `GET /` - Root endpoint
+- `GET /health` - Health check
+- `GET /graphql` - GraphQL playground (development mode only)
+- `POST /graphql` - GraphQL API
 
-### Phase 10: `SessionService::create_session` Method
+## GraphQL Operations
 
-- [x] Accepts username and password as input
-- [x] Calls `UserService::get_user_by_name` to retrieve the user by username
-- [x] Calls `PasswordService::verify` to check the password against the stored hash
-- [x] If valid, calls `SessionService::encode_token` to create a session token
-- [x] Returns the session token, or an error if the credentials are invalid
-  - [x] Error message should be specific (e.g., "User is blank" or "User not found" or "Password is blank" or "Password does not match", etc)
-  - [x] Errors should be logged using the existing logging system and must contain the given username (not the password) for debugging
-  - [x] Errors should be logged at `info` level, not `warn` or `error` -- those errors should not raise alarms in our logs, they're just infomational
-- [x] Verify existing CORS configuration for 'with_credentials' support
-- [x] Unit tests for the `create_session` method
-- [x] Document the `create_session` method via Rust doc comments
+### Mutations
+- `createUser(username: String!, password: String!)` - Create a new user
+- `createSession(username: String!, password: String!)` - Sign in and create session
 
-### Phase 11: `createSession` Mutation (sign-in)
-
-- [x] Implement `createSession` GraphQL mutation
-  - [x] Accepts username and password as input
-  - [x] Calls `SessionService::create_session`
-    - [x] On success, returns the session token and sets the cookie with the token in the response
-    - [x] On failure, returns a user-friendly error message (not the internal error message), e.g., "Invalid credentials" for any username or password error, or "Internal server error" for unexpected errors
-  - [x] Make a decision if errors should return 2XX or 4XX status codes, as it impacts the client-side error handling (decision: 2XX)
-- [x] Unit tests for the `createSession` mutation, ensuring it calls the `SessionService::create_session` method with the correct parameters
-- [x] Integration tests for the `createSession` mutation, ensuring it returns a session token and sets the cookie in the response
-
-### Phase 12: `getCurrentSession` Query
-
-- [x] Returns the current session token payload, set by the session middleware
-- [x] Make a decision if the query should return 2XX or 401 status code if the session token is not present or invalid
-- [x] Unit tests for the `getCurrentSession` query
-- [x] Integration tests for the `getCurrentSession` query
-
-### Phase 13: Handle 404s in the REST API
-
-- [x] Implement a 404 handler for the REST API
-- [x] Requests to non-existent endpoints should return a 404 status code with a plain "NOT FOUND" message
-- [x] Requests should be logged with the request method, path, querystring, and body size (if present); log level should be `info`
-- [x] Integration tests for the 404 handler
-
-## Future Phases
-
-- Email support
-- Cookie-less session management (using custom headers in response)
-- Password change (when logged in)
-- Password reset (requires email support)
-- Username change
-- User deletion/redaction
-- `user_sessions` table to track user sessions and make tokens revocable
+### Queries
+- `getServerTimestamp` - Get current server timestamp
+- `getCurrentSession` - Get current session information

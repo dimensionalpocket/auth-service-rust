@@ -2,7 +2,6 @@
 name = "dp-auth-service"
 version = "0.1.0"
 edition = "2021"
-default-run = "dp-auth-service"
 
 [dependencies]
 async-graphql = "7.0"
@@ -36,6 +35,12 @@ test-utils = []
 [dev-dependencies]
 tracing-test = "0.2"
 
+# Local development script
+[[bin]]
+name = "run_local_server"
+path = "scripts/run_local_server.rs"
+
+# Database migration and seeding script
 [[bin]]
 name = "migrate_and_dump"
 path = "config/scripts/migrate_and_dump.rs"

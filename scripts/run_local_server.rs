@@ -4,7 +4,7 @@ use std::env;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Load environment variables from .env file
+    // Load environment variables from .env file for local development
     dotenvy::dotenv().ok();
 
     // Read configuration from environment variables
@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or_else(|_| "sqlite:data/development.db".to_string());
 
     let session_secret = get_secret_from_env("DP_AUTH_SECRET_KEY", 32)
-        .expect("Failed to read session secret from DP_AUTH_SECRET_KEY");
+        .expect("DP_AUTH_SECRET_KEY environment variable is required");
 
     let cookie_domain = env::var("DP_AUTH_COOKIE_DOMAIN")
         .unwrap_or_else(|_| ".api.dp-auth.localhost".to_string());

@@ -39,18 +39,22 @@ pub async fn start_server(config: ServerConfig) -> Result<(), Box<dyn std::error
         .route(
             "/graphql",
             get({
-                move || handlers::graphql::graphql_get_handler(config.development_mode)
+                let development_mode = config.development_mode;
+                move || handlers::graphql::graphql_get_handler(development_mode)
             })
             .post({
-                let config = config.clone();
+                let cookie_domain = config.cookie_domain.clone();
+                let insecure_cookie = config.insecure_cookie;
+                let development_mode = config.development_mode;
+                let session_secret = config.session_secret.clone();
                 move |state, request| {
                     handlers::graphql::graphql_post_handler(
                         state, 
                         request, 
-                        config.cookie_domain.clone(), 
-                        config.insecure_cookie, 
-                        config.development_mode,
-                        config.session_secret.clone()
+                        cookie_domain.clone(), 
+                        insecure_cookie, 
+                        development_mode,
+                        session_secret.clone()
                     )
                 }
             })
