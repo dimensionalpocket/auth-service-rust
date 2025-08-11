@@ -29,7 +29,7 @@ use dp_auth_service::{start_server, ServerConfig};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = ServerConfig::new(
         3000, // port
-        "sqlite:data/production.db".to_string(), // database_url
+        "data/production.db".to_string(), // sqlite_file_path
         your_32_byte_secret, // session_secret (Vec<u8>)
         ".yourdomain.com".to_string(), // cookie_domain
         false, // insecure_cookie
@@ -45,7 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 The `ServerConfig` struct accepts the following parameters:
 
 - `port`: Server port (u16)
-- `database_url`: SQLite database file path (String)
+- `sqlite_file_path`: SQLite database file path (String)
 - `session_secret`: 32-byte secret for session encryption (Vec<u8>)
 - `cookie_domain`: Domain for session cookies (String)
 - `insecure_cookie`: Whether to use insecure cookies for development (bool)
@@ -62,7 +62,7 @@ cargo run --bin run_local_server
 
 Required environment variables:
 - `DP_AUTH_SECRET_KEY`: Base64-encoded 32-byte secret
-- `DP_AUTH_SQLITE_FILE`: SQLite database path (optional, defaults to "sqlite:data/development.db")
+- `DP_AUTH_SQLITE_FILE`: SQLite database file path (optional, defaults to "data/development.db")
 - `PORT`: Server port (optional, defaults to "3000")
 - `DP_AUTH_COOKIE_DOMAIN`: Cookie domain (optional, defaults to ".api.dp-auth.localhost")
 - `DP_AUTH_INSECURE_COOKIE`: Set to enable insecure cookies (optional)

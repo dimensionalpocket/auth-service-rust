@@ -71,10 +71,6 @@ impl MigrationConfig {
     })
   }
 
-  pub fn database_url(&self) -> String {
-    format!("sqlite:{}", self.sqlite_file.display())
-  }
-
   fn load_config_file(cli_args: &CliArgs) -> Result<ConfigFile, Box<dyn std::error::Error>> {
     let config_path = cli_args
       .config

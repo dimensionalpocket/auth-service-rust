@@ -12,27 +12,19 @@ use uuid::Uuid;
 
 async fn create_test_database() -> (SqlitePool, NamedTempFile) {
   let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-  let database_url = format!("sqlite:{}", temp_file.path().display());
+  let sqlite_file_path = temp_file.path().display().to_string();
 
-  let pool = SqlitePool::connect(&database_url)
+  let database = Database::new(&sqlite_file_path)
     .await
-    .expect("Failed to connect to test database");
-
-  // Configure SQLite settings (same as production)
-  for command in Database::SQLITE_PRAGMA_COMMANDS.iter() {
-    sqlx::query(command)
-      .execute(&pool)
-      .await
-      .expect("Failed to configure SQLite");
-  }
+    .expect("Failed to create test database");
 
   // Run migrations
   sqlx::migrate!("./config/database/migrations")
-    .run(&pool)
+    .run(&database.pool)
     .await
     .expect("Failed to run migrations");
 
-  (pool, temp_file)
+  (database.pool, temp_file)
 }
 
 #[tokio::test]

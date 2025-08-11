@@ -6,13 +6,19 @@ pub struct Database {
 }
 
 impl Database {
-  pub async fn new(database_url: &str) -> Result<Self, sqlx::Error> {
+  pub async fn new(sqlite_file_path: &str) -> Result<Self, sqlx::Error> {
+    // Generate database URL internally
+    let database_url = format!("sqlite:{sqlite_file_path}");
+
     // Create database if it doesn't exist
-    if !Sqlite::database_exists(database_url).await.unwrap_or(false) {
-      Sqlite::create_database(database_url).await?;
+    if !Sqlite::database_exists(&database_url)
+      .await
+      .unwrap_or(false)
+    {
+      Sqlite::create_database(&database_url).await?;
     }
 
-    let pool = SqlitePool::connect(database_url).await?;
+    let pool = SqlitePool::connect(&database_url).await?;
 
     // Configure SQLite settings after connection
     Self::configure_sqlite(&pool).await?;
@@ -182,11 +188,11 @@ pub mod test_utils {
 
   pub async fn create_test_database() -> (SqlitePool, NamedTempFile) {
     let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-    let database_url = format!("sqlite:{}", temp_file.path().display());
-
-    let pool = SqlitePool::connect(&database_url)
+    let sqlite_file_path = temp_file.path().display().to_string();
+    let database = Database::new(&sqlite_file_path)
       .await
-      .expect("Failed to connect to test database");
+      .expect("Failed to create test database");
+    let pool = database.pool;
 
     // Configure SQLite settings (same as production)
     Database::configure_sqlite(&pool)

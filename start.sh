@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# This script relies on both binaries (dp-auth-migrate and dp-auth-service) being in the root path.
+
 # Exit on any error
 set -e
 

@@ -29,7 +29,7 @@ pub async fn start_server(config: ServerConfig) -> Result<(), Box<dyn std::error
     .init();
 
   // Initialize database connection
-  let _database = database::Database::new(&config.database_url).await?;
+  let _database = database::Database::new(&config.sqlite_file_path).await?;
 
   // Create schema
   let schema = graphql::schema::create_schema();

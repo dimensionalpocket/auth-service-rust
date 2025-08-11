@@ -1,7 +1,7 @@
 #[derive(Debug, Clone)]
 pub struct ServerConfig {
   pub port: u16,
-  pub database_url: String,
+  pub sqlite_file_path: String,
   pub session_secret: Vec<u8>, // 32-byte secret
   pub cookie_domain: String,
   pub insecure_cookie: bool,
@@ -11,7 +11,7 @@ pub struct ServerConfig {
 impl ServerConfig {
   pub fn new(
     port: u16,
-    database_url: String,
+    sqlite_file_path: String,
     session_secret: Vec<u8>,
     cookie_domain: String,
     insecure_cookie: bool,
@@ -27,7 +27,7 @@ impl ServerConfig {
 
     Ok(Self {
       port,
-      database_url,
+      sqlite_file_path,
       session_secret,
       cookie_domain,
       insecure_cookie,

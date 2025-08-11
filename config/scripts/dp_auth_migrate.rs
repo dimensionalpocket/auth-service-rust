@@ -63,12 +63,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   println!("🚀 Starting dp-auth database migration...");
   println!("📊 Configuration:");
   println!("   SQLite file: {}", config.sqlite_file.display());
-  println!("   Database URL: {}", config.database_url());
   println!("   Skip seeds: {}", config.skip_seeds);
   println!();
 
   // Initialize database
-  let database = Database::new(&config.database_url()).await?;
+  let database = Database::new(&config.sqlite_file.display().to_string()).await?;
 
   // Run migrations (always use library's internal migrations)
   database.migrate().await?;

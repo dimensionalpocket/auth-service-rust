@@ -13,8 +13,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .parse::<u16>()
     .expect("PORT must be a valid number");
 
-  let database_url =
-    env::var("DP_AUTH_SQLITE_FILE").unwrap_or_else(|_| "sqlite:data/development.db".to_string());
+  let sqlite_file_path =
+    env::var("DP_AUTH_SQLITE_FILE").unwrap_or_else(|_| "data/development.db".to_string());
 
   let session_secret = get_secret_from_env("DP_AUTH_SECRET_KEY", 32)
     .expect("DP_AUTH_SECRET_KEY environment variable is required");
@@ -28,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
   let config = ServerConfig::new(
     port,
-    database_url,
+    sqlite_file_path,
     session_secret,
     cookie_domain,
     insecure_cookie,
