@@ -3,12 +3,14 @@ pub mod database;
 pub mod graphql;
 pub mod handlers;
 pub mod middleware;
+pub mod migration_config;
 pub mod models;
 pub mod queries;
 pub mod services;
 pub mod utils;
 
 pub use config::{ConfigError, ServerConfig};
+pub use database::Database;
 
 use axum::{middleware::from_fn, routing::get, Router};
 use tokio::net::TcpListener;

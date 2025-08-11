@@ -19,7 +19,7 @@ WORKDIR /app
 
 # Copy both compiled binaries from builder
 COPY --from=builder /app/target/release/dp-auth-service /app/dp-auth-service
-COPY --from=builder /app/target/release/migrate_and_dump /app/migrate_and_dump
+COPY --from=builder /app/target/release/dp-auth-migrate /app/dp-auth-migrate
 
 # Copy database configuration (migrations, seeds, schema)
 COPY --from=builder /app/config/database /app/config/database

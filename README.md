@@ -62,7 +62,7 @@ cargo run --bin run_local_server
 
 Required environment variables:
 - `DP_AUTH_SECRET_KEY`: Base64-encoded 32-byte secret
-- `DATABASE_URL`: SQLite database path (optional, defaults to "sqlite:data/development.db")
+- `DP_AUTH_SQLITE_FILE`: SQLite database path (optional, defaults to "sqlite:data/development.db")
 - `PORT`: Server port (optional, defaults to "3000")
 - `DP_AUTH_COOKIE_DOMAIN`: Cookie domain (optional, defaults to ".api.dp-auth.localhost")
 - `DP_AUTH_INSECURE_COOKIE`: Set to enable insecure cookies (optional)
@@ -70,11 +70,90 @@ Required environment variables:
 
 ## Database Setup
 
-Run migrations and seed data:
+### Using the Migration Binary
 
-```bash
-cargo run --bin migrate_and_dump
+The library provides a `dp-auth-migrate` binary for database setup.
+
+#### Building the Migration Binary
+
+When you include this library as a dependency, you can build the migration binary:
+
+    # Build the migration binary
+    cargo build --bin dp-auth-migrate
+
+    # Or build in release mode for production
+    cargo build --release --bin dp-auth-migrate
+
+The binary will be available at:
+- Debug: `target/debug/dp-auth-migrate`
+- Release: `target/release/dp-auth-migrate`
+
+#### Running the Migration Binary
+
+    # Basic usage with defaults (during development)
+    cargo run --bin dp-auth-migrate
+
+    # With custom SQLite file
+    cargo run --bin dp-auth-migrate -- --sqlite-file ./my-auth.db
+
+    # Using a configuration file
+    cargo run --bin dp-auth-migrate --config ./my-config.toml
+
+    # Skip seeds
+    cargo run --bin dp-auth-migrate --skip-seeds
+
+#### Production Deployment
+
+For production deployments, build the binary in release mode and run it directly:
+
+    # Build for production
+    cargo build --release --bin dp-auth-migrate
+
+    # Run the built binary
+    ./target/release/dp-auth-migrate --sqlite-file ./production.db
+
+    # Or with environment variables
+    export DP_AUTH_SQLITE_FILE="./production.db"
+    export DP_AUTH_MIGRATE_SKIP_SEEDS="false"
+    ./target/release/dp-auth-migrate
+
+#### Docker Deployment
+
+If using Docker, include the binary in your Dockerfile:
+
+    # Build stage
+    FROM rust:1.88.0 as builder
+    WORKDIR /app
+    COPY . .
+    RUN cargo build --release --bin your-app --bin dp-auth-migrate
+
+    # Runtime stage
+    FROM debian:bullseye-slim
+    WORKDIR /app
+    COPY --from=builder /app/target/release/your-app /app/your-app
+    COPY --from=builder /app/target/release/dp-auth-migrate /app/dp-auth-migrate
+
+    # Run migrations before starting your app
+    CMD ["sh", "-c", "./dp-auth-migrate && ./your-app"]
+
+### Configuration Methods
+
+1. **Configuration File** (`dp-auth-migrate.toml`):
+```toml
+[database]
+sqlite_file = "data/development.db"
+
+[options]
+skip_seeds = false
 ```
+
+2. **Environment Variables**:
+```bash
+export DP_AUTH_SQLITE_FILE="data/development.db"
+export DP_AUTH_MIGRATE_SKIP_SEEDS="false"
+```
+
+3. **Command-line Arguments** (see `--help` for full list)
 
 ## API Endpoints
 

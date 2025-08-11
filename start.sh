@@ -23,7 +23,7 @@ trap 'cleanup INT' SIGINT
 echo "[Start] Starting database migration, seeding, and schema dump..."
 
 # Run migrations first - exit if this fails
-./migrate_and_dump
+./dp-auth-migrate
 if [ $? -ne 0 ]; then
     echo "[Start] ❌ Migration failed, aborting startup"
     exit 1

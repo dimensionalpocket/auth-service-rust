@@ -1,5 +1,5 @@
 -- Database Schema Dump
--- Generated automatically by migrate_and_dump.rs
+-- Generated automatically by dp-auth-migrate
 
 CREATE TABLE _sqlx_migrations (
     version BIGINT PRIMARY KEY,

@@ -27,6 +27,8 @@ tempfile = "3.0"
 aes-gcm = "0.10"
 base64 = "0.22"
 dp-auth-session-service = { git = "https://github.com/dimensionalpocket/auth-session-service", tag = "0.1.0" }
+clap = { version = "4.0", features = ["derive", "env"] }
+toml = "0.8"
 
 [features]
 default = ["test-utils"]
@@ -40,7 +42,7 @@ tracing-test = "0.2"
 name = "run_local_server"
 path = "scripts/run_local_server.rs"
 
-# Database migration and seeding script
+# Database migration and setup tool
 [[bin]]
-name = "migrate_and_dump"
-path = "config/scripts/migrate_and_dump.rs"
+name = "dp-auth-migrate"
+path = "config/scripts/dp_auth_migrate.rs"
