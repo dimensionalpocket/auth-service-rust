@@ -1,5 +1,7 @@
 # dp-auth-service
 
+[![Rust Tests](https://github.com/dimensionalpocket/auth-service-rust/actions/workflows/test.yml/badge.svg)](https://github.com/dimensionalpocket/auth-service-rust/actions/workflows/test.yml) [![Docker Build Test](https://github.com/dimensionalpocket/auth-service-rust/actions/workflows/docker-build-test.yml/badge.svg)](https://github.com/dimensionalpocket/auth-service-rust/actions/workflows/docker-build-test.yml)
+
 An opinionated authentication, user management, and session handling GraphQL API.
 
 It is intended to be deployed as a microservice using an SQLite database in a volume.
