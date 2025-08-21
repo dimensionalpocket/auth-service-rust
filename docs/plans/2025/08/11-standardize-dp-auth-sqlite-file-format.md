@@ -390,7 +390,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
   let insecure_cookie = env::var("DP_AUTH_INSECURE_COOKIE").is_ok();
 
-  let development_mode = env::var("APP_ENV").unwrap_or_default() == "development";
+  let development_mode = env::var("DP_AUTH_ENV").unwrap_or_default() == "development";
 
   let config = ServerConfig::new(
     port,

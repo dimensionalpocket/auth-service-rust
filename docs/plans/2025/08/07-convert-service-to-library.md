@@ -17,7 +17,7 @@ Based on code analysis, the following environment variables are currently used:
 3. **PORT** - Server port (default: "3000")
 4. **DP_AUTH_COOKIE_DOMAIN** - Cookie domain (default: ".api.dp-auth.localhost")
 5. **DP_AUTH_INSECURE_COOKIE** - Flag for insecure cookies (presence indicates true)
-6. **APP_ENV** - Application environment (used for development mode detection)
+6. **DP_AUTH_ENV** - Application environment (used for development mode detection)
 
 ## Implementation Phases
 
@@ -266,7 +266,7 @@ async fn main() {
   let cookie_domain = env::var("DP_AUTH_COOKIE_DOMAIN")
     .unwrap_or_else(|_| ".api.dp-auth.localhost".to_string());
   let insecure_cookie = env::var("DP_AUTH_INSECURE_COOKIE").is_ok();
-  let development_mode = env::var("APP_ENV").unwrap_or_default() == "development";
+  let development_mode = env::var("DP_AUTH_ENV").unwrap_or_default() == "development";
 
   // ... database setup ...
 
@@ -490,7 +490,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
   let insecure_cookie = env::var("DP_AUTH_INSECURE_COOKIE").is_ok();
 
-  let development_mode = env::var("APP_ENV").unwrap_or_default() == "development";
+  let development_mode = env::var("DP_AUTH_ENV").unwrap_or_default() == "development";
 
   let config = ServerConfig::new(
     port,
@@ -551,7 +551,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
   let insecure_cookie = env::var("DP_AUTH_INSECURE_COOKIE").is_ok();
 
-  let development_mode = env::var("APP_ENV").unwrap_or_default() == "development";
+  let development_mode = env::var("DP_AUTH_ENV").unwrap_or_default() == "development";
 
   let config = ServerConfig::new(
     port,
@@ -843,7 +843,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
   let insecure_cookie = env::var("DP_AUTH_INSECURE_COOKIE").is_ok();
 
-  let development_mode = env::var("APP_ENV").unwrap_or_default() == "development";
+  let development_mode = env::var("DP_AUTH_ENV").unwrap_or_default() == "development";
 
   let config = ServerConfig::new(
     port,

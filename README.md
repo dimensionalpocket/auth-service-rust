@@ -1,6 +1,8 @@
 # dp-auth-service
 
-A Rust library providing GraphQL-based authentication and user management services.
+An opinionated authentication, user management, and session handling GraphQL API.
+
+It is intended to be deployed as a microservice using an SQLite database in a volume.
 
 ## Features
 
@@ -10,6 +12,23 @@ A Rust library providing GraphQL-based authentication and user management servic
 - Password hashing with Argon2
 - SQLite database with migrations
 - REST endpoints for health checks
+
+## API Endpoints
+
+- `GET /` - Root endpoint
+- `GET /health` - Health check
+- `GET /graphql` - GraphQL playground (development mode only)
+- `POST /graphql` - GraphQL API
+
+## GraphQL Operations
+
+### Mutations
+- `createUser(username: String!, password: String!)` - Create a new user
+- `createSession(username: String!, password: String!)` - Sign in and create session
+
+### Queries
+- `getServerTimestamp` - Get current server timestamp
+- `getCurrentSession` - Get current session information
 
 ## Installation
 
@@ -66,7 +85,7 @@ Required environment variables:
 - `PORT`: Server port (optional, defaults to "3000")
 - `DP_AUTH_COOKIE_DOMAIN`: Cookie domain (optional, defaults to ".api.dp-auth.localhost")
 - `DP_AUTH_INSECURE_COOKIE`: Set to enable insecure cookies (optional)
-- `APP_ENV`: Set to "development" to enable development mode (optional)
+- `DP_AUTH_ENV`: Set to "development" to enable development mode (optional)
 
 ## Database Setup
 
@@ -155,19 +174,6 @@ export DP_AUTH_MIGRATE_SKIP_SEEDS="false"
 
 3. **Command-line Arguments** (see `--help` for full list)
 
-## API Endpoints
+## License
 
-- `GET /` - Root endpoint
-- `GET /health` - Health check
-- `GET /graphql` - GraphQL playground (development mode only)
-- `POST /graphql` - GraphQL API
-
-## GraphQL Operations
-
-### Mutations
-- `createUser(username: String!, password: String!)` - Create a new user
-- `createSession(username: String!, password: String!)` - Sign in and create session
-
-### Queries
-- `getServerTimestamp` - Get current server timestamp
-- `getCurrentSession` - Get current session information
+[MIT](./LICENSE)

@@ -448,7 +448,7 @@ async fn test_json_log_format() {
 #[tokio::test]
 async fn test_pretty_log_format() {
   env::set_var("LOG_FORMAT", "pretty");
-  env::set_var("APP_ENV", "development");
+  env::set_var("DP_AUTH_ENV", "development");
   
   let subscriber = create_test_subscriber_pretty();
   
@@ -613,7 +613,7 @@ pub fn create_test_subscriber() -> impl tracing::Subscriber {
 New environment variables to support:
 - `RUST_LOG`: Log level configuration (e.g., "debug", "info", "warn", "error")
 - `LOG_FORMAT`: Output format ("json" or "pretty")
-- `APP_ENV`: Environment name (affects log format defaults)
+- `DP_AUTH_ENV`: Environment name (affects log format defaults)
 
 ## Success Criteria
 
