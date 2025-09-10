@@ -1,5 +1,7 @@
 pub mod config;
 pub mod database;
+pub mod dp_auth_server;
+pub mod dp_auth_server_builder;
 pub mod graphql;
 pub mod handlers;
 pub mod middleware;
@@ -11,6 +13,8 @@ pub mod utils;
 
 pub use config::{ConfigError, ServerConfig};
 pub use database::Database;
+pub use dp_auth_server::{DpAuthServer, DpAuthServerError};
+pub use dp_auth_server_builder::DpAuthServerBuilder;
 
 use axum::{middleware::from_fn, routing::get, Router};
 use tokio::net::TcpListener;
@@ -29,10 +33,10 @@ pub async fn start_server(config: ServerConfig) -> Result<(), Box<dyn std::error
     .init();
 
   // Initialize database connection
-  let _database = database::Database::new(&config.sqlite_file_path).await?;
+  let database = database::Database::new(&config.sqlite_file_path).await?;
 
-  // Create schema
-  let schema = graphql::schema::create_schema();
+  // Create schema with database pool for mutations
+  let schema = graphql::schema::build_schema().data(database.pool).finish();
 
   // Build router with config
   let app = Router::new()

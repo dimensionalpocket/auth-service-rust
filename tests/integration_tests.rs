@@ -1,141 +1,91 @@
 use axum::{
   body::Body,
-  extract::State,
   http::{Request, StatusCode},
-  response::Response,
   Router,
 };
-use dp_auth_service::{
-  database::test_utils::create_test_database,
-  graphql::schema::{create_schema, AppSchema},
-  handlers::{
-    graphql::{graphql_get_handler, graphql_post_handler},
-    rest::{health_handler, not_found_handler, root_handler},
-  },
-  middleware::session::create_session_middleware,
-  services::UserService,
-  utils::get_secret_from_env::get_secret_from_env,
-};
-use sqlx::SqlitePool;
-use std::{env, sync::Once};
+use dp_auth_service::dp_auth_server::DpAuthServer;
 use tower::ServiceExt;
-use tower_http::cors::CorsLayer;
 
-// Test wrapper functions for GraphQL handlers
-async fn test_graphql_get_handler() -> Response {
-  graphql_get_handler(true).await
+// No test wrapper functions needed - using DpAuthServer's configured router
+
+async fn create_app() -> Router {
+  // Generate a random 32-byte session secret for this test to ensure test isolation
+  let session_secret: Vec<u8> = (0..32).map(|_| rand::random::<u8>()).collect();
+
+  // Create temporary database file with unique name to avoid conflicts
+  let temp_file = tempfile::Builder::new()
+    .prefix(&format!("dp_auth_test_{}_", rand::random::<u32>()))
+    .suffix(".db")
+    .tempfile()
+    .expect("Failed to create temp file");
+  let db_path = temp_file
+    .path()
+    .to_str()
+    .expect("Failed to get temp file path");
+
+  let server = DpAuthServer::new()
+    .session_secret(session_secret)
+    .sqlite_file_path(db_path)
+    .cookie_domain(".api.dp-auth.localhost")
+    .insecure_cookie(true)
+    .development_mode(true)
+    .database_pool_size(1) // Use small pool size for tests to avoid concurrency issues
+    .build()
+    .unwrap();
+
+  // Run migrations and seeds for full database setup
+  server
+    .migrate_database()
+    .await
+    .expect("Failed to run migrations");
+  server.seed_database().await.expect("Failed to run seeds");
+
+  server.create_app().await.unwrap()
 }
 
-async fn test_graphql_post_handler(
-  State(schema): State<AppSchema>,
-  request: Request<Body>,
-) -> impl axum::response::IntoResponse {
-  graphql_post_handler(
-    State(schema),
-    request,
-    ".api.dp-auth.localhost".to_string(),
-    true,          // insecure_cookie for tests
-    true,          // development_mode for tests
-    vec![0u8; 32], // dummy secret for basic tests
-  )
-  .await
-}
+// Helper function to create test users via GraphQL mutation (tests actual CreateUser mutation)
+// Uses unique usernames to avoid any potential conflicts
+async fn create_test_user_via_mutation(app: &Router, username: &str, password: &str) -> String {
+  let query = format!(
+    r#"{{
+      "query": "mutation {{ createUser(input: {{ username: \"{username}\", password: \"{password}\" }}) {{ uuid username }} }}"
+    }}"#
+  );
 
-async fn test_graphql_post_handler_with_session(
-  State(schema): State<AppSchema>,
-  request: Request<Body>,
-  session_secret: Vec<u8>,
-) -> impl axum::response::IntoResponse {
-  graphql_post_handler(
-    State(schema),
-    request,
-    ".api.dp-auth.localhost".to_string(),
-    true, // insecure_cookie for tests
-    true, // development_mode for tests
-    session_secret,
-  )
-  .await
-}
-
-fn create_app() -> Router {
-  let schema = create_schema();
-
-  Router::new()
-    .route("/", axum::routing::get(root_handler))
-    .route("/health", axum::routing::get(health_handler))
-    .route(
-      "/graphql",
-      axum::routing::get(test_graphql_get_handler).post(test_graphql_post_handler),
+  let response = app
+    .clone()
+    .oneshot(
+      Request::builder()
+        .method("POST")
+        .uri("/graphql")
+        .header("content-type", "application/json")
+        .body(Body::from(query))
+        .unwrap(),
     )
-    .fallback(not_found_handler)
-    .layer(CorsLayer::permissive())
-    .with_state(schema)
-}
+    .await
+    .unwrap();
 
-async fn create_app_with_database() -> (Router, SqlitePool, tempfile::NamedTempFile) {
-  let (pool, temp_file) = create_test_database().await;
+  assert_eq!(response.status(), StatusCode::OK);
 
-  // Create schema with database pool in the data context
-  use async_graphql::{EmptySubscription, Schema};
-  use dp_auth_service::graphql::{mutation::Mutation, query::Query};
+  let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+    .await
+    .unwrap();
+  let body_str = String::from_utf8(body.to_vec()).unwrap();
+  let data: serde_json::Value = serde_json::from_str(&body_str).unwrap();
 
-  let schema = Schema::build(Query::new(), Mutation::new(), EmptySubscription)
-    .data(pool.clone())
-    .finish();
+  // Verify user creation was successful
+  assert!(data["errors"].is_null(), "User creation failed: {body_str}");
+  assert!(!data["data"]["createUser"]["uuid"].is_null());
 
-  // Get session secret for middleware
-  let session_secret =
-    get_secret_from_env("DP_AUTH_SECRET_KEY", 32).expect("Failed to read session secret for test");
-
-  let app = Router::new()
-    .route("/", axum::routing::get(root_handler))
-    .route("/health", axum::routing::get(health_handler))
-    .route(
-      "/graphql",
-      axum::routing::get(test_graphql_get_handler)
-        .post({
-          let session_secret = session_secret.clone();
-          move |state, request| {
-            let session_secret = session_secret.clone();
-            async move {
-              test_graphql_post_handler_with_session(state, request, session_secret).await
-            }
-          }
-        }),
-    )
-    .layer(axum::middleware::from_fn(create_session_middleware(session_secret)))
-    .layer(CorsLayer::permissive())
-    .with_state(schema);
-
-  (app, pool, temp_file)
-}
-
-static INIT: Once = Once::new();
-
-fn setup_test_environment() {
-  INIT.call_once(|| {
-    // Set up test environment variables
-    env::set_var(
-      "DP_AUTH_SECRET_KEY",
-      "QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=",
-    );
-    env::set_var("DP_AUTH_INSECURE_COOKIE", "true");
-    env::set_var("DP_AUTH_COOKIE_DOMAIN", ".api.dp-auth.localhost");
-  });
-}
-
-async fn setup_default_role(pool: &SqlitePool) {
-  sqlx::query(
-    "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
-  )
-  .execute(pool)
-  .await
-  .unwrap();
+  data["data"]["createUser"]["uuid"]
+    .as_str()
+    .unwrap()
+    .to_string()
 }
 
 #[tokio::test]
 async fn test_root_endpoint() {
-  let app = create_app();
+  let app = create_app().await;
 
   let response = app
     .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
@@ -152,7 +102,7 @@ async fn test_root_endpoint() {
 
 #[tokio::test]
 async fn test_health_endpoint() {
-  let app = create_app();
+  let app = create_app().await;
 
   let response = app
     .oneshot(
@@ -174,7 +124,7 @@ async fn test_health_endpoint() {
 
 #[tokio::test]
 async fn test_graphql_endpoint() {
-  let app = create_app();
+  let app = create_app().await;
 
   let query = r#"{"query": "{ getServerTimestamp }"}"#;
 
@@ -204,20 +154,17 @@ async fn test_graphql_endpoint() {
 
 #[tokio::test]
 async fn test_create_session_mutation_success() {
-  setup_test_environment();
-  let (app, pool, _temp_file) = create_app_with_database().await;
+  let app = create_app().await;
 
-  // Setup: Create a user
-  setup_default_role(&pool).await;
-  UserService::create_user(&pool, "testuser", "password123")
-    .await
-    .unwrap();
+  // Setup: Create a test user via GraphQL mutation (tests actual CreateUser mutation)
+  let unique_username = format!("testuser_{}", rand::random::<u32>());
+  create_test_user_via_mutation(&app, &unique_username, "password123").await;
 
-  let query = r#"
-    {
-      "query": "mutation { createSession(input: { username: \"testuser\", password: \"password123\" }) { token message } }"
-    }
-  "#;
+  let query = format!(
+    r#"{{
+      "query": "mutation {{ createSession(input: {{ username: \"{unique_username}\", password: \"password123\" }}) {{ token message }} }}"
+    }}"#
+  );
 
   let response = app
     .oneshot(
@@ -263,20 +210,17 @@ async fn test_create_session_mutation_success() {
 
 #[tokio::test]
 async fn test_create_session_mutation_invalid_credentials() {
-  setup_test_environment();
-  let (app, pool, _temp_file) = create_app_with_database().await;
+  let app = create_app().await;
 
-  // Setup: Create a user
-  setup_default_role(&pool).await;
-  UserService::create_user(&pool, "testuser", "password123")
-    .await
-    .unwrap();
+  // Setup: Create a test user via GraphQL mutation (tests actual CreateUser mutation)
+  let unique_username = format!("testuser_{}", rand::random::<u32>());
+  create_test_user_via_mutation(&app, &unique_username, "password123").await;
 
-  let query = r#"
-    {
-      "query": "mutation { createSession(input: { username: \"testuser\", password: \"wrongpassword\" }) { token message } }"
-    }
-  "#;
+  let query = format!(
+    r#"{{
+      "query": "mutation {{ createSession(input: {{ username: \"{unique_username}\", password: \"wrongpassword\" }}) {{ token message }} }}"
+    }}"#
+  );
 
   let response = app
     .oneshot(
@@ -312,8 +256,7 @@ async fn test_create_session_mutation_invalid_credentials() {
 
 #[tokio::test]
 async fn test_create_session_mutation_with_missing_user() {
-  setup_test_environment();
-  let (app, _pool, _temp_file) = create_app_with_database().await;
+  let app = create_app().await;
 
   let query = r#"
     {
@@ -355,21 +298,18 @@ async fn test_create_session_mutation_with_missing_user() {
 
 #[tokio::test]
 async fn test_get_current_session_integration_authenticated() {
-  setup_test_environment();
-  let (app, pool, _temp_file) = create_app_with_database().await;
+  let app = create_app().await;
 
-  // Setup: Create a user
-  setup_default_role(&pool).await;
-  UserService::create_user(&pool, "testuser", "password123")
-    .await
-    .unwrap();
+  // Setup: Create a test user via GraphQL mutation (tests actual CreateUser mutation)
+  let unique_username = format!("testuser_{}", rand::random::<u32>());
+  create_test_user_via_mutation(&app, &unique_username, "password123").await;
 
   // Create session first
-  let create_session_query = r#"
-    {
-      "query": "mutation { createSession(input: { username: \"testuser\", password: \"password123\" }) { token message } }"
-    }
-  "#;
+  let create_session_query = format!(
+    r#"{{
+      "query": "mutation {{ createSession(input: {{ username: \"{unique_username}\", password: \"password123\" }}) {{ token message }} }}"
+    }}"#
+  );
 
   let create_session_response = app
     .clone()
@@ -432,8 +372,7 @@ async fn test_get_current_session_integration_authenticated() {
 
 #[tokio::test]
 async fn test_get_current_session_integration_unauthenticated() {
-  setup_test_environment();
-  let (app, _pool, _temp_file) = create_app_with_database().await;
+  let app = create_app().await;
 
   let query = r#"
     {
@@ -467,8 +406,7 @@ async fn test_get_current_session_integration_unauthenticated() {
 
 #[tokio::test]
 async fn test_get_current_session_integration_invalid_token() {
-  setup_test_environment();
-  let (app, _pool, _temp_file) = create_app_with_database().await;
+  let app = create_app().await;
 
   let query = r#"
     {
@@ -503,7 +441,7 @@ async fn test_get_current_session_integration_invalid_token() {
 
 #[tokio::test]
 async fn test_404_handler_returns_not_found() {
-  let app = create_app();
+  let app = create_app().await;
 
   let request = Request::builder()
     .uri("/nonexistent")
@@ -523,7 +461,7 @@ async fn test_404_handler_returns_not_found() {
 
 #[tokio::test]
 async fn test_404_handler_with_query_string() {
-  let app = create_app();
+  let app = create_app().await;
 
   let request = Request::builder()
     .uri("/nonexistent?param=value")
@@ -543,7 +481,7 @@ async fn test_404_handler_with_query_string() {
 
 #[tokio::test]
 async fn test_404_handler_with_post_method() {
-  let app = create_app();
+  let app = create_app().await;
 
   let request = Request::builder()
     .method("POST")

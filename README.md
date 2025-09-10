@@ -4,7 +4,7 @@
 
 An opinionated authentication, user management, and session handling GraphQL API.
 
-It is intended to be deployed as a microservice using an SQLite database in a volume.
+It is intended to be deployed as a microservice with a volume to house the SQLite databases.
 
 ## Features
 

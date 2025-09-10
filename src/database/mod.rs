@@ -1,4 +1,4 @@
-use sqlx::{migrate::MigrateDatabase, Row, Sqlite, SqlitePool};
+use sqlx::{migrate::MigrateDatabase, sqlite::SqlitePoolOptions, Row, Sqlite, SqlitePool};
 use std::fs;
 
 pub struct Database {
@@ -7,6 +7,13 @@ pub struct Database {
 
 impl Database {
   pub async fn new(sqlite_file_path: &str) -> Result<Self, sqlx::Error> {
+    Self::new_with_pool_size(sqlite_file_path, None).await
+  }
+
+  pub async fn new_with_pool_size(
+    sqlite_file_path: &str,
+    pool_size: Option<u32>,
+  ) -> Result<Self, sqlx::Error> {
     // Generate database URL internally
     let database_url = format!("sqlite:{sqlite_file_path}");
 
@@ -18,9 +25,18 @@ impl Database {
       Sqlite::create_database(&database_url).await?;
     }
 
-    let pool = SqlitePool::connect(&database_url).await?;
+    let pool = match pool_size {
+      Some(size) => {
+        SqlitePoolOptions::new()
+          .max_connections(size)
+          .connect(&database_url)
+          .await?
+      }
+      None => SqlitePool::connect(&database_url).await?,
+    };
 
     // Configure SQLite settings after connection
+    println!("🔧 Configuring SQLite database: {sqlite_file_path}");
     Self::configure_sqlite(&pool).await?;
 
     Ok(Database { pool })
@@ -57,7 +73,7 @@ impl Database {
   pub async fn configure_sqlite(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     // Execute each PRAGMA command
     for command in Self::SQLITE_PRAGMA_COMMANDS.iter() {
-      println!("Executing SQLite configuration: {command}");
+      println!("   {command}");
       sqlx::query(command).execute(pool).await?;
     }
 
@@ -178,6 +194,62 @@ impl Database {
     println!("✅ Seeds completed successfully");
     Ok(())
   }
+
+  /// Generate schema dump content as a string
+  pub async fn dump_schema_content(&self) -> Result<String, sqlx::Error> {
+    // Query to get all table creation statements
+    let tables = sqlx::query_scalar::<_, String>(
+      "SELECT sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+    )
+    .fetch_all(&self.pool)
+    .await?;
+
+    // Query to get all index creation statements
+    let indexes = sqlx::query_scalar::<_, String>(
+          "SELECT sql FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%' AND sql IS NOT NULL ORDER BY name"
+      )
+      .fetch_all(&self.pool)
+      .await?;
+
+    // Combine all SQL statements
+    let mut schema_sql = String::new();
+    schema_sql.push_str("-- Database Schema Dump\n");
+    schema_sql.push_str("-- Generated automatically by dp-auth-migrate\n\n");
+
+    // Add table creation statements
+    for table_sql in tables {
+      schema_sql.push_str(&table_sql);
+      schema_sql.push_str(";\n\n");
+    }
+
+    // Add index creation statements
+    for index_sql in indexes {
+      schema_sql.push_str(&index_sql);
+      schema_sql.push_str(";\n\n");
+    }
+
+    Ok(schema_sql)
+  }
+
+  /// Dump schema to a file at the specified path
+  pub async fn dump_schema_to_file(
+    &self,
+    file_path: &str,
+  ) -> Result<(), Box<dyn std::error::Error>> {
+    // Generate schema dump using pure Rust/sqlx instead of sqlite3 command
+    let schema_sql = self.dump_schema_content().await?;
+
+    // Create directory if it doesn't exist
+    if let Some(parent) = std::path::Path::new(file_path).parent() {
+      std::fs::create_dir_all(parent)?;
+    }
+
+    // Write schema to specified file
+    std::fs::write(file_path, schema_sql)?;
+    println!("✅ Schema dumped to {file_path}");
+
+    Ok(())
+  }
 }
 
 #[cfg(any(test, feature = "test-utils"))]
@@ -208,3 +280,237 @@ pub mod test_utils {
     (pool, temp_file)
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use tempfile::NamedTempFile;
+
+  #[tokio::test]
+  async fn test_dump_schema_content() {
+    // Create a test database without migrations
+    let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    let sqlite_file_path = temp_file.path().display().to_string();
+    let database = Database::new(&sqlite_file_path)
+      .await
+      .expect("Failed to create test database");
+
+    // Create test tables manually
+    sqlx::query(
+      "CREATE TABLE test_table_1 (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      )",
+    )
+    .execute(&database.pool)
+    .await
+    .expect("Failed to create test_table_1");
+
+    sqlx::query(
+      "CREATE TABLE test_table_2 (
+        id INTEGER PRIMARY KEY,
+        description TEXT,
+        status TEXT DEFAULT 'active'
+      )",
+    )
+    .execute(&database.pool)
+    .await
+    .expect("Failed to create test_table_2");
+
+    // Test schema dump content generation
+    let schema_content = database
+      .dump_schema_content()
+      .await
+      .expect("Failed to dump schema content");
+
+    // Verify the schema content contains expected elements
+    assert!(schema_content.contains("-- Database Schema Dump"));
+    assert!(schema_content.contains("-- Generated automatically by dp-auth-migrate"));
+
+    // Should contain our test tables
+    assert!(schema_content.contains("CREATE TABLE test_table_1"));
+    assert!(schema_content.contains("CREATE TABLE test_table_2"));
+
+    // Should contain proper SQL formatting
+    assert!(schema_content.contains(";\n\n"));
+
+    // Tables should be ordered alphabetically
+    let table1_pos = schema_content.find("CREATE TABLE test_table_1").unwrap();
+    let table2_pos = schema_content.find("CREATE TABLE test_table_2").unwrap();
+    assert!(
+      table1_pos < table2_pos,
+      "Tables should be ordered alphabetically"
+    );
+  }
+
+  #[tokio::test]
+  async fn test_dump_schema_to_file() {
+    // Create a test database without migrations
+    let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    let sqlite_file_path = temp_file.path().display().to_string();
+    let database = Database::new(&sqlite_file_path)
+      .await
+      .expect("Failed to create test database");
+
+    // Create test table manually
+    sqlx::query(
+      "CREATE TABLE test_products (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        price DECIMAL(10,2),
+        category_id INTEGER
+      )",
+    )
+    .execute(&database.pool)
+    .await
+    .expect("Failed to create test_products table");
+
+    // Create a temporary file for schema dump
+    let schema_temp_file = NamedTempFile::new().expect("Failed to create temp schema file");
+    let schema_file_path = schema_temp_file.path().display().to_string();
+
+    // Test schema dump to file
+    database
+      .dump_schema_to_file(&schema_file_path)
+      .await
+      .expect("Failed to dump schema to file");
+
+    // Verify the file was created and contains expected content
+    assert!(std::path::Path::new(&schema_file_path).exists());
+
+    let file_content =
+      std::fs::read_to_string(&schema_file_path).expect("Failed to read schema file");
+
+    assert!(file_content.contains("-- Database Schema Dump"));
+    assert!(file_content.contains("CREATE TABLE test_products"));
+    assert!(file_content.contains("AUTOINCREMENT"));
+    assert!(file_content.contains("UNIQUE"));
+  }
+
+  #[tokio::test]
+  async fn test_dump_schema_to_file_creates_directory() {
+    // Create a test database without migrations
+    let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    let sqlite_file_path = temp_file.path().display().to_string();
+    let database = Database::new(&sqlite_file_path)
+      .await
+      .expect("Failed to create test database");
+
+    // Create test table manually
+    sqlx::query(
+      "CREATE TABLE test_orders (
+        order_id INTEGER PRIMARY KEY,
+        customer_name TEXT NOT NULL,
+        order_date TEXT DEFAULT CURRENT_TIMESTAMP
+      )",
+    )
+    .execute(&database.pool)
+    .await
+    .expect("Failed to create test_orders table");
+
+    // Create a path with non-existent directory
+    let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+    let schema_file_path = temp_dir.path().join("subdir").join("schema.sql");
+    let schema_file_path_str = schema_file_path.display().to_string();
+
+    // Test schema dump to file in non-existent directory
+    database
+      .dump_schema_to_file(&schema_file_path_str)
+      .await
+      .expect("Failed to dump schema to file");
+
+    // Verify the directory and file were created
+    assert!(schema_file_path.exists());
+
+    let file_content =
+      std::fs::read_to_string(&schema_file_path).expect("Failed to read schema file");
+
+    assert!(file_content.contains("-- Database Schema Dump"));
+    assert!(file_content.contains("CREATE TABLE test_orders"));
+    assert!(file_content.contains("DEFAULT CURRENT_TIMESTAMP"));
+  }
+
+  #[tokio::test]
+  async fn test_dump_schema_content_empty_database() {
+    // Create a test database without migrations
+    let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    let sqlite_file_path = temp_file.path().display().to_string();
+    let database = Database::new(&sqlite_file_path)
+      .await
+      .expect("Failed to create test database");
+
+    // Test schema dump content generation on empty database
+    let schema_content = database
+      .dump_schema_content()
+      .await
+      .expect("Failed to dump schema content");
+
+    // Should still contain headers even with no tables
+    assert!(schema_content.contains("-- Database Schema Dump"));
+    assert!(schema_content.contains("-- Generated automatically by dp-auth-migrate"));
+
+    // Should not contain any CREATE TABLE statements
+    assert!(!schema_content.contains("CREATE TABLE"));
+  }
+
+  #[tokio::test]
+  async fn test_dump_schema_content_with_indexes() {
+    // Create a test database without migrations
+    let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    let sqlite_file_path = temp_file.path().display().to_string();
+    let database = Database::new(&sqlite_file_path)
+      .await
+      .expect("Failed to create test database");
+
+    // Create test table manually
+    sqlx::query(
+      "CREATE TABLE test_customers (
+        id INTEGER PRIMARY KEY,
+        email TEXT NOT NULL,
+        name TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      )",
+    )
+    .execute(&database.pool)
+    .await
+    .expect("Failed to create test_customers table");
+
+    // Create test indexes manually
+    sqlx::query("CREATE INDEX idx_customers_email ON test_customers(email)")
+      .execute(&database.pool)
+      .await
+      .expect("Failed to create email index");
+
+    sqlx::query("CREATE UNIQUE INDEX idx_customers_email_unique ON test_customers(email)")
+      .execute(&database.pool)
+      .await
+      .expect("Failed to create unique email index");
+
+    // Test schema dump content generation
+    let schema_content = database
+      .dump_schema_content()
+      .await
+      .expect("Failed to dump schema content");
+
+    // Should contain the table
+    assert!(schema_content.contains("CREATE TABLE test_customers"));
+
+    // Should contain both indexes
+    assert!(schema_content.contains("CREATE INDEX idx_customers_email ON test_customers(email)"));
+    assert!(schema_content
+      .contains("CREATE UNIQUE INDEX idx_customers_email_unique ON test_customers(email)"));
+
+    // Indexes should come after tables in the output
+    let table_pos = schema_content.find("CREATE TABLE test_customers").unwrap();
+    let index_pos = schema_content
+      .find("CREATE INDEX idx_customers_email")
+      .unwrap();
+    assert!(
+      table_pos < index_pos,
+      "Tables should come before indexes in schema dump"
+    );
+  }
+}
+
+// TODO: tests for creating a Database with different pool sizes

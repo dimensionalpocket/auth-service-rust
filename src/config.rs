@@ -6,6 +6,7 @@ pub struct ServerConfig {
   pub cookie_domain: String,
   pub insecure_cookie: bool,
   pub development_mode: bool,
+  pub database_pool_size: Option<u32>,
 }
 
 impl ServerConfig {
@@ -16,6 +17,7 @@ impl ServerConfig {
     cookie_domain: String,
     insecure_cookie: bool,
     development_mode: bool,
+    database_pool_size: Option<u32>,
   ) -> Result<Self, ConfigError> {
     // Validate session secret is exactly 32 bytes
     if session_secret.len() != 32 {
@@ -32,6 +34,7 @@ impl ServerConfig {
       cookie_domain,
       insecure_cookie,
       development_mode,
+      database_pool_size,
     })
   }
 }

@@ -33,6 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     cookie_domain,
     insecure_cookie,
     development_mode,
+    None, // Use default pool size
   )?;
 
   start_server(config).await
