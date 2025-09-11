@@ -43,34 +43,78 @@ dp-auth-service = { git = "https://github.com/dimensionalpocket/auth-service-rus
 
 ## Usage
 
+### Minimal Example (with defaults)
+
 ```rust
-use dp_auth_service::{start_server, ServerConfig};
+use dp_auth_service::DpAuthServer;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = ServerConfig::new(
-        3000, // port
-        "data/production.db".to_string(), // sqlite_file_path
-        your_32_byte_secret, // session_secret (Vec<u8>)
-        ".yourdomain.com".to_string(), // cookie_domain
-        false, // insecure_cookie
-        false, // development_mode
-    )?;
+    let server = DpAuthServer::new()
+        .session_secret(your_32_byte_secret)
+        .build()?;
 
-    start_server(config).await
+    server.start().await
+}
+```
+
+### Complete Configuration Example
+
+```rust
+use dp_auth_service::DpAuthServer;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let server = DpAuthServer::new()
+        .port(3000)
+        .sqlite_file_path("data/production.db")
+        .session_secret(your_32_byte_secret)
+        .cookie_domain(".yourdomain.com")
+        .insecure_cookie(false)
+        .development_mode(false)
+        .build()?;
+
+    server.start().await
+}
+```
+
+### With Logging Example
+
+```rust
+use dp_auth_service::DpAuthServer;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Initialize logging (optional)
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "dp_auth_service=debug,tower_http=debug".into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
+    let server = DpAuthServer::new()
+        .session_secret(your_32_byte_secret)
+        .build()?;
+
+    server.start().await
 }
 ```
 
 ## Configuration
 
-The `ServerConfig` struct accepts the following parameters:
+The `DpAuthServer` builder accepts the following configuration options:
 
-- `port`: Server port (u16)
-- `sqlite_file_path`: SQLite database file path (String)
-- `session_secret`: 32-byte secret for session encryption (Vec<u8>)
-- `cookie_domain`: Domain for session cookies (String)
-- `insecure_cookie`: Whether to use insecure cookies for development (bool)
-- `development_mode`: Enable development features like GraphQL playground (bool)
+- `port(u16)`: Server port (default: 3000)
+- `sqlite_file_path(String)`: SQLite database file path (default: "data/development.db")
+- `session_secret(Vec<u8>)`: 32-byte secret for session encryption (required)
+- `cookie_domain(String)`: Domain for session cookies (default: ".api.dp-auth.localhost")
+- `insecure_cookie(bool)`: Whether to use insecure cookies for development (default: false)
+- `development_mode(bool)`: Enable development features like GraphQL playground (default: false)
+
+All configuration options except `session_secret` have sensible defaults and are optional.
 
 ## Local Development
 
@@ -81,13 +125,15 @@ For local development, use the provided script:
 cargo run --bin run_local_server
 ```
 
-Required environment variables:
-- `DP_AUTH_SECRET_KEY`: Base64-encoded 32-byte secret
+The `run_local_server` binary uses environment variables for configuration:
+- `DP_AUTH_SECRET_KEY`: Base64-encoded 32-byte secret (required)
 - `DP_AUTH_SQLITE_FILE`: SQLite database file path (optional, defaults to "data/development.db")
 - `PORT`: Server port (optional, defaults to "3000")
 - `DP_AUTH_COOKIE_DOMAIN`: Cookie domain (optional, defaults to ".api.dp-auth.localhost")
 - `DP_AUTH_INSECURE_COOKIE`: Set to enable insecure cookies (optional)
 - `DP_AUTH_ENV`: Set to "development" to enable development mode (optional)
+
+**Note**: When using the library directly in your code, use the `DpAuthServer` builder pattern instead of environment variables.
 
 ## Database Setup
 
