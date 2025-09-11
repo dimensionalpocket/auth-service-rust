@@ -340,18 +340,18 @@ impl DpAuthServer {
   - ✅ Make `initialize_database()` method public for test usage
   - ✅ Add comprehensive unit tests for all three database methods (6 new tests)
   - ✅ Update `src/lib.rs` to export `DpAuthServer`, `DpAuthServerError`, and `DpAuthServerBuilder` to public API
-- **Simplify integration test database setup**:
-  - Update `create_app_with_database()` to use `DpAuthServer` with temp file path
-  - Use `server.initialize_database()`, `server.migrate_database()`, and `server.seed_database()` in tests
-  - Remove manual GraphQL schema creation with database injection
-  - Use standard `server.create_app()` method instead of `build_router()`
-  - Replace manual `setup_default_role()` and `UserService::create_user()` with seed data and test helper function
-- **Test pattern changes**:
-  - Default roles come from `config/database/seeds/001_default_roles.sql` via `seed_database()`
-  - Default users (including admin) come from `config/database/seeds/002_default_users.sql` via `seed_database()`
-  - Remove manual `setup_default_role()` calls - use seeded roles instead
-  - Regular test users created via `create_test_user_via_mutation()` test helper function (tests actual CreateUser mutation)
-  - Admin functionality tests can use seeded admin user from `002_default_users.sql`
+- **✅ Simplify integration test database setup**:
+  - ✅ Update `create_app_with_database()` to use `DpAuthServer` with temp file path (replaced with `create_app()` function)
+  - ✅ Use `server.initialize_database()`, `server.migrate_database()`, and `server.seed_database()` in tests
+  - ✅ Remove manual GraphQL schema creation with database injection
+  - ✅ Use standard `server.create_app()` method instead of `build_router()`
+  - ✅ Replace manual `setup_default_role()` and `UserService::create_user()` with seed data and test helper function
+- **✅ Test pattern changes**:
+  - ✅ Default roles come from `config/database/seeds/001_default_roles.sql` via `seed_database()`
+  - ✅ Default users (including admin) come from `config/database/seeds/002_default_users.sql` via `seed_database()`
+  - ✅ Remove manual `setup_default_role()` calls - use seeded roles instead (still present in some service tests, but integration tests are clean)
+  - ✅ Regular test users created via `create_test_user_via_mutation()` test helper function (tests actual CreateUser mutation)
+  - ✅ Admin functionality tests can use seeded admin user from `002_default_users.sql`
 - **Benefits**:
   - Tests use exact same database initialization path as production
   - Clean separation: connection → migrations → seeds

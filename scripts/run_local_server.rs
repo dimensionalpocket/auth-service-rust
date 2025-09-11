@@ -1,11 +1,21 @@
 use dp_auth_service::utils::get_secret_from_env::get_secret_from_env;
-use dp_auth_service::{start_server, ServerConfig};
+use dp_auth_service::DpAuthServer;
 use std::env;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
   // Load environment variables from .env file for local development
   dotenvy::dotenv().ok();
+
+  // Initialize logging
+  tracing_subscriber::registry()
+    .with(
+      tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| "dp_auth_service=debug,tower_http=debug".into()),
+    )
+    .with(tracing_subscriber::fmt::layer())
+    .init();
 
   // Read configuration from environment variables
   let port = env::var("PORT")
@@ -26,15 +36,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
   let development_mode = env::var("DP_AUTH_ENV").unwrap_or_default() == "development";
 
-  let config = ServerConfig::new(
-    port,
-    sqlite_file_path,
-    session_secret,
-    cookie_domain,
-    insecure_cookie,
-    development_mode,
-    None, // Use default pool size
-  )?;
+  let server = DpAuthServer::new()
+    .port(port)
+    .sqlite_file_path(sqlite_file_path)
+    .session_secret(session_secret)
+    .cookie_domain(cookie_domain)
+    .insecure_cookie(insecure_cookie)
+    .development_mode(development_mode)
+    .build()?;
 
-  start_server(config).await
+  Ok(server.start().await?)
 }
