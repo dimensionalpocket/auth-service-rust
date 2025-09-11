@@ -46,13 +46,12 @@ pub fn set_session_cookie(
 }
 
 /// GraphQL POST handler for actual queries
-#[instrument(skip(schema, http_req))]
+#[instrument(skip(schema, http_req, cookie_domain, insecure_cookie, session_secret))]
 pub async fn graphql_post_handler(
   State(schema): State<AppSchema>,
   http_req: Request,
   cookie_domain: String,
   insecure_cookie: bool,
-  development_mode: bool,
   session_secret: Vec<u8>,
 ) -> impl IntoResponse {
   let start = Instant::now();

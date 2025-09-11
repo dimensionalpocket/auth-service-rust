@@ -141,7 +141,6 @@ impl DpAuthServer {
         .post({
           let cookie_domain = self.config.cookie_domain.clone();
           let insecure_cookie = self.config.insecure_cookie;
-          let development_mode = self.config.development_mode;
           let session_secret = self.config.session_secret.clone();
           move |state, request| {
             crate::handlers::graphql::graphql_post_handler(
@@ -149,7 +148,6 @@ impl DpAuthServer {
               request,
               cookie_domain.clone(),
               insecure_cookie,
-              development_mode,
               session_secret.clone(),
             )
           }
