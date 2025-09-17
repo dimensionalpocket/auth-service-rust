@@ -26,10 +26,10 @@ pub struct CreateSessionResponse {
 
 /// GraphQL mutation for creating user sessions (sign-in)
 #[derive(Default)]
-pub struct CreateSessionMutation;
+pub struct CreateSessionResolver;
 
 #[Object]
-impl CreateSessionMutation {
+impl CreateSessionResolver {
   /// Create a new session by authenticating user credentials
   #[instrument(skip(self, ctx, input), fields(username = %input.username))]
   async fn create_session(
@@ -110,7 +110,7 @@ mod tests {
     // Create GraphQL schema with just the mutation
     let schema = Schema::build(
       async_graphql::EmptyMutation,
-      CreateSessionMutation,
+      CreateSessionResolver,
       EmptySubscription,
     )
     .data(pool)
@@ -152,7 +152,7 @@ mod tests {
 
     let schema = Schema::build(
       async_graphql::EmptyMutation,
-      CreateSessionMutation,
+      CreateSessionResolver,
       EmptySubscription,
     )
     .data(pool)
@@ -181,7 +181,7 @@ mod tests {
     // Create a schema without database pool to trigger database error
     let schema = Schema::build(
       async_graphql::EmptyMutation,
-      CreateSessionMutation,
+      CreateSessionResolver,
       EmptySubscription,
     )
     .data(TEST_SECRET.to_vec())

@@ -1,4 +1,4 @@
-use crate::graphql::queries::{GetCurrentSessionQuery, GetServerTimestampQuery};
+use crate::graphql::resolvers::{GetCurrentSessionResolver, GetServerTimestampResolver};
 use async_graphql::MergedObject;
 
 /// Root query object for the Dimensional Pocket Auth Service GraphQL API.
@@ -13,7 +13,7 @@ use async_graphql::MergedObject;
 /// Future queries will be added here as the service expands to include
 /// user authentication, profile management, and other auth-related operations.
 #[derive(MergedObject, Default)]
-pub struct Query(GetServerTimestampQuery, GetCurrentSessionQuery);
+pub struct Query(GetServerTimestampResolver, GetCurrentSessionResolver);
 
 impl Query {
   pub fn new() -> Self {

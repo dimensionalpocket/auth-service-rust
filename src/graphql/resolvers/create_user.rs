@@ -29,10 +29,10 @@ pub struct CreateUserResponse {
 
 /// User creation mutation resolver
 #[derive(Default, Debug)]
-pub struct CreateUserMutation;
+pub struct CreateUserResolver;
 
 #[Object]
-impl CreateUserMutation {
+impl CreateUserResolver {
   /// Creates a new user with the provided username and password.
   ///
   /// This mutation:
@@ -112,7 +112,7 @@ mod tests {
     .await
     .unwrap();
 
-    let mutation = CreateUserMutation;
+    let mutation = CreateUserResolver;
     let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
       .data(pool)
       .finish();
@@ -154,7 +154,7 @@ mod tests {
     .await
     .unwrap();
 
-    let mutation = CreateUserMutation;
+    let mutation = CreateUserResolver;
     let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
       .data(pool)
       .finish();
@@ -182,7 +182,7 @@ mod tests {
   async fn test_create_user_validates_input() {
     let (pool, _temp_file) = create_test_database().await;
 
-    let mutation = CreateUserMutation;
+    let mutation = CreateUserResolver;
     let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
       .data(pool)
       .finish();

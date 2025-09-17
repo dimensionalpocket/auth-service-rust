@@ -4,10 +4,10 @@ use async_graphql::{Context, Object, Result};
 
 /// Current session query resolver providing authenticated user session information
 #[derive(Default, Debug)]
-pub struct GetCurrentSessionQuery;
+pub struct GetCurrentSessionResolver;
 
 #[Object]
-impl GetCurrentSessionQuery {
+impl GetCurrentSessionResolver {
   /// Returns the current session payload if the user is authenticated.
   ///
   /// This query retrieves the session information that was set by the session middleware
@@ -77,7 +77,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_current_session_with_authenticated_user() {
-    let query = GetCurrentSessionQuery;
+    let query = GetCurrentSessionResolver;
     let payload = ServiceSessionPayload {
       sub: 123,
       iat: 1706356800,
@@ -102,7 +102,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_current_session_with_unauthenticated_user() {
-    let query = GetCurrentSessionQuery;
+    let query = GetCurrentSessionResolver;
     let session_context = SessionContext::new(None);
 
     let schema = Schema::build(query, EmptyMutation, EmptySubscription)
@@ -120,7 +120,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_current_session_missing_context() {
-    let query = GetCurrentSessionQuery;
+    let query = GetCurrentSessionResolver;
 
     let schema = Schema::build(query, EmptyMutation, EmptySubscription).finish();
     let result = schema

@@ -4,10 +4,10 @@ use tracing::instrument;
 
 /// Server timestamp query resolver providing current server time information
 #[derive(Default, Debug)]
-pub struct GetServerTimestampQuery;
+pub struct GetServerTimestampResolver;
 
 #[Object]
-impl GetServerTimestampQuery {
+impl GetServerTimestampResolver {
   /// Returns the current server timestamp in milliseconds since Unix epoch.
   ///
   /// This timestamp represents the exact moment the server processed this request,
@@ -35,7 +35,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_server_timestamp_calls_service() {
-    let query = GetServerTimestampQuery;
+    let query = GetServerTimestampResolver;
     let schema = Schema::build(query, EmptyMutation, EmptySubscription).finish();
     let result = schema.execute("{ getServerTimestamp }").await;
 
@@ -48,7 +48,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_server_timestamp_returns_string() {
-    let query = GetServerTimestampQuery;
+    let query = GetServerTimestampResolver;
     let schema = Schema::build(query, EmptyMutation, EmptySubscription).finish();
     let result = schema.execute("{ getServerTimestamp }").await;
 
