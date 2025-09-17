@@ -60,279 +60,198 @@ Migration result: Ok(())
 Tables created: ["_sqlx_migrations", "user_roles", "users"]
 ```
 
-## Proposed Solutions
+## `migrate!()` Typical Usage
 
-### Option 1: Custom Migration Wrapper (Recommended)
-
-**Approach**: Replace the simple macro call with a custom implementation that provides detailed logging.
-
-**Implementation**:
 ```rust
-pub async fn migrate(&self) -> Result<(), sqlx::migrate::MigrateError> {
-    use sqlx::migrate::Migrator;
-    use std::path::Path;
-    
-    // Create migrator for inspection
-    let migrator = Migrator::new(Path::new("./config/database/migrations")).await?;
-    
-    // Log pending migrations
-    println!("🔄 Checking for pending migrations...");
-    let migrations: Vec<_> = migrator.iter().collect();
-    
-    if migrations.is_empty() {
-        println!("📝 No migration files found");
-        return Ok(());
-    }
-    
-    println!("📋 Available migrations:");
-    for migration in &migrations {
-        println!("  📄 Migration {}: {}", migration.version, migration.description);
-    }
-    
-    // Check current status
-    let applied_before: Vec<(i64, String)> = sqlx::query_as(
-        "SELECT version, description FROM _sqlx_migrations ORDER BY version"
-    )
-    .fetch_all(&self.pool)
-    .await
-    .unwrap_or_default();
-    
-    println!("📊 Currently applied: {} migrations", applied_before.len());
-    
-    // Run migrations
-    println!("🚀 Running migrations...");
-    let result = migrator.run(&self.pool).await;
-    
-    match &result {
-        Ok(_) => {
-            // Check what was applied
-            let applied_after: Vec<(i64, String)> = sqlx::query_as(
-                "SELECT version, description FROM _sqlx_migrations ORDER BY version"
-            )
-            .fetch_all(&self.pool)
-            .await
-            .unwrap_or_default();
-            
-            let new_migrations = applied_after.len() - applied_before.len();
-            if new_migrations > 0 {
-                println!("✅ Applied {} new migration(s):", new_migrations);
-                for (version, description) in applied_after.iter().skip(applied_before.len()) {
-                    println!("  🆕 Migration {}: {}", version, description);
-                }
-            } else {
-                println!("✅ No new migrations to apply - database is up to date");
-            }
-        },
-        Err(e) => println!("❌ Migration failed: {}", e),
-    }
-    
-    result
-}
+static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!(); // defaults to "./migrations"
 ```
 
-**Benefits**:
-- ✅ Shows all available migrations before execution
-- ✅ Indicates current migration status
-- ✅ Reports which migrations were newly applied
-- ✅ Provides clear success/failure feedback
-- ✅ Maintains the same API signature
-- ✅ Works with embedded migrations (library-safe)
-
-### Option 2: Tracing Integration
-
-**Approach**: Add tracing logs for users who have tracing configured.
-
-**Implementation**:
+Then run migrations:
 ```rust
-pub async fn migrate(&self) -> Result<(), sqlx::migrate::MigrateError> {
-    tracing::info!("Starting database migrations");
-    
-    let result = sqlx::migrate!("./config/database/migrations")
-        .run(&self.pool)
-        .await;
-        
-    match &result {
-        Ok(_) => tracing::info!("Database migrations completed successfully"),
-        Err(e) => tracing::error!("Database migration failed: {}", e),
-    }
-    
-    result
-}
+MIGRATOR.run(&pool).await?;
 ```
 
-**Benefits**:
-- ✅ Integrates with existing tracing infrastructure
-- ✅ Respects user's logging configuration
-- ✅ Minimal code changes
+Currently, we do not utilize the `MIGRATOR` static variable, which could be a starting point for adding verbosity.
 
-**Drawbacks**:
-- ❌ Limited information (no migration details)
-- ❌ Only visible if tracing is configured
-- ❌ No pending migration visibility
+## Proposed Solution
 
-### Option 3: Configurable Verbosity
+Follow typical usage and create a static `MIGRATOR` variable that will be compiled once and can be reused.
 
-**Approach**: Add an optional verbosity parameter to control logging level.
+Then, list pending migrations using a pattern like this:
 
-**Implementation**:
 ```rust
-pub async fn migrate(&self) -> Result<(), sqlx::migrate::MigrateError> {
-    self.migrate_with_verbosity(true).await
-}
+let applied = MIGRATOR.applied(&pool).await?;
+let applied_versions: HashSet<_> = applied.iter().map(|m| m.version).collect();
 
-pub async fn migrate_with_verbosity(&self, verbose: bool) -> Result<(), sqlx::migrate::MigrateError> {
-    if verbose {
-        // Detailed logging implementation (from Option 1)
-    } else {
-        // Current silent implementation
-        sqlx::migrate!("./config/database/migrations")
-            .run(&self.pool)
-            .await
+for migration in MIGRATOR.iter() {
+    if !applied_versions.contains(&migration.version) {
+        println!(
+            "Applying migration: {} - {}",
+            migration.version, migration.description
+        );
     }
 }
+MIGRATOR.run(&pool).await?;
 ```
 
-**Benefits**:
-- ✅ Backward compatible
-- ✅ User choice for verbosity
-- ✅ Can default to verbose for better DX
-
-**Drawbacks**:
-- ❌ More complex API
-- ❌ Most users would want verbosity by default
-
-## Recommendation
-
-**Implement Option 1 (Custom Migration Wrapper)** because:
-
-1. **Better Developer Experience**: Developers can see what's happening during migrations
-2. **Debugging Support**: Clear visibility into migration status and failures
-3. **Production Monitoring**: Deployment logs will show migration activity
-4. **No Breaking Changes**: Same API signature as current implementation
-5. **Library-Safe**: Works correctly when consumed by other applications
+This approach provides visibility into which migrations are pending before they are applied, which is enough for our needs.
 
 ## Implementation Plan
 
-### Files to Modify
+### Phase 1: Update Database Module Structure
 
-1. **`src/database/mod.rs`** - Replace the `migrate()` method implementation
+**File**: `src/database/mod.rs`
 
-### Code Changes
-
+1. **Add private static MIGRATOR variable** at the top of the file:
 ```rust
-// Replace lines 112-116 in src/database/mod.rs
+use sqlx::migrate::Migrator;
+use std::collections::HashSet;
+
+static MIGRATOR: Migrator = sqlx::migrate!("./config/database/migrations");
+```
+
+2. **Replace the current migrate() method** with verbose implementation:
+```rust
 pub async fn migrate(&self) -> Result<(), sqlx::migrate::MigrateError> {
-    use sqlx::migrate::Migrator;
-    use std::path::Path;
+    // Get list of applied migrations
+    let applied = MIGRATOR.applied(&self.pool).await?;
+    let applied_versions: HashSet<_> = 
+        applied.iter().map(|m| m.version).collect();
     
-    // Create migrator for inspection
-    let migrator = Migrator::new(Path::new("./config/database/migrations")).await?;
+    // Check for pending migrations and log them
+    let mut pending_count = 0;
+    for migration in MIGRATOR.iter() {
+        if !applied_versions.contains(&migration.version) {
+            log::info!(
+                "Pending migration: {} - {}",
+                migration.version, 
+                migration.description
+            );
+            pending_count += 1;
+        }
+    }
     
-    // Log available migrations
-    println!("🔄 Checking for pending migrations...");
-    let migrations: Vec<_> = migrator.iter().collect();
-    
-    if migrations.is_empty() {
-        println!("📝 No migration files found");
+    if pending_count == 0 {
+        log::info!("No pending migrations found");
         return Ok(());
     }
     
-    println!("📋 Available migrations:");
-    for migration in &migrations {
-        println!("  📄 Migration {}: {}", migration.version, migration.description);
-    }
+    log::info!("Applying {} pending migration(s)...", pending_count);
     
-    // Check current status
-    let applied_before: Vec<(i64, String)> = sqlx::query_as(
-        "SELECT version, description FROM _sqlx_migrations ORDER BY version"
-    )
-    .fetch_all(&self.pool)
-    .await
-    .unwrap_or_default();
+    // Run the migrations
+    MIGRATOR.run(&self.pool).await?;
     
-    println!("📊 Currently applied: {} migrations", applied_before.len());
-    
-    // Run migrations
-    println!("🚀 Running migrations...");
-    let result = migrator.run(&self.pool).await;
-    
-    match &result {
-        Ok(_) => {
-            // Check what was applied
-            let applied_after: Vec<(i64, String)> = sqlx::query_as(
-                "SELECT version, description FROM _sqlx_migrations ORDER BY version"
-            )
-            .fetch_all(&self.pool)
-            .await
-            .unwrap_or_default();
-            
-            let new_migrations = applied_after.len() - applied_before.len();
-            if new_migrations > 0 {
-                println!("✅ Applied {} new migration(s):", new_migrations);
-                for (version, description) in applied_after.iter().skip(applied_before.len()) {
-                    println!("  🆕 Migration {}: {}", version, description);
-                }
-            } else {
-                println!("✅ No new migrations to apply - database is up to date");
-            }
-        },
-        Err(e) => println!("❌ Migration failed: {}", e),
-    }
-    
-    result
+    log::info!("Successfully applied {} migration(s)", pending_count);
+    Ok(())
 }
 ```
 
-### Testing Requirements
+### Phase 2: Update Test Helper in Database Module
 
-1. **Unit Tests**: Verify the new logging doesn't break existing functionality
-2. **Integration Tests**: Ensure migration behavior is unchanged
-3. **Consumer Tests**: Verify library usage still works correctly
-4. **Log Output Tests**: Validate the logging format and content
+**File**: `src/database/mod.rs` (around line 274)
 
-### Expected Output
+Replace the existing migrate!() call in the test helper with a call to the migrate() method:
+```rust
+// Replace this:
+sqlx::migrate!("./config/database/migrations")
+  .run(&pool)
+  .await?;
 
-**First Run (with pending migrations)**:
-```
-🔄 Checking for pending migrations...
-📋 Available migrations:
-  📄 Migration 1: create user roles
-  📄 Migration 2: create users
-📊 Currently applied: 0 migrations
-🚀 Running migrations...
-✅ Applied 2 new migration(s):
-  🆕 Migration 1: create user roles
-  🆕 Migration 2: create users
+// With this:
+database.migrate().await?;
 ```
 
-**Subsequent Runs (no pending migrations)**:
+Note: The test helper will need access to a Database instance to call the migrate() method.
+
+### Phase 3: Update Integration Tests
+
+**File**: `tests/database_integration_tests.rs`
+
+**Replace migrate!() call** in create_test_database() function (line 21-24):
+```rust
+// Replace this:
+sqlx::migrate!("./config/database/migrations")
+  .run(&database.pool)
+  .await
+  .expect("Failed to run migrations");
+
+// With this:
+database
+  .migrate()
+  .await
+  .expect("Failed to run migrations");
 ```
-🔄 Checking for pending migrations...
-📋 Available migrations:
-  📄 Migration 1: create user roles
-  📄 Migration 2: create users
-📊 Currently applied: 2 migrations
-🚀 Running migrations...
-✅ No new migrations to apply - database is up to date
+
+### Files to be Modified
+
+1. **`src/database/mod.rs`**
+   - Add private static MIGRATOR variable
+   - Replace migrate() method with verbose implementation
+   - Replace test helper migrate!() call (line 274) with database.migrate()
+   - Add required imports (HashSet, Migrator)
+
+2. **`tests/database_integration_tests.rs`**
+   - Replace migrate!() call in create_test_database() function (line 21)
+   - Use database.migrate() method instead of direct migrate!() macro
+
+### Architecture Summary
+
+**Clean Separation of Concerns:**
+- **MIGRATOR**: Private static variable, only used within Database::migrate()
+- **Database::migrate()**: Public API with verbose logging, uses MIGRATOR internally
+- **All other code**: Uses Database::migrate() method for consistency
+
+**Benefits:**
+- Single source of truth for migration logic
+- Consistent verbose logging everywhere
+- Proper encapsulation - MIGRATOR remains internal implementation detail
+- All migration calls go through the same tested code path
+
+### Expected Behavior After Implementation
+
+**Before migrations (clean database):**
+```
+INFO Pending migration: 1 - create user roles
+INFO Pending migration: 2 - create users
+INFO Applying 2 pending migration(s)...
+INFO Successfully applied 2 migration(s)
 ```
 
-## Benefits
+**After migrations (up-to-date database):**
+```
+INFO No pending migrations found
+```
 
-1. **Improved Developer Experience**: Clear visibility into migration process
-2. **Better Debugging**: Easy to identify migration issues
-3. **Production Monitoring**: Deployment logs show migration activity
-4. **Educational**: Developers learn about the database schema evolution
-5. **Confidence**: Clear confirmation that migrations completed successfully
+**During development (partial migrations):**
+```
+INFO Pending migration: 3 - add user preferences
+INFO Applying 1 pending migration(s)...
+INFO Successfully applied 1 migration(s)
+```
 
-## Risks and Considerations
+### Testing Strategy
 
-1. **Log Volume**: More verbose output (mitigated by useful information)
-2. **Performance**: Slight overhead from status queries (negligible)
-3. **Backward Compatibility**: No API changes, only output changes
+1. **Unit Tests**: Test the migrate method with mocked database states
+2. **Integration Tests**: Test with actual database in different states:
+   - Clean database (no migrations applied)
+   - Partially migrated database
+   - Fully migrated database
+3. **Manual Testing**: Run the server and observe logs during startup
 
-## Related Issues
+### Backward Compatibility
 
-- Addresses the silent migration execution issue
-- Improves overall developer experience
-- Supports better production monitoring
-- Complements the existing migration system without breaking changes
+- ✅ **API unchanged**: The `migrate()` method signature remains the same
+- ✅ **Behavior preserved**: Migrations still work exactly as before
+- ✅ **Error handling**: Same error types and handling
+- ✅ **Performance**: Minimal overhead from logging
+
+### Risk Assessment
+
+**Low Risk Changes:**
+- Adding logging doesn't affect core functionality
+- Static MIGRATOR follows sqlx best practices
+- No breaking changes to public API
+
+**Potential Issues:**
+- Log level configuration might need adjustment
+- Additional database queries for checking applied migrations (minimal performance impact)

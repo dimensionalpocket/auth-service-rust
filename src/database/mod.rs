@@ -1,5 +1,9 @@
+use sqlx::migrate::Migrator;
 use sqlx::{migrate::MigrateDatabase, sqlite::SqlitePoolOptions, Row, Sqlite, SqlitePool};
+use std::collections::HashSet;
 use std::fs;
+
+static MIGRATOR: Migrator = sqlx::migrate!("./config/database/migrations");
 
 pub struct Database {
   pub pool: SqlitePool,
@@ -111,9 +115,53 @@ impl Database {
   }
 
   pub async fn migrate(&self) -> Result<(), sqlx::migrate::MigrateError> {
-    sqlx::migrate!("./config/database/migrations")
-      .run(&self.pool)
+    // Get list of applied migrations (handle case where table doesn't exist yet)
+    // Only get successfully applied migrations
+    let applied = sqlx::query("SELECT version FROM _sqlx_migrations WHERE success = true")
+      .fetch_all(&self.pool)
       .await
+      .unwrap_or_else(|_| {
+        // Table doesn't exist yet, so no migrations have been applied
+        Vec::new()
+      });
+    let applied_versions: HashSet<_> = applied
+      .iter()
+      .map(|row| row.get::<i64, _>("version"))
+      .collect();
+
+    // Check for pending migrations and log them
+    let mut pending_count = 0;
+    // Note: In testing, we observed that MIGRATOR.iter() can return duplicate entries
+    // for the same migration version. This deduplication ensures each migration
+    // is only logged once, preventing confusing output like:
+    // "Pending migration: 1 - create user roles"
+    // "Pending migration: 1 - create user roles" (duplicate)
+    let mut seen_versions = HashSet::new();
+    for migration in MIGRATOR.iter() {
+      if !applied_versions.contains(&migration.version)
+        && !seen_versions.contains(&migration.version)
+      {
+        println!(
+          "Pending migration: {} - {}",
+          migration.version, migration.description
+        );
+        seen_versions.insert(migration.version);
+        pending_count += 1;
+      }
+    }
+
+    if pending_count == 0 {
+      println!("No pending migrations found");
+      return Ok(());
+    }
+
+    println!("Applying {pending_count} pending migration(s)...");
+
+    // Run the migrations
+    MIGRATOR.run(&self.pool).await?;
+
+    println!("Successfully applied {pending_count} migration(s)");
+    Ok(())
   }
 
   pub async fn seed(&self) -> Result<(), Box<dyn std::error::Error>> {
@@ -272,10 +320,8 @@ pub mod test_utils {
       .expect("Failed to configure SQLite");
 
     // Run migrations
-    sqlx::migrate!("./config/database/migrations")
-      .run(&pool)
-      .await
-      .expect("Failed to run migrations");
+    let database = Database { pool: pool.clone() };
+    database.migrate().await.expect("Failed to run migrations");
 
     (pool, temp_file)
   }

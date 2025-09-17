@@ -19,10 +19,7 @@ async fn create_test_database() -> (SqlitePool, NamedTempFile) {
     .expect("Failed to create test database");
 
   // Run migrations
-  sqlx::migrate!("./config/database/migrations")
-    .run(&database.pool)
-    .await
-    .expect("Failed to run migrations");
+  database.migrate().await.expect("Failed to run migrations");
 
   (database.pool, temp_file)
 }
