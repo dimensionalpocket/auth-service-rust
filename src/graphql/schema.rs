@@ -1,6 +1,47 @@
-use crate::graphql::mutation::Mutation;
-use crate::graphql::query::Query;
-use async_graphql::{EmptySubscription, Schema};
+use crate::graphql::resolvers::{
+  CreateSessionResolver, CreateUserResolver, GetCurrentSessionResolver, GetServerTimestampResolver,
+};
+use async_graphql::{EmptySubscription, MergedObject, Schema};
+
+/// Root query object for the Dimensional Pocket Auth Service GraphQL API.
+///
+/// This is the main entry point for all GraphQL queries. It combines all
+/// individual query resolvers into a single unified interface using MergedObject.
+///
+/// Available queries:
+/// - getServerTimestamp: Get current server time for synchronization
+/// - getCurrentSession: Get current authenticated user session information
+///
+/// Future queries will be added here as the service expands to include
+/// user authentication, profile management, and other auth-related operations.
+#[derive(MergedObject, Default)]
+pub struct Query(GetServerTimestampResolver, GetCurrentSessionResolver);
+
+impl Query {
+  pub fn new() -> Self {
+    Self::default()
+  }
+}
+
+/// Root mutation object for the Dimensional Pocket Auth Service GraphQL API.
+///
+/// This is the main entry point for all GraphQL mutations. It combines all
+/// individual mutation resolvers into a single unified interface using MergedObject.
+///
+/// Available mutations:
+/// - createUser: Create a new user account
+/// - createSession: Authenticate user and create session (sign-in)
+///
+/// Future mutations will be added here as the service expands to include
+/// user management, authentication, and other auth-related operations.
+#[derive(MergedObject, Default)]
+pub struct Mutation(CreateUserResolver, CreateSessionResolver);
+
+impl Mutation {
+  pub fn new() -> Self {
+    Self(CreateUserResolver, CreateSessionResolver)
+  }
+}
 
 /// GraphQL schema type definition for the Dimensional Pocket Auth Service
 pub type AppSchema = Schema<Query, Mutation, EmptySubscription>;
