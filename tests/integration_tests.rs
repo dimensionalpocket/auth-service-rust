@@ -720,8 +720,8 @@ async fn test_session_expired_token_handling() {
 
 #[test]
 fn test_session_context_utility_methods() {
-  use dps_auth_api::middleware::session::SessionContext;
   use dp_auth_session_service::DpAuthSessionPayload;
+  use dps_auth_api::middleware::session::SessionContext;
 
   // Test empty context
   let empty_context = SessionContext::new(None);

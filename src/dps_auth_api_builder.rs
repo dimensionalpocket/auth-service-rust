@@ -196,9 +196,7 @@ mod build_tests {
   #[test]
   fn test_build_invalid_secret_length() {
     let secret = vec![1u8; 16]; // Wrong length
-    let result = DpsAuthApiBuilder::default()
-      .session_secret(secret)
-      .build();
+    let result = DpsAuthApiBuilder::default().session_secret(secret).build();
 
     assert!(matches!(
       result,
@@ -237,9 +235,7 @@ mod build_tests {
 
     for length in test_cases {
       let secret = vec![1u8; length];
-      let result = DpsAuthApiBuilder::default()
-        .session_secret(secret)
-        .build();
+      let result = DpsAuthApiBuilder::default().session_secret(secret).build();
 
       assert!(
         matches!(result, Err(DpsAuthApiError::InvalidSecretLength { actual, expected: 32 }) if actual == length)

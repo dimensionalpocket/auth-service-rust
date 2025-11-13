@@ -1,9 +1,6 @@
-use crate::handlers::graphql::set_session_cookie;
 use crate::services::{SessionError, SessionService};
 use async_graphql::{Context, InputObject, Object, Result, SimpleObject};
-use axum::http::HeaderMap;
 use sqlx::SqlitePool;
-use std::sync::{Arc, Mutex};
 use tracing::instrument;
 
 /// Input type for creating a new session (sign-in)
@@ -44,13 +41,22 @@ impl CreateSessionResolver {
       .await
     {
       Ok(token) => {
-        // Set cookie in response headers
-        if let Ok(response_headers) = ctx.data::<Arc<Mutex<HeaderMap>>>() {
-          let default_domain = ".api.dps.localhost".to_string();
-          let cookie_domain = ctx.data::<String>().unwrap_or(&default_domain);
-          let insecure_cookie = *ctx.data::<bool>().unwrap_or(&false);
-          set_session_cookie(response_headers, &token, cookie_domain, insecure_cookie);
-        }
+        // Build cookie value and insert into GraphQL response headers
+        let default_domain = ".api.dps.localhost".to_string();
+        let cookie_domain = ctx.data::<String>().unwrap_or(&default_domain);
+        let insecure_cookie = *ctx.data::<bool>().unwrap_or(&false);
+
+        let cookie_value = format!(
+          "{}={}; Domain={}; Path=/; HttpOnly; SameSite=Strict{}; Max-Age={}",
+          crate::middleware::session::SESSION_COOKIE_NAME,
+          token,
+          cookie_domain,
+          if insecure_cookie { "" } else { "; Secure" },
+          3 * 24 * 60 * 60
+        );
+
+        // Use append to allow multiple cookies; ignore the return value
+        let _ = ctx.append_http_header("set-cookie", cookie_value);
 
         Ok(CreateSessionResponse {
           token,
