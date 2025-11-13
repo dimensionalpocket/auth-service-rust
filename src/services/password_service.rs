@@ -88,7 +88,7 @@ impl PasswordService {
   /// # Examples
   ///
   /// ```
-  /// use dp_auth_service::services::PasswordService;
+  /// use dps_auth_api::services::PasswordService;
   ///
   /// let hash = PasswordService::generate("my_secure_password").unwrap();
   /// assert!(!hash.is_empty());
@@ -138,7 +138,7 @@ impl PasswordService {
   /// # Examples
   ///
   /// ```
-  /// use dp_auth_service::services::PasswordService;
+  /// use dps_auth_api::services::PasswordService;
   ///
   /// // Argon2 hash (primary algorithm)
   /// let argon2_hash = PasswordService::generate("my_password").unwrap();

@@ -3,10 +3,10 @@ use axum::{
   http::{Request, StatusCode},
   Router,
 };
-use dp_auth_service::dp_auth_server::DpAuthServer;
+use dps_auth_api::dps_auth_api::DpsAuthApi;
 use tower::ServiceExt;
 
-// No test wrapper functions needed - using DpAuthServer's configured router
+// No test wrapper functions needed - using DpsAuthApi's configured router
 
 async fn create_app() -> Router {
   // Generate a random 32-byte session secret for this test to ensure test isolation
@@ -14,7 +14,7 @@ async fn create_app() -> Router {
 
   // Create temporary database file with unique name to avoid conflicts
   let temp_file = tempfile::Builder::new()
-    .prefix(&format!("dp_auth_test_{}_", rand::random::<u32>()))
+    .prefix(&format!("dps_auth_api_test_{}_", rand::random::<u32>()))
     .suffix(".db")
     .tempfile()
     .expect("Failed to create temp file");
@@ -23,10 +23,10 @@ async fn create_app() -> Router {
     .to_str()
     .expect("Failed to get temp file path");
 
-  let server = DpAuthServer::new()
+  let server = DpsAuthApi::new()
     .session_secret(session_secret)
     .sqlite_file_path(db_path)
-    .cookie_domain(".api.dp-auth.localhost")
+    .cookie_domain(".api.dps.localhost")
     .insecure_cookie(true)
     .development_mode(true)
     .database_pool_size(1) // Use small pool size for tests to avoid concurrency issues
@@ -237,10 +237,10 @@ async fn test_create_session_mutation_success() {
 
   let cookie_value = cookie_header.unwrap().to_str().unwrap();
   assert!(cookie_value.contains("DpAuthSession="));
-  assert!(cookie_value.contains("Domain=.api.dp-auth.localhost"));
+  assert!(cookie_value.contains("Domain=.api.dps.localhost"));
   assert!(cookie_value.contains("HttpOnly"));
   assert!(cookie_value.contains("SameSite=Strict"));
-  // Should not contain Secure flag due to DP_AUTH_INSECURE_COOKIE=true
+  // Should not contain Secure flag due to DPS_AUTH_INSECURE_COOKIE=true
   assert!(!cookie_value.contains("Secure"));
 
   let body = axum::body::to_bytes(response.into_body(), usize::MAX)
@@ -720,7 +720,7 @@ async fn test_session_expired_token_handling() {
 
 #[test]
 fn test_session_context_utility_methods() {
-  use dp_auth_service::middleware::session::SessionContext;
+  use dps_auth_api::middleware::session::SessionContext;
   use dp_auth_session_service::DpAuthSessionPayload;
 
   // Test empty context
@@ -741,6 +741,6 @@ fn test_session_context_utility_methods() {
 
 #[test]
 fn test_session_cookie_name_constant() {
-  use dp_auth_service::middleware::session::SESSION_COOKIE_NAME;
+  use dps_auth_api::middleware::session::SESSION_COOKIE_NAME;
   assert_eq!(SESSION_COOKIE_NAME, "DpAuthSession");
 }

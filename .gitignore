@@ -4,4 +4,4 @@ target/
 
 # Executables copied to project root for testing
 run_local_server
-dp-auth-migrate
+dps-auth-api-migrate

@@ -262,7 +262,7 @@ impl Database {
     // Combine all SQL statements
     let mut schema_sql = String::new();
     schema_sql.push_str("-- Database Schema Dump\n");
-    schema_sql.push_str("-- Generated automatically by dp-auth-migrate\n\n");
+    schema_sql.push_str("-- Generated automatically by dps-auth-api-migrate\n\n");
 
     // Add table creation statements
     for table_sql in tables {
@@ -372,7 +372,7 @@ mod tests {
 
     // Verify the schema content contains expected elements
     assert!(schema_content.contains("-- Database Schema Dump"));
-    assert!(schema_content.contains("-- Generated automatically by dp-auth-migrate"));
+    assert!(schema_content.contains("-- Generated automatically by dps-auth-api-migrate"));
 
     // Should contain our test tables
     assert!(schema_content.contains("CREATE TABLE test_table_1"));
@@ -494,7 +494,7 @@ mod tests {
 
     // Should still contain headers even with no tables
     assert!(schema_content.contains("-- Database Schema Dump"));
-    assert!(schema_content.contains("-- Generated automatically by dp-auth-migrate"));
+    assert!(schema_content.contains("-- Generated automatically by dps-auth-api-migrate"));
 
     // Should not contain any CREATE TABLE statements
     assert!(!schema_content.contains("CREATE TABLE"));

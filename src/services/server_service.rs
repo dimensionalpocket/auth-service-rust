@@ -13,7 +13,7 @@ impl ServerService {
   /// # Examples
   ///
   /// ```
-  /// use dp_auth_service::services::ServerService;
+  /// use dps_auth_api::services::ServerService;
   ///
   /// let timestamp = ServerService::get_server_timestamp();
   /// assert!(timestamp > 0);

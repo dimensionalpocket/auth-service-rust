@@ -61,7 +61,7 @@ impl std::error::Error for SecretError {}
 /// # Examples
 ///
 /// ```rust
-/// use dp_auth_service::utils::get_secret_from_env::get_secret_from_env;
+/// use dps_auth_api::utils::get_secret_from_env::get_secret_from_env;
 /// use std::env;
 ///
 /// // Set up a test environment variable

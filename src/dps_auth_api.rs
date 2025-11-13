@@ -1,4 +1,4 @@
-use crate::dp_auth_server_builder::DpAuthServerBuilder;
+use crate::dps_auth_api_builder::DpsAuthApiBuilder;
 use crate::graphql::schema::AppSchema;
 use axum::{middleware::from_fn, routing::get, Router};
 use tokio::net::TcpListener;
@@ -6,7 +6,7 @@ use tower::ServiceBuilder;
 use tower_http::cors::CorsLayer;
 
 #[derive(Debug)]
-pub struct DpAuthServer {
+pub struct DpsAuthApi {
   pub(crate) config: ResolvedServerConfig,
 }
 
@@ -22,7 +22,7 @@ pub(crate) struct ResolvedServerConfig {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum DpAuthServerError {
+pub enum DpsAuthApiError {
   InvalidSecretLength { actual: usize, expected: usize },
   MissingRequiredConfig { field: String },
   DatabaseError(String),
@@ -30,34 +30,34 @@ pub enum DpAuthServerError {
   ConfigurationError(String),
 }
 
-impl std::fmt::Display for DpAuthServerError {
+impl std::fmt::Display for DpsAuthApiError {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      DpAuthServerError::InvalidSecretLength { actual, expected } => {
+      DpsAuthApiError::InvalidSecretLength { actual, expected } => {
         write!(
           f,
           "Invalid secret length: got {actual} bytes, expected {expected}"
         )
       }
-      DpAuthServerError::MissingRequiredConfig { field } => {
+      DpsAuthApiError::MissingRequiredConfig { field } => {
         write!(f, "Missing required configuration: {field}")
       }
-      DpAuthServerError::DatabaseError(msg) => write!(f, "Database error: {msg}"),
-      DpAuthServerError::NetworkError(msg) => write!(f, "Network error: {msg}"),
-      DpAuthServerError::ConfigurationError(msg) => write!(f, "Configuration error: {msg}"),
+      DpsAuthApiError::DatabaseError(msg) => write!(f, "Database error: {msg}"),
+      DpsAuthApiError::NetworkError(msg) => write!(f, "Network error: {msg}"),
+      DpsAuthApiError::ConfigurationError(msg) => write!(f, "Configuration error: {msg}"),
     }
   }
 }
 
-impl std::error::Error for DpAuthServerError {}
+impl std::error::Error for DpsAuthApiError {}
 
-impl DpAuthServer {
+impl DpsAuthApi {
   #[allow(clippy::new_ret_no_self)]
-  pub fn new() -> DpAuthServerBuilder {
-    DpAuthServerBuilder::default()
+  pub fn new() -> DpsAuthApiBuilder {
+    DpsAuthApiBuilder::default()
   }
 
-  pub async fn start(self) -> Result<(), DpAuthServerError> {
+  pub async fn start(self) -> Result<(), DpsAuthApiError> {
     // Phase 3B - Schema and router setup (now includes database initialization)
     let app = self.create_app().await?;
 
@@ -68,7 +68,7 @@ impl DpAuthServer {
     let server = axum::serve(listener, app).with_graceful_shutdown(self.create_shutdown_handler());
     server
       .await
-      .map_err(|e| DpAuthServerError::NetworkError(e.to_string()))?;
+      .map_err(|e| DpsAuthApiError::NetworkError(e.to_string()))?;
 
     Ok(())
   }
@@ -76,7 +76,7 @@ impl DpAuthServer {
   /// Creates a configured Axum router with GraphQL schema and all middleware.
   /// This method initializes the database and includes it in the GraphQL schema.
   /// This method is useful for testing and for getting a router without starting the server.
-  pub async fn create_app(&self) -> Result<Router, DpAuthServerError> {
+  pub async fn create_app(&self) -> Result<Router, DpsAuthApiError> {
     let database = self.initialize_database().await?;
     let schema = crate::graphql::schema::build_schema()
       .data(database.pool)
@@ -86,38 +86,38 @@ impl DpAuthServer {
 
   /// Initialize database connection only (no migrations or seeds).
   /// This method is public for test usage.
-  pub async fn initialize_database(&self) -> Result<crate::database::Database, DpAuthServerError> {
+  pub async fn initialize_database(&self) -> Result<crate::database::Database, DpsAuthApiError> {
     crate::database::Database::new_with_pool_size(
       &self.config.sqlite_file_path,
       self.config.database_pool_size,
     )
     .await
-    .map_err(|e| DpAuthServerError::DatabaseError(e.to_string()))
+    .map_err(|e| DpsAuthApiError::DatabaseError(e.to_string()))
   }
 
   /// Run database migrations only.
-  pub async fn migrate_database(&self) -> Result<(), DpAuthServerError> {
+  pub async fn migrate_database(&self) -> Result<(), DpsAuthApiError> {
     let database = self.initialize_database().await?;
     database
       .migrate()
       .await
-      .map_err(|e| DpAuthServerError::DatabaseError(e.to_string()))
+      .map_err(|e| DpsAuthApiError::DatabaseError(e.to_string()))
   }
 
   /// Run database seeds only.
-  pub async fn seed_database(&self) -> Result<(), DpAuthServerError> {
+  pub async fn seed_database(&self) -> Result<(), DpsAuthApiError> {
     let database = self.initialize_database().await?;
     database
       .seed()
       .await
-      .map_err(|e| DpAuthServerError::DatabaseError(e.to_string()))
+      .map_err(|e| DpsAuthApiError::DatabaseError(e.to_string()))
   }
 
-  async fn bind_listener(&self) -> Result<TcpListener, DpAuthServerError> {
+  async fn bind_listener(&self) -> Result<TcpListener, DpsAuthApiError> {
     let bind_address = format!("0.0.0.0:{}", self.config.port);
     TcpListener::bind(&bind_address)
       .await
-      .map_err(|e| DpAuthServerError::NetworkError(e.to_string()))
+      .map_err(|e| DpsAuthApiError::NetworkError(e.to_string()))
   }
 
   fn create_shutdown_handler(&self) -> impl std::future::Future<Output = ()> {
@@ -185,7 +185,7 @@ mod tests {
     let db_path = temp_file.path().to_str().unwrap();
 
     let secret = vec![1u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .session_secret(secret)
       .sqlite_file_path(db_path)
       .build()
@@ -198,14 +198,14 @@ mod tests {
   #[tokio::test]
   async fn test_initialize_database_invalid_path() {
     let secret = vec![1u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .session_secret(secret)
       .sqlite_file_path("/invalid/path/that/does/not/exist/test.db")
       .build()
       .unwrap();
 
     let result = server.initialize_database().await;
-    assert!(matches!(result, Err(DpAuthServerError::DatabaseError(_))));
+    assert!(matches!(result, Err(DpsAuthApiError::DatabaseError(_))));
   }
 
   #[tokio::test]
@@ -214,7 +214,7 @@ mod tests {
     let db_path = temp_file.path().to_str().unwrap();
 
     let secret = vec![1u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .session_secret(secret)
       .sqlite_file_path(db_path)
       .build()
@@ -233,7 +233,7 @@ mod tests {
     let db_path = temp_file.path().to_str().unwrap();
 
     let secret = vec![1u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .session_secret(secret)
       .sqlite_file_path(db_path)
       .port(0) // Use available port
@@ -257,7 +257,7 @@ mod tests {
   #[tokio::test]
   async fn test_start_method_database_error_propagation() {
     let secret = vec![1u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .session_secret(secret)
       .sqlite_file_path("/invalid/path/test.db")
       .build()
@@ -266,7 +266,7 @@ mod tests {
     // Test that database error is propagated from initialize_database()
     // Don't call start() as it would hang if database init somehow succeeded
     let result = server.initialize_database().await;
-    assert!(matches!(result, Err(DpAuthServerError::DatabaseError(_))));
+    assert!(matches!(result, Err(DpsAuthApiError::DatabaseError(_))));
   }
 
   #[tokio::test]
@@ -275,7 +275,7 @@ mod tests {
     let db_path = temp_file.path().to_str().unwrap();
 
     let secret = vec![1u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .session_secret(secret)
       .sqlite_file_path(db_path)
       .build()
@@ -293,7 +293,7 @@ mod tests {
   #[tokio::test]
   async fn test_build_router_basic_structure() {
     let secret = vec![1u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .session_secret(secret)
       .build()
       .unwrap();
@@ -311,7 +311,7 @@ mod tests {
   #[tokio::test]
   async fn test_build_router_root_endpoint() {
     let secret = vec![1u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .session_secret(secret)
       .build()
       .unwrap();
@@ -335,7 +335,7 @@ mod tests {
   #[tokio::test]
   async fn test_build_router_health_endpoint() {
     let secret = vec![1u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .session_secret(secret)
       .build()
       .unwrap();
@@ -364,7 +364,7 @@ mod tests {
   #[tokio::test]
   async fn test_build_router_graphql_endpoint() {
     let secret = vec![1u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .session_secret(secret)
       .build()
       .unwrap();
@@ -401,7 +401,7 @@ mod tests {
   #[tokio::test]
   async fn test_build_router_404_handler() {
     let secret = vec![1u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .session_secret(secret)
       .build()
       .unwrap();
@@ -431,7 +431,7 @@ mod tests {
   #[tokio::test]
   async fn test_build_router_404_handler_with_query_string() {
     let secret = vec![1u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .session_secret(secret)
       .build()
       .unwrap();
@@ -461,7 +461,7 @@ mod tests {
   #[tokio::test]
   async fn test_build_router_404_handler_with_post_method() {
     let secret = vec![1u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .session_secret(secret)
       .build()
       .unwrap();
@@ -495,7 +495,7 @@ mod tests {
   #[tokio::test]
   async fn test_bind_listener_success() {
     let secret = vec![1u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .session_secret(secret)
       .port(0) // Use port 0 to get any available port
       .build()
@@ -512,7 +512,7 @@ mod tests {
   #[tokio::test]
   async fn test_bind_listener_uses_configured_port() {
     let secret = vec![1u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .session_secret(secret)
       .port(0) // Use port 0 for available port
       .build()
@@ -534,7 +534,7 @@ mod tests {
     let db_path = temp_file.path().to_str().unwrap();
 
     let secret = vec![1u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .session_secret(secret)
       .sqlite_file_path(db_path)
       .build()
@@ -547,14 +547,14 @@ mod tests {
   #[tokio::test]
   async fn test_migrate_database_invalid_path() {
     let secret = vec![1u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .session_secret(secret)
       .sqlite_file_path("/invalid/path/that/does/not/exist/test.db")
       .build()
       .unwrap();
 
     let result = server.migrate_database().await;
-    assert!(matches!(result, Err(DpAuthServerError::DatabaseError(_))));
+    assert!(matches!(result, Err(DpsAuthApiError::DatabaseError(_))));
   }
 
   #[tokio::test]
@@ -563,7 +563,7 @@ mod tests {
     let db_path = temp_file.path().to_str().unwrap();
 
     let secret = vec![1u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .session_secret(secret)
       .sqlite_file_path(db_path)
       .build()
@@ -581,14 +581,14 @@ mod tests {
   #[tokio::test]
   async fn test_seed_database_invalid_path() {
     let secret = vec![1u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .session_secret(secret)
       .sqlite_file_path("/invalid/path/that/does/not/exist/test.db")
       .build()
       .unwrap();
 
     let result = server.seed_database().await;
-    assert!(matches!(result, Err(DpAuthServerError::DatabaseError(_))));
+    assert!(matches!(result, Err(DpsAuthApiError::DatabaseError(_))));
   }
 
   #[tokio::test]
@@ -597,7 +597,7 @@ mod tests {
     let db_path = temp_file.path().to_str().unwrap();
 
     let secret = vec![1u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .session_secret(secret)
       .sqlite_file_path(db_path)
       .build()
@@ -624,7 +624,7 @@ mod tests {
     let db_path = temp_file.path().to_str().unwrap();
 
     let secret = vec![1u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .session_secret(secret)
       .sqlite_file_path(db_path)
       .build()
@@ -638,7 +638,7 @@ mod tests {
     let database = result.unwrap();
     assert_eq!(
       std::any::type_name_of_val(&database),
-      "dp_auth_service::database::Database"
+      "dps_auth_api::database::Database"
     );
   }
 }

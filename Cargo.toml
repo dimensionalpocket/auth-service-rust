@@ -1,5 +1,5 @@
 [package]
-name = "dp-auth-service"
+name = "dps-auth-api"
 version = "0.1.0"
 edition = "2021"
 authors = ["Dimensional Pocket <dpauth@dimensionalpocket.com>"]
@@ -45,5 +45,5 @@ path = "scripts/run_local_server.rs"
 
 # Database migration and setup tool
 [[bin]]
-name = "dp-auth-migrate"
-path = "config/scripts/dp_auth_migrate.rs"
+name = "dps-auth-api-migrate"
+path = "config/scripts/dps_auth_api_migrate.rs"

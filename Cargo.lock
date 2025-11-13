@@ -702,7 +702,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
 
 [[package]]
-name = "dp-auth-service"
+name = "dp-auth-session-service"
+version = "0.1.0"
+source = "git+https://github.com/dimensionalpocket/auth-session-service?tag=0.1.0#a506049350f0b5a4d3971d4609492094f2c82e76"
+dependencies = [
+ "aes-gcm",
+ "base64",
+ "chrono",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "dps-auth-api"
 version = "0.1.0"
 dependencies = [
  "aes-gcm",
@@ -731,19 +744,6 @@ dependencies = [
  "tracing-subscriber",
  "tracing-test",
  "uuid",
-]
-
-[[package]]
-name = "dp-auth-session-service"
-version = "0.1.0"
-source = "git+https://github.com/dimensionalpocket/auth-session-service?tag=0.1.0#a506049350f0b5a4d3971d4609492094f2c82e76"
-dependencies = [
- "aes-gcm",
- "base64",
- "chrono",
- "rand 0.8.5",
- "serde",
- "serde_json",
 ]
 
 [[package]]

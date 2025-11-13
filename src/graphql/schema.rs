@@ -60,13 +60,13 @@ pub type AppSchema = Schema<Query, Mutation, EmptySubscription>;
 ///
 /// Database-independent usage:
 /// ```rust
-/// use dp_auth_service::graphql::schema::build_schema;
+/// use dps_auth_api::graphql::schema::build_schema;
 /// let schema = build_schema().finish();
 /// ```
 ///
 /// Database-dependent usage:
 /// ```rust,no_run
-/// use dp_auth_service::graphql::schema::build_schema;
+/// use dps_auth_api::graphql::schema::build_schema;
 /// use sqlx::SqlitePool;
 /// # async fn example(database_pool: SqlitePool) {
 /// let schema = build_schema().data(database_pool).finish();

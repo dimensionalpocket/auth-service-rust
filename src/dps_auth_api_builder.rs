@@ -1,7 +1,7 @@
-use crate::dp_auth_server::{DpAuthServer, DpAuthServerError, ResolvedServerConfig};
+use crate::dps_auth_api::{DpsAuthApi, DpsAuthApiError, ResolvedServerConfig};
 
 #[derive(Debug, Default)]
-pub struct DpAuthServerBuilder {
+pub struct DpsAuthApiBuilder {
   port: Option<u16>,
   sqlite_file_path: Option<String>,
   session_secret: Option<Vec<u8>>,
@@ -11,7 +11,7 @@ pub struct DpAuthServerBuilder {
   database_pool_size: Option<u32>,
 }
 
-impl DpAuthServerBuilder {
+impl DpsAuthApiBuilder {
   pub fn port(mut self, port: u16) -> Self {
     self.port = Some(port);
     self
@@ -47,7 +47,7 @@ impl DpAuthServerBuilder {
     self
   }
 
-  pub fn build(self) -> Result<DpAuthServer, DpAuthServerError> {
+  pub fn build(self) -> Result<DpsAuthApi, DpsAuthApiError> {
     // Validate and resolve configuration with defaults
     let config = ResolvedServerConfig {
       port: self.port.unwrap_or(3000),
@@ -56,12 +56,12 @@ impl DpAuthServerBuilder {
         .unwrap_or_else(|| "data/development.db".to_string()),
       session_secret: self
         .session_secret
-        .ok_or(DpAuthServerError::MissingRequiredConfig {
+        .ok_or(DpsAuthApiError::MissingRequiredConfig {
           field: "session_secret".to_string(),
         })?,
       cookie_domain: self
         .cookie_domain
-        .unwrap_or_else(|| ".api.dp-auth.localhost".to_string()),
+        .unwrap_or_else(|| ".api.dps.localhost".to_string()),
       insecure_cookie: self.insecure_cookie.unwrap_or(false),
       development_mode: self.development_mode.unwrap_or(false),
       database_pool_size: self.database_pool_size,
@@ -69,13 +69,13 @@ impl DpAuthServerBuilder {
 
     // Validate session secret length
     if config.session_secret.len() != 32 {
-      return Err(DpAuthServerError::InvalidSecretLength {
+      return Err(DpsAuthApiError::InvalidSecretLength {
         actual: config.session_secret.len(),
         expected: 32,
       });
     }
 
-    Ok(DpAuthServer { config })
+    Ok(DpsAuthApi { config })
   }
 }
 
@@ -85,45 +85,45 @@ mod tests {
 
   #[test]
   fn test_builder_port() {
-    let builder = DpAuthServerBuilder::default().port(8080);
+    let builder = DpsAuthApiBuilder::default().port(8080);
     assert_eq!(builder.port, Some(8080));
   }
 
   #[test]
   fn test_builder_sqlite_file_path() {
-    let builder = DpAuthServerBuilder::default().sqlite_file_path("test.db");
+    let builder = DpsAuthApiBuilder::default().sqlite_file_path("test.db");
     assert_eq!(builder.sqlite_file_path, Some("test.db".to_string()));
   }
 
   #[test]
   fn test_builder_session_secret() {
     let secret = vec![1u8; 32];
-    let builder = DpAuthServerBuilder::default().session_secret(secret.clone());
+    let builder = DpsAuthApiBuilder::default().session_secret(secret.clone());
     assert_eq!(builder.session_secret, Some(secret));
   }
 
   #[test]
   fn test_builder_cookie_domain() {
-    let builder = DpAuthServerBuilder::default().cookie_domain(".example.com");
+    let builder = DpsAuthApiBuilder::default().cookie_domain(".example.com");
     assert_eq!(builder.cookie_domain, Some(".example.com".to_string()));
   }
 
   #[test]
   fn test_builder_insecure_cookie() {
-    let builder = DpAuthServerBuilder::default().insecure_cookie(false);
+    let builder = DpsAuthApiBuilder::default().insecure_cookie(false);
     assert_eq!(builder.insecure_cookie, Some(false));
   }
 
   #[test]
   fn test_builder_development_mode() {
-    let builder = DpAuthServerBuilder::default().development_mode(false);
+    let builder = DpsAuthApiBuilder::default().development_mode(false);
     assert_eq!(builder.development_mode, Some(false));
   }
 
   #[test]
   fn test_builder_chaining() {
     let secret = vec![1u8; 32];
-    let builder = DpAuthServerBuilder::default()
+    let builder = DpsAuthApiBuilder::default()
       .port(3000)
       .sqlite_file_path("data/test.db")
       .session_secret(secret.clone())
@@ -141,7 +141,7 @@ mod tests {
 
   #[test]
   fn test_builder_default() {
-    let builder = DpAuthServerBuilder::default();
+    let builder = DpsAuthApiBuilder::default();
     assert_eq!(builder.port, None);
     assert_eq!(builder.sqlite_file_path, None);
     assert_eq!(builder.session_secret, None);
@@ -152,7 +152,7 @@ mod tests {
 
   #[test]
   fn test_builder_string_conversion() {
-    let builder = DpAuthServerBuilder::default()
+    let builder = DpsAuthApiBuilder::default()
       .sqlite_file_path(String::from("test.db"))
       .cookie_domain(String::from(".example.com"));
 
@@ -169,7 +169,7 @@ mod build_tests {
   #[test]
   fn test_build_with_valid_config() {
     let secret = vec![1u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .session_secret(secret.clone())
       .build()
       .unwrap();
@@ -179,30 +179,30 @@ mod build_tests {
     // All other fields should have correct defaults
     assert_eq!(server.config.port, 3000);
     assert_eq!(server.config.sqlite_file_path, "data/development.db");
-    assert_eq!(server.config.cookie_domain, ".api.dp-auth.localhost");
+    assert_eq!(server.config.cookie_domain, ".api.dps.localhost");
     assert!(!server.config.insecure_cookie);
     assert!(!server.config.development_mode);
   }
 
   #[test]
   fn test_build_missing_session_secret() {
-    let result = DpAuthServerBuilder::default().build();
+    let result = DpsAuthApiBuilder::default().build();
 
     assert!(
-      matches!(result, Err(DpAuthServerError::MissingRequiredConfig { field }) if field == "session_secret")
+      matches!(result, Err(DpsAuthApiError::MissingRequiredConfig { field }) if field == "session_secret")
     );
   }
 
   #[test]
   fn test_build_invalid_secret_length() {
     let secret = vec![1u8; 16]; // Wrong length
-    let result = DpAuthServerBuilder::default()
+    let result = DpsAuthApiBuilder::default()
       .session_secret(secret)
       .build();
 
     assert!(matches!(
       result,
-      Err(DpAuthServerError::InvalidSecretLength {
+      Err(DpsAuthApiError::InvalidSecretLength {
         actual: 16,
         expected: 32
       })
@@ -212,7 +212,7 @@ mod build_tests {
   #[test]
   fn test_build_overrides_defaults() {
     let secret = vec![2u8; 32];
-    let server = DpAuthServerBuilder::default()
+    let server = DpsAuthApiBuilder::default()
       .port(8080)
       .sqlite_file_path("custom/path.db")
       .session_secret(secret.clone())
@@ -237,12 +237,12 @@ mod build_tests {
 
     for length in test_cases {
       let secret = vec![1u8; length];
-      let result = DpAuthServerBuilder::default()
+      let result = DpsAuthApiBuilder::default()
         .session_secret(secret)
         .build();
 
       assert!(
-        matches!(result, Err(DpAuthServerError::InvalidSecretLength { actual, expected: 32 }) if actual == length)
+        matches!(result, Err(DpsAuthApiError::InvalidSecretLength { actual, expected: 32 }) if actual == length)
       );
     }
   }

@@ -3,20 +3,20 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[command(name = "dp-auth-migrate")]
-#[command(about = "Database migration and setup tool for dp-auth-service")]
+#[command(name = "dps-auth-api-migrate")]
+#[command(about = "Database migration and setup tool for dps-auth-api")]
 #[command(version)]
 pub struct CliArgs {
   /// Path to SQLite database file
-  #[arg(long, env = "DP_AUTH_SQLITE_FILE")]
+  #[arg(long, env = "DPS_AUTH_SQLITE_FILE")]
   pub sqlite_file: Option<PathBuf>,
 
   /// Path to configuration file
-  #[arg(long, env = "DP_AUTH_MIGRATE_CONFIG_FILE")]
+  #[arg(long, env = "DPS_AUTH_MIGRATE_CONFIG_FILE")]
   pub config: Option<PathBuf>,
 
   /// Skip running seed files
-  #[arg(long, env = "DP_AUTH_MIGRATE_SKIP_SEEDS")]
+  #[arg(long, env = "DPS_AUTH_MIGRATE_SKIP_SEEDS")]
   pub skip_seeds: bool,
 }
 
@@ -75,7 +75,7 @@ impl MigrationConfig {
     let config_path = cli_args
       .config
       .clone()
-      .unwrap_or_else(|| PathBuf::from("./dp-auth-migrate.toml"));
+      .unwrap_or_else(|| PathBuf::from("./dps-auth-api-migrate.toml"));
 
     if config_path.exists() {
       let content = std::fs::read_to_string(&config_path)?;

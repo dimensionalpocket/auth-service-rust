@@ -1,4 +1,4 @@
-use dp_auth_service::{
+use dps_auth_api::{
   database::Database,
   queries::{
     user_roles::{GetAllRolesQuery, GetRoleByNameQuery},

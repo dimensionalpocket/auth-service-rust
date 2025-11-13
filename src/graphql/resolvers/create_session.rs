@@ -46,7 +46,7 @@ impl CreateSessionResolver {
       Ok(token) => {
         // Set cookie in response headers
         if let Ok(response_headers) = ctx.data::<Arc<Mutex<HeaderMap>>>() {
-          let default_domain = ".api.dp-auth.localhost".to_string();
+          let default_domain = ".api.dps.localhost".to_string();
           let cookie_domain = ctx.data::<String>().unwrap_or(&default_domain);
           let insecure_cookie = *ctx.data::<bool>().unwrap_or(&false);
           set_session_cookie(response_headers, &token, cookie_domain, insecure_cookie);

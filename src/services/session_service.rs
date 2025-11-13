@@ -76,7 +76,7 @@ impl SessionService {
   /// # Examples
   ///
   /// ```rust
-  /// use dp_auth_service::services::SessionService;
+  /// use dps_auth_api::services::SessionService;
   /// use sqlx::SqlitePool;
   ///
   /// # async fn example(pool: &SqlitePool) -> Result<(), Box<dyn std::error::Error>> {

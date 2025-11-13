@@ -1,5 +1,5 @@
 use clap::Parser;
-use dp_auth_service::{
+use dps_auth_api::{
   migration_config::{CliArgs, MigrationConfig},
   Database,
 };
@@ -12,7 +12,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   // Load and merge configuration from all sources
   let config = MigrationConfig::from_sources(cli_args)?;
 
-  println!("🚀 Starting dp-auth database migration...");
+  println!("🚀 Starting dps-auth-api database migration...");
   println!("📊 Configuration:");
   println!("   SQLite file: {}", config.sqlite_file.display());
   println!("   Skip seeds: {}", config.skip_seeds);
@@ -38,6 +38,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .dump_schema_to_file("config/database/schema.sql")
     .await?;
 
-  println!("🎉 dp-auth database migration completed successfully!");
+  println!("🎉 dps-auth-api database migration completed successfully!");
   Ok(())
 }
