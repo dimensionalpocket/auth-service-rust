@@ -110,7 +110,7 @@ The `DpsAuthApi` builder accepts the following configuration options:
 - `port(u16)`: Server port (default: 3000)
 - `sqlite_file_path(String)`: SQLite database file path (default: "data/development.db")
 - `session_secret(Vec<u8>)`: 32-byte secret for session encryption (required)
-- `cookie_domain(String)`: Domain for session cookies (default: ".api.dps-auth-api.localhost")
+- `cookie_domain(String)`: Domain for session cookies (default: ".api.dps.localhost")
 - `insecure_cookie(bool)`: Whether to use insecure cookies for development (default: false)
 - `development_mode(bool)`: Enable development features like GraphQL playground (default: false)
 
