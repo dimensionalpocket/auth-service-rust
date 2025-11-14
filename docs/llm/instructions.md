@@ -1,6 +1,6 @@
 Follow these instructions for all your tasks:
 
-- Before starting any task, read the `README.md` to get context and progress of the entire project.
+- Before starting any task, read the `README.md` file to get context and progress of the entire project.
 
 - When you need to get the current date or time, run `date +%Y-%m-%d@%H:%M` to get the date and time (without seconds) in `YYYY-MM-DD@HH:MM` format. NEVER guess the date or time. The hour is always in 24-hour format. NEVER use AM or PM.
 
