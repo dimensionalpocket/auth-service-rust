@@ -236,7 +236,7 @@ async fn test_create_session_mutation_success() {
   );
 
   let cookie_value = cookie_header.unwrap().to_str().unwrap();
-  assert!(cookie_value.contains("DpAuthSession="));
+  assert!(cookie_value.contains("DpsAuthSession="));
   assert!(cookie_value.contains("Domain=.api.dps.localhost"));
   assert!(cookie_value.contains("HttpOnly"));
   assert!(cookie_value.contains("SameSite=Strict"));
@@ -682,10 +682,10 @@ async fn test_session_expired_token_handling() {
   // that's structurally valid but with expired timestamps
 
   // For this test, we'll use the session service directly to create an expired token
-  use dp_auth_session_service::{DpAuthSessionPayload, DpAuthSessionService};
+  use dps_auth_session::{DpsAuthSessionPayload, DpsAuthSession};
 
   let current_time = chrono::Utc::now().timestamp();
-  let expired_payload = DpAuthSessionPayload {
+  let expired_payload = DpsAuthSessionPayload {
     sub: 999,                 // Use a fake user ID
     iat: current_time - 3600, // 1 hour ago
     exp: current_time - 1800, // 30 minutes ago (expired)
@@ -693,7 +693,7 @@ async fn test_session_expired_token_handling() {
 
   // Generate a test secret (same pattern as create_app)
   let test_secret: Vec<u8> = (0..32).map(|_| rand::random::<u8>()).collect();
-  let expired_token = DpAuthSessionService::encode_token(&expired_payload, &test_secret).unwrap();
+  let expired_token = DpsAuthSession::encode_token(&expired_payload, &test_secret).unwrap();
 
   // Test with expired token in header
   let query = r#"{"query": "{ getCurrentSession { sub iat exp } }"}"#;
@@ -720,7 +720,7 @@ async fn test_session_expired_token_handling() {
 
 #[test]
 fn test_session_context_utility_methods() {
-  use dp_auth_session_service::DpAuthSessionPayload;
+  use dps_auth_session::DpsAuthSessionPayload;
   use dps_auth_api::middleware::session::SessionContext;
 
   // Test empty context
@@ -729,7 +729,7 @@ fn test_session_context_utility_methods() {
   assert_eq!(empty_context.user_id(), None);
 
   // Test authenticated context
-  let payload = DpAuthSessionPayload {
+  let payload = DpsAuthSessionPayload {
     sub: 123,
     iat: 1000,
     exp: 2000,
@@ -742,5 +742,5 @@ fn test_session_context_utility_methods() {
 #[test]
 fn test_session_cookie_name_constant() {
   use dps_auth_api::middleware::session::SESSION_COOKIE_NAME;
-  assert_eq!(SESSION_COOKIE_NAME, "DpAuthSession");
+  assert_eq!(SESSION_COOKIE_NAME, "DpsAuthSession");
 }

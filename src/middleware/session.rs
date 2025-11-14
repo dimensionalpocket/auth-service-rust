@@ -1,9 +1,9 @@
-use dp_auth_session_service::DpAuthSessionService;
+use dps_auth_session::DpsAuthSession;
 
 // Re-export for backward compatibility
 use async_graphql::Context;
 use axum::{extract::Request, middleware::Next, response::Response};
-pub use dp_auth_session_service::DpAuthSessionPayload as SessionPayload;
+pub use dps_auth_session::DpsAuthSessionPayload as SessionPayload;
 
 /// Session context that gets attached to GraphQL requests
 #[derive(Debug, Clone)]
@@ -42,7 +42,7 @@ impl SessionContext {
 }
 
 /// Cookie name for session tokens
-pub const SESSION_COOKIE_NAME: &str = "DpAuthSession";
+pub const SESSION_COOKIE_NAME: &str = "DpsAuthSession";
 
 /// Create session middleware with the provided secret
 /// Returns a middleware function that can be used with axum
@@ -65,7 +65,7 @@ pub fn create_session_middleware(
 fn extract_and_validate_session_sync(request: &Request, secret: &[u8]) -> SessionContext {
   // Try header first
   if let Some(token) = extract_token_from_header(request) {
-    if let Ok(payload) = DpAuthSessionService::decode_token(&token, secret) {
+    if let Ok(payload) = DpsAuthSession::decode_token(&token, secret) {
       return SessionContext::new(Some(payload));
     }
     // If header token is invalid, don't try cookie
@@ -74,7 +74,7 @@ fn extract_and_validate_session_sync(request: &Request, secret: &[u8]) -> Sessio
 
   // Try cookie if no header
   if let Some(token) = extract_token_from_cookie(request) {
-    if let Ok(payload) = DpAuthSessionService::decode_token(&token, secret) {
+    if let Ok(payload) = DpsAuthSession::decode_token(&token, secret) {
       return SessionContext::new(Some(payload));
     }
   }

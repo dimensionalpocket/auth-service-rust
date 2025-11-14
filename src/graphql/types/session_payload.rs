@@ -1,5 +1,5 @@
 use async_graphql::SimpleObject;
-use dp_auth_session_service::DpAuthSessionPayload as ServiceSessionPayload;
+use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
 /// GraphQL representation of a user session payload
 ///

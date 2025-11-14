@@ -1,16 +1,16 @@
 use crate::services::{PasswordService, UserService};
-use dp_auth_session_service::{DpAuthSessionError, DpAuthSessionService};
+use dps_auth_session::{DpsAuthSessionError, DpsAuthSession};
 use sqlx::SqlitePool;
 use std::fmt;
 
 // Re-export the session payload from the new crate for backward compatibility
-pub use dp_auth_session_service::DpAuthSessionPayload as SessionPayload;
+pub use dps_auth_session::DpsAuthSessionPayload as SessionPayload;
 
 /// Custom error type for session operations
 #[derive(Debug)]
 pub enum SessionError {
   /// Token encoding/decoding errors from the auth session service
-  AuthSessionError(DpAuthSessionError),
+  AuthSessionError(DpsAuthSessionError),
   /// Authentication failed - user input validation
   AuthenticationError(String),
   /// Database operation failed during authentication
@@ -32,8 +32,8 @@ impl fmt::Display for SessionError {
   }
 }
 
-impl From<DpAuthSessionError> for SessionError {
-  fn from(err: DpAuthSessionError) -> Self {
+impl From<DpsAuthSessionError> for SessionError {
+  fn from(err: DpsAuthSessionError) -> Self {
     SessionError::AuthSessionError(err)
   }
 }
@@ -149,8 +149,8 @@ impl SessionService {
     }
 
     // Create session payload and encode token
-    let payload = DpAuthSessionService::create_payload(user.id);
-    let token = DpAuthSessionService::encode_token(&payload, secret)?;
+    let payload = DpsAuthSession::create_payload(user.id, None);
+    let token = DpsAuthSession::encode_token(&payload, secret)?;
 
     tracing::info!(
       username = username,
@@ -199,7 +199,7 @@ mod tests {
       .unwrap();
 
     // Verify: Token can be decoded and contains correct user ID
-    let payload = DpAuthSessionService::decode_token(&token, TEST_SECRET).unwrap();
+    let payload = DpsAuthSession::decode_token(&token, TEST_SECRET).unwrap();
     assert_eq!(payload.sub, user.id);
   }
 
@@ -284,7 +284,7 @@ mod tests {
       .unwrap();
 
     // Verify: Token contains correct user ID
-    let payload = DpAuthSessionService::decode_token(&token, TEST_SECRET).unwrap();
+    let payload = DpsAuthSession::decode_token(&token, TEST_SECRET).unwrap();
     assert_eq!(payload.sub, user.id);
   }
 }

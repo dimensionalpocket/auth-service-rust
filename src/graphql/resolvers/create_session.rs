@@ -211,7 +211,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_map_session_error_to_user_message() {
-    use dp_auth_session_service::DpAuthSessionError;
+    use dps_auth_session::DpsAuthSessionError;
 
     assert_eq!(
       map_session_error_to_user_message(&SessionError::AuthenticationError("test".to_string())),
@@ -232,7 +232,7 @@ mod tests {
 
     assert_eq!(
       map_session_error_to_user_message(&SessionError::AuthSessionError(
-        DpAuthSessionError::EncodingError("test".to_string())
+        DpsAuthSessionError::EncodingError("test".to_string())
       )),
       "Internal server error"
     );

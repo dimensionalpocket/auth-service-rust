@@ -22,7 +22,7 @@ impl GetCurrentSessionResolver {
   ///
   /// This query requires a valid session token to be provided either:
   /// - In the `Authorization` header as `Bearer <token>`
-  /// - In the `DpAuthSession` cookie
+  /// - In the `DpsAuthSession` cookie
   ///
   /// # Examples
   ///
@@ -73,7 +73,7 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use async_graphql::*;
-  use dp_auth_session_service::DpAuthSessionPayload as ServiceSessionPayload;
+  use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
   #[tokio::test]
   async fn test_get_current_session_with_authenticated_user() {
