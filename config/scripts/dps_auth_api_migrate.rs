@@ -1,8 +1,6 @@
 use clap::Parser;
-use dps_auth_api::{
-  migration_config::{CliArgs, MigrationConfig},
-  Database,
-};
+use dps_auth_api::migration_config::{CliArgs, MigrationConfig};
+use dps_auth_api::Database;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

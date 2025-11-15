@@ -1,5 +1,4 @@
 use clap::Parser;
-use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
@@ -11,29 +10,9 @@ pub struct CliArgs {
   #[arg(long, env = "DPS_AUTH_API_SQLITE_FILE")]
   pub sqlite_file: Option<PathBuf>,
 
-  /// Path to configuration file
-  #[arg(long, env = "DPS_AUTH_API_MIGRATE_CONFIG_FILE")]
-  pub config: Option<PathBuf>,
-
   /// Skip running seed files
   #[arg(long, env = "DPS_AUTH_API_MIGRATE_SKIP_SEEDS")]
   pub skip_seeds: bool,
-}
-
-#[derive(Deserialize, Serialize, Debug, Default)]
-pub struct ConfigFile {
-  pub database: Option<DatabaseConfig>,
-  pub options: Option<OptionsConfig>,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct DatabaseConfig {
-  pub sqlite_file: Option<PathBuf>,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct OptionsConfig {
-  pub skip_seeds: Option<bool>,
 }
 
 #[derive(Debug)]
@@ -43,47 +22,18 @@ pub struct MigrationConfig {
 }
 
 impl MigrationConfig {
+  /// Merge configuration from CLI (which already reads environment variables via clap)
+  /// and fall back to sensible defaults.
   pub fn from_sources(cli_args: CliArgs) -> Result<Self, Box<dyn std::error::Error>> {
-    // Load config file if specified or if default exists
-    let config_file = Self::load_config_file(&cli_args)?;
-
-    // Merge configurations with priority: CLI > Config File > Env > Defaults
     let sqlite_file = cli_args
       .sqlite_file
-      .or_else(|| {
-        config_file
-          .database
-          .as_ref()
-          .and_then(|d| d.sqlite_file.clone())
-      })
       .unwrap_or_else(|| PathBuf::from("data/development.db"));
 
-    let skip_seeds = cli_args.skip_seeds
-      || config_file
-        .options
-        .as_ref()
-        .and_then(|o| o.skip_seeds)
-        .unwrap_or(false);
+    let skip_seeds = cli_args.skip_seeds;
 
     Ok(MigrationConfig {
       sqlite_file,
       skip_seeds,
     })
-  }
-
-  fn load_config_file(cli_args: &CliArgs) -> Result<ConfigFile, Box<dyn std::error::Error>> {
-    let config_path = cli_args
-      .config
-      .clone()
-      .unwrap_or_else(|| PathBuf::from("./dps-auth-api-migrate.toml"));
-
-    if config_path.exists() {
-      let content = std::fs::read_to_string(&config_path)?;
-      let config: ConfigFile = toml::from_str(&content)?;
-      println!("✅ Loaded configuration from: {}", config_path.display());
-      Ok(config)
-    } else {
-      Ok(ConfigFile::default())
-    }
   }
 }

@@ -192,9 +192,6 @@ The binary will be available at:
     # With custom SQLite file
     cargo run --bin dps-auth-api-migrate -- --sqlite-file ./my-auth.db
 
-    # Using a configuration file
-    cargo run --bin dps-auth-api-migrate --config ./my-config.toml
-
     # Skip seeds
     cargo run --bin dps-auth-api-migrate --skip-seeds
 
@@ -234,22 +231,13 @@ If using Docker, include the binary in your Dockerfile:
 
 ### Configuration Methods
 
-1. **Configuration File** (`dps-auth-api-migrate.toml`):
-```toml
-[database]
-sqlite_file = "data/development.db"
-
-[options]
-skip_seeds = false
-```
-
-2. **Environment Variables**:
+1. **Environment Variables**:
 ```bash
 export DPS_AUTH_API_SQLITE_FILE="data/development.db"
 export DPS_AUTH_API_MIGRATE_SKIP_SEEDS="false"
 ```
 
-3. **Command-line Arguments** (see `--help` for full list)
+2. **Command-line Arguments** (see `--help` for full list)
 
 ## License
 

@@ -18,7 +18,9 @@ Follow these instructions for all your tasks:
   - When you're implementing a plan, do not implement anything that is not in the plan.
 
 - Never include any git operations in plans.
-- Never include tasks like "changelogs" or "PR descriptions" or "version bumps" in plans.
+- Never include tasks like "changelogs" or "PR descriptions" or "version bumps" or "release notes" in plans or TODOs.
+
+- Backward compatibility is NOT a concern unless explicitly mentioned in the plan. If you are concerned about breaking changes, inform the user in chat.
 
 ## Running Commands
 
