@@ -8,15 +8,15 @@ use std::path::PathBuf;
 #[command(version)]
 pub struct CliArgs {
   /// Path to SQLite database file
-  #[arg(long, env = "DPS_AUTH_SQLITE_FILE")]
+  #[arg(long, env = "DPS_AUTH_API_SQLITE_FILE")]
   pub sqlite_file: Option<PathBuf>,
 
   /// Path to configuration file
-  #[arg(long, env = "DPS_AUTH_MIGRATE_CONFIG_FILE")]
+  #[arg(long, env = "DPS_AUTH_API_MIGRATE_CONFIG_FILE")]
   pub config: Option<PathBuf>,
 
   /// Skip running seed files
-  #[arg(long, env = "DPS_AUTH_MIGRATE_SKIP_SEEDS")]
+  #[arg(long, env = "DPS_AUTH_API_MIGRATE_SKIP_SEEDS")]
   pub skip_seeds: bool,
 }
 

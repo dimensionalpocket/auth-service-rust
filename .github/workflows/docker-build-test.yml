@@ -61,7 +61,7 @@ jobs:
       run: |
         # Start container in background with database migration and secret key
         docker run -d --name test-container -p 3000:3000 \
-          -e DPS_AUTH_SECRET_KEY="QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=" \
+          -e DPS_AUTH_API_SESSION_SECRET="QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=" \
           dps-auth-api:test
         
         # Wait for server to start and test health endpoint (max 30 seconds)

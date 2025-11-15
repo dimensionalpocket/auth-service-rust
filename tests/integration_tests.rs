@@ -239,7 +239,7 @@ async fn test_create_session_mutation_success() {
   assert!(cookie_value.contains("Domain=.api.dps.localhost"));
   assert!(cookie_value.contains("HttpOnly"));
   assert!(cookie_value.contains("SameSite=Strict"));
-  // Should not contain Secure flag due to DPS_AUTH_INSECURE_COOKIE=true
+  // Should not contain Secure flag due to DPS_AUTH_API_INSECURE_COOKIE=true
   assert!(!cookie_value.contains("Secure"));
 
   let body = axum::body::to_bytes(response.into_body(), usize::MAX)

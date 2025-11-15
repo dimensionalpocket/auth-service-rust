@@ -209,8 +209,8 @@ For production deployments, build the binary in release mode and run it directly
     ./target/release/dps-auth-api-migrate --sqlite-file ./production.db
 
     # Or with environment variables
-    export DPS_AUTH_SQLITE_FILE="./production.db"
-    export DPS_AUTH_MIGRATE_SKIP_SEEDS="false"
+    export DPS_AUTH_API_SQLITE_FILE="./production.db"
+    export DPS_AUTH_API_MIGRATE_SKIP_SEEDS="false"
     ./target/release/dps-auth-api-migrate
 
 #### Docker Deployment
@@ -245,8 +245,8 @@ skip_seeds = false
 
 2. **Environment Variables**:
 ```bash
-export DPS_AUTH_SQLITE_FILE="data/development.db"
-export DPS_AUTH_MIGRATE_SKIP_SEEDS="false"
+export DPS_AUTH_API_SQLITE_FILE="data/development.db"
+export DPS_AUTH_API_MIGRATE_SKIP_SEEDS="false"
 ```
 
 3. **Command-line Arguments** (see `--help` for full list)
