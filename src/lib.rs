@@ -7,7 +7,6 @@ pub mod migration_config;
 pub mod models;
 pub mod queries;
 pub mod services;
-pub mod utils;
 
 pub use database::Database;
 pub use dps_auth_api::{DpsAuthApi, DpsAuthApiError};
