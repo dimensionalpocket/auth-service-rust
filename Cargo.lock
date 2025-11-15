@@ -717,8 +717,8 @@ dependencies = [
 
 [[package]]
 name = "dps-config"
-version = "0.2.0"
-source = "git+https://github.com/dimensionalpocket/dps-config-rs?tag=0.2.0#e7303c76cb8bba52f5aa691de2770f6ea50fddf3"
+version = "0.3.0"
+source = "git+https://github.com/dimensionalpocket/dps-config-rs?tag=0.3.0#7cf8b976d0111a748f9784c71aa0734f00d5dc6b"
 
 [[package]]
 name = "either"

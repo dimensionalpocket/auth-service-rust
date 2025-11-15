@@ -47,13 +47,15 @@ dps-auth-api = { git = "https://github.com/dimensionalpocket/dps-auth-api", tag 
 
 ```rust
 use dps_auth_api::DpsAuthApi;
+use dps_config::DpsConfig;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let server = DpsAuthApi::new()
-        .session_secret(your_32_byte_secret)
-        .build()?;
-
+    // DpsConfig loads from environment variables automatically
+    // Requires DPS_AUTH_API_SESSION_SECRET to be set
+    let config = DpsConfig::new();
+    let server = DpsAuthApi::new(config)?;
+    
     server.start().await
 }
 ```
@@ -62,18 +64,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use dps_auth_api::DpsAuthApi;
+use dps_config::DpsConfig;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let server = DpsAuthApi::new()
-        .port(3000)
-        .sqlite_file_path("data/production.db")
-        .session_secret(your_32_byte_secret)
-        .cookie_domain(".yourdomain.com")
-        .insecure_cookie(false)
-        .development_mode(false)
-        .build()?;
-
+    let mut config = DpsConfig::new();
+    
+    // Override defaults
+    config.set_auth_api_port(Some(3000));
+    config.set_auth_api_sqlite_main_file_path("data/production.db");
+    config.set_auth_api_session_secret(Some("your-32-byte-secret-here!!!!"));
+    config.set_domain("yourdomain.com");
+    config.set_auth_api_insecure_cookie(false);
+    config.set_development_mode(false);
+    config.set_auth_api_sqlite_main_pool_size(Some(10));
+    
+    let server = DpsAuthApi::new(config)?;
+    
     server.start().await
 }
 ```
@@ -82,11 +89,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use dps_auth_api::DpsAuthApi;
+use dps_config::DpsConfig;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize logging (optional)
+    // Initialize logging
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -95,9 +103,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let server = DpsAuthApi::new()
-        .session_secret(your_32_byte_secret)
-        .build()?;
+    let config = DpsConfig::new();
+    let server = DpsAuthApi::new(config)?;
 
     server.start().await
 }
@@ -105,16 +112,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Configuration
 
-The `DpsAuthApi` builder accepts the following configuration options:
+The `DpsAuthApi` uses `DpsConfig` from the `dps-config` crate for configuration management.
 
-- `port(u16)`: Server port (default: 3000)
-- `sqlite_file_path(String)`: SQLite database file path (default: "data/development.db")
-- `session_secret(Vec<u8>)`: 32-byte secret for session encryption (required)
-- `cookie_domain(String)`: Domain for session cookies (default: ".api.dps.localhost")
-- `insecure_cookie(bool)`: Whether to use insecure cookies for development (default: false)
-- `development_mode(bool)`: Enable development features like GraphQL playground (default: false)
+### Environment Variables
 
-All configuration options except `session_secret` have sensible defaults and are optional.
+All configuration is loaded from environment variables via `DpsConfig::new()`:
+
+- `DPS_AUTH_API_PORT`: Server port (default: 3000 if not set)
+- `DPS_AUTH_API_SQLITE_MAIN_FILE_PATH`: SQLite database file path (default: "data/main-development.db")
+- `DPS_AUTH_API_SQLITE_MAIN_POOL_SIZE`: Database connection pool size (default: 1)
+- `DPS_AUTH_API_SESSION_SECRET`: 32-byte secret for session encryption (required)
+- `DPS_DOMAIN`: Base domain (default: "dps.localhost")
+- `DPS_API_SUBDOMAIN`: API subdomain (default: "api")
+- `DPS_AUTH_API_INSECURE_COOKIE`: Set to "Y" to enable insecure cookies (default: false)
+- `DPS_DEVELOPMENT_MODE`: Set to "Y" to enable development features like GraphQL playground (default: false)
+
+The cookie domain is automatically derived as `.{api_subdomain}.{domain}` (e.g., ".api.dps.localhost").
+
+### Manual Configuration
+
+You can also set configuration programmatically:
+
+```rust
+let mut config = DpsConfig::new();
+config.set_auth_api_port(Some(8080));
+config.set_domain("example.com");
+config.set_auth_api_sqlite_main_pool_size(Some(10));
+let server = DpsAuthApi::new(config)?;
+```
+
+All configuration options except `auth_api_session_secret` have sensible defaults and are optional.
 
 ## Local Development
 
@@ -126,14 +153,16 @@ cargo run --bin run_local_server
 ```
 
 The `run_local_server` binary uses environment variables for configuration:
-- `DPS_AUTH_SECRET_KEY`: Base64-encoded 32-byte secret (required)
-- `DPS_AUTH_SQLITE_FILE`: SQLite database file path (optional, defaults to "data/development.db")
-- `PORT`: Server port (optional, defaults to "3000")
-- `DPS_AUTH_COOKIE_DOMAIN`: Cookie domain (optional, defaults to ".api.dps.localhost")
-- `DPS_AUTH_INSECURE_COOKIE`: Set to enable insecure cookies (optional)
-- `DPS_AUTH_ENV`: Set to "development" to enable development mode (optional)
+- `DPS_AUTH_API_SESSION_SECRET`: 32-byte secret (required)
+- `DPS_AUTH_API_SQLITE_MAIN_FILE_PATH`: SQLite database file path (optional, defaults to "data/main-development.db")
+- `DPS_AUTH_API_PORT`: Server port (optional, defaults to 3000)
+- `DPS_DOMAIN`: Base domain (optional, defaults to "dps.localhost")
+- `DPS_API_SUBDOMAIN`: API subdomain (optional, defaults to "api")
+- `DPS_AUTH_API_INSECURE_COOKIE`: Set to "Y" to enable insecure cookies (optional)
+- `DPS_DEVELOPMENT_MODE`: Set to "Y" to enable development mode (optional)
+- `DPS_AUTH_API_SQLITE_MAIN_POOL_SIZE`: Database pool size (optional, defaults to 1)
 
-**Note**: When using the library directly in your code, use the `DpsAuthApi` builder pattern instead of environment variables.
+**Note**: When using the library directly in your code, use the `DpsAuthApi::new(config)` pattern instead.
 
 ## Database Setup
 

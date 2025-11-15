@@ -4,14 +4,12 @@ use axum::{
   Router,
 };
 use dps_auth_api::dps_auth_api::DpsAuthApi;
+use dps_config::DpsConfig;
 use tower::ServiceExt;
 
 // No test wrapper functions needed - using DpsAuthApi's configured router
 
 async fn create_app() -> Router {
-  // Generate a random 32-byte session secret for this test to ensure test isolation
-  let session_secret: Vec<u8> = (0..32).map(|_| rand::random::<u8>()).collect();
-
   // Create temporary database file with unique name to avoid conflicts
   let temp_file = tempfile::Builder::new()
     .prefix(&format!("dps_auth_api_test_{}_", rand::random::<u32>()))
@@ -23,15 +21,16 @@ async fn create_app() -> Router {
     .to_str()
     .expect("Failed to get temp file path");
 
-  let server = DpsAuthApi::new()
-    .session_secret(session_secret)
-    .sqlite_file_path(db_path)
-    .cookie_domain(".api.dps.localhost")
-    .insecure_cookie(true)
-    .development_mode(true)
-    .database_pool_size(1) // Use small pool size for tests to avoid concurrency issues
-    .build()
-    .unwrap();
+  let mut config = DpsConfig::new();
+  config.set_auth_api_session_secret(Some("a".repeat(32).as_str()));
+  config.set_auth_api_sqlite_main_file_path(db_path);
+  config.set_domain("dps.localhost");
+  config.set_api_subdomain("api");
+  config.set_auth_api_insecure_cookie(true);
+  config.set_development_mode(true);
+  config.set_auth_api_sqlite_main_pool_size(Some(1)); // Use small pool size for tests to avoid concurrency issues
+
+  let server = DpsAuthApi::new(config).unwrap();
 
   // Run migrations and seeds for full database setup
   server
@@ -682,7 +681,7 @@ async fn test_session_expired_token_handling() {
   // that's structurally valid but with expired timestamps
 
   // For this test, we'll use the session service directly to create an expired token
-  use dps_auth_session::{DpsAuthSessionPayload, DpsAuthSession};
+  use dps_auth_session::{DpsAuthSession, DpsAuthSessionPayload};
 
   let current_time = chrono::Utc::now().timestamp();
   let expired_payload = DpsAuthSessionPayload {
@@ -720,8 +719,8 @@ async fn test_session_expired_token_handling() {
 
 #[test]
 fn test_session_context_utility_methods() {
-  use dps_auth_session::DpsAuthSessionPayload;
   use dps_auth_api::middleware::session::SessionContext;
+  use dps_auth_session::DpsAuthSessionPayload;
 
   // Test empty context
   let empty_context = SessionContext::new(None);

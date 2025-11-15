@@ -1,5 +1,5 @@
 use crate::services::{PasswordService, UserService};
-use dps_auth_session::{DpsAuthSessionError, DpsAuthSession};
+use dps_auth_session::{DpsAuthSession, DpsAuthSessionError};
 use sqlx::SqlitePool;
 use std::fmt;
 

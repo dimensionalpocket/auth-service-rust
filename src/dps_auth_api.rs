@@ -1,4 +1,3 @@
-use crate::dps_auth_api_builder::DpsAuthApiBuilder;
 use crate::graphql::schema::AppSchema;
 use axum::{middleware::from_fn, routing::get, Router};
 use tokio::net::TcpListener;
@@ -7,18 +6,18 @@ use tower_http::cors::CorsLayer;
 
 #[derive(Debug)]
 pub struct DpsAuthApi {
-  pub(crate) config: ResolvedServerConfig,
+  pub(crate) config: DpsAuthApiConfig,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct ResolvedServerConfig {
+pub(crate) struct DpsAuthApiConfig {
   pub port: u16,
-  pub sqlite_file_path: String,
+  pub sqlite_main_file_path: String,
   pub session_secret: Vec<u8>,
   pub cookie_domain: String,
   pub insecure_cookie: bool,
   pub development_mode: bool,
-  pub database_pool_size: Option<u32>,
+  pub sqlite_main_pool_size: u16,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -52,9 +51,57 @@ impl std::fmt::Display for DpsAuthApiError {
 impl std::error::Error for DpsAuthApiError {}
 
 impl DpsAuthApi {
-  #[allow(clippy::new_ret_no_self)]
-  pub fn new() -> DpsAuthApiBuilder {
-    DpsAuthApiBuilder::default()
+  /// Create a new DpsAuthApi instance from DpsConfig
+  ///
+  /// This validates the configuration and returns an error if required fields are missing
+  /// or invalid. The server will not start if configuration is invalid.
+  ///
+  /// # Errors
+  ///
+  /// Returns `DpsAuthApiError::MissingRequiredConfig` if session_secret is not set
+  /// Returns `DpsAuthApiError::InvalidSecretLength` if session_secret is not exactly 32 bytes
+  ///
+  /// # Example
+  ///
+  /// ```rust
+  /// use dps_config::DpsConfig;
+  /// use dps_auth_api::DpsAuthApi;
+  ///
+  /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+  /// let mut config = DpsConfig::new();
+  /// config.set_auth_api_session_secret(Some("a".repeat(32).as_str()));
+  /// let server = DpsAuthApi::new(config)?;
+  /// # Ok(())
+  /// # }
+  /// ```
+  pub fn new(dps_config: dps_config::DpsConfig) -> Result<Self, DpsAuthApiError> {
+    // Extract session secret (required)
+    let session_secret = dps_config.get_auth_api_session_secret_bytes().ok_or(
+      DpsAuthApiError::MissingRequiredConfig {
+        field: "auth_api_session_secret".to_string(),
+      },
+    )?;
+
+    // Validate session secret length
+    if session_secret.len() != 32 {
+      return Err(DpsAuthApiError::InvalidSecretLength {
+        actual: session_secret.len(),
+        expected: 32,
+      });
+    }
+
+    // Build resolved config with defaults from DpsConfig
+    let config = DpsAuthApiConfig {
+      port: dps_config.get_auth_api_port().unwrap_or(3000),
+      sqlite_main_file_path: dps_config.get_auth_api_sqlite_main_file_path(),
+      session_secret,
+      cookie_domain: format!(".{}", dps_config.get_api_domain()),
+      insecure_cookie: dps_config.get_auth_api_insecure_cookie(),
+      development_mode: dps_config.get_development_mode(),
+      sqlite_main_pool_size: dps_config.get_auth_api_sqlite_main_pool_size(),
+    };
+
+    Ok(DpsAuthApi { config })
   }
 
   pub async fn start(self) -> Result<(), DpsAuthApiError> {
@@ -88,8 +135,8 @@ impl DpsAuthApi {
   /// This method is public for test usage.
   pub async fn initialize_database(&self) -> Result<crate::database::Database, DpsAuthApiError> {
     crate::database::Database::new_with_pool_size(
-      &self.config.sqlite_file_path,
-      self.config.database_pool_size,
+      &self.config.sqlite_main_file_path,
+      Some(self.config.sqlite_main_pool_size as u32),
     )
     .await
     .map_err(|e| DpsAuthApiError::DatabaseError(e.to_string()))
@@ -179,17 +226,29 @@ mod tests {
   use tempfile::NamedTempFile;
   use tower::ServiceExt;
 
+  // Helper function to create a DpsAuthApi instance for tests
+  fn create_test_server(db_path: &str) -> DpsAuthApi {
+    let mut config = dps_config::DpsConfig::new();
+    config.set_auth_api_session_secret(Some("a".repeat(32).as_str()));
+    config.set_auth_api_sqlite_main_file_path(db_path);
+    DpsAuthApi::new(config).unwrap()
+  }
+
+  // Helper function to create a DpsAuthApi instance with custom port
+  fn create_test_server_with_port(db_path: &str, port: u16) -> DpsAuthApi {
+    let mut config = dps_config::DpsConfig::new();
+    config.set_auth_api_session_secret(Some("a".repeat(32).as_str()));
+    config.set_auth_api_sqlite_main_file_path(db_path);
+    config.set_auth_api_port(Some(port));
+    DpsAuthApi::new(config).unwrap()
+  }
+
   #[tokio::test]
   async fn test_initialize_database_success() {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
 
-    let secret = vec![1u8; 32];
-    let server = DpsAuthApiBuilder::default()
-      .session_secret(secret)
-      .sqlite_file_path(db_path)
-      .build()
-      .unwrap();
+    let server = create_test_server(db_path);
 
     let result = server.initialize_database().await;
     assert!(result.is_ok());
@@ -197,12 +256,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_initialize_database_invalid_path() {
-    let secret = vec![1u8; 32];
-    let server = DpsAuthApiBuilder::default()
-      .session_secret(secret)
-      .sqlite_file_path("/invalid/path/that/does/not/exist/test.db")
-      .build()
-      .unwrap();
+    let server = create_test_server("/invalid/path/that/does/not/exist/test.db");
 
     let result = server.initialize_database().await;
     assert!(matches!(result, Err(DpsAuthApiError::DatabaseError(_))));
@@ -213,15 +267,10 @@ mod tests {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
 
-    let secret = vec![1u8; 32];
-    let server = DpsAuthApiBuilder::default()
-      .session_secret(secret)
-      .sqlite_file_path(db_path)
-      .build()
-      .unwrap();
+    let server = create_test_server(db_path);
 
     // Should use the configured path, not the default
-    assert_eq!(server.config.sqlite_file_path, db_path);
+    assert_eq!(server.config.sqlite_main_file_path, db_path);
 
     let result = server.initialize_database().await;
     assert!(result.is_ok());
@@ -232,13 +281,7 @@ mod tests {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
 
-    let secret = vec![1u8; 32];
-    let server = DpsAuthApiBuilder::default()
-      .session_secret(secret)
-      .sqlite_file_path(db_path)
-      .port(0) // Use available port
-      .build()
-      .unwrap();
+    let server = create_test_server_with_port(db_path, 0); // Use available port
 
     // Test individual phases without calling start() which would block
     // Phase 3A - Database initialization
@@ -256,12 +299,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_start_method_database_error_propagation() {
-    let secret = vec![1u8; 32];
-    let server = DpsAuthApiBuilder::default()
-      .session_secret(secret)
-      .sqlite_file_path("/invalid/path/test.db")
-      .build()
-      .unwrap();
+    let server = create_test_server("/invalid/path/test.db");
 
     // Test that database error is propagated from initialize_database()
     // Don't call start() as it would hang if database init somehow succeeded
@@ -274,12 +312,7 @@ mod tests {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
 
-    let secret = vec![1u8; 32];
-    let server = DpsAuthApiBuilder::default()
-      .session_secret(secret)
-      .sqlite_file_path(db_path)
-      .build()
-      .unwrap();
+    let server = create_test_server(db_path);
 
     let app = server.create_app().await.unwrap();
 
@@ -292,11 +325,9 @@ mod tests {
 
   #[tokio::test]
   async fn test_build_router_basic_structure() {
-    let secret = vec![1u8; 32];
-    let server = DpsAuthApiBuilder::default()
-      .session_secret(secret)
-      .build()
-      .unwrap();
+    let temp_file = NamedTempFile::new().unwrap();
+    let db_path = temp_file.path().to_str().unwrap();
+    let server = create_test_server(db_path);
 
     let schema = crate::graphql::schema::build_schema().finish();
     let router = server.build_router(schema);
@@ -310,11 +341,9 @@ mod tests {
 
   #[tokio::test]
   async fn test_build_router_root_endpoint() {
-    let secret = vec![1u8; 32];
-    let server = DpsAuthApiBuilder::default()
-      .session_secret(secret)
-      .build()
-      .unwrap();
+    let temp_file = NamedTempFile::new().unwrap();
+    let db_path = temp_file.path().to_str().unwrap();
+    let server = create_test_server(db_path);
 
     let schema = crate::graphql::schema::build_schema().finish();
     let app = server.build_router(schema);
@@ -334,11 +363,9 @@ mod tests {
 
   #[tokio::test]
   async fn test_build_router_health_endpoint() {
-    let secret = vec![1u8; 32];
-    let server = DpsAuthApiBuilder::default()
-      .session_secret(secret)
-      .build()
-      .unwrap();
+    let temp_file = NamedTempFile::new().unwrap();
+    let db_path = temp_file.path().to_str().unwrap();
+    let server = create_test_server(db_path);
 
     let schema = crate::graphql::schema::build_schema().finish();
     let app = server.build_router(schema);
@@ -363,11 +390,9 @@ mod tests {
 
   #[tokio::test]
   async fn test_build_router_graphql_endpoint() {
-    let secret = vec![1u8; 32];
-    let server = DpsAuthApiBuilder::default()
-      .session_secret(secret)
-      .build()
-      .unwrap();
+    let temp_file = NamedTempFile::new().unwrap();
+    let db_path = temp_file.path().to_str().unwrap();
+    let server = create_test_server(db_path);
 
     let schema = crate::graphql::schema::build_schema().finish();
     let app = server.build_router(schema);
@@ -400,11 +425,9 @@ mod tests {
 
   #[tokio::test]
   async fn test_build_router_404_handler() {
-    let secret = vec![1u8; 32];
-    let server = DpsAuthApiBuilder::default()
-      .session_secret(secret)
-      .build()
-      .unwrap();
+    let temp_file = NamedTempFile::new().unwrap();
+    let db_path = temp_file.path().to_str().unwrap();
+    let server = create_test_server(db_path);
 
     let schema = crate::graphql::schema::build_schema().finish();
     let app = server.build_router(schema);
@@ -430,11 +453,9 @@ mod tests {
 
   #[tokio::test]
   async fn test_build_router_404_handler_with_query_string() {
-    let secret = vec![1u8; 32];
-    let server = DpsAuthApiBuilder::default()
-      .session_secret(secret)
-      .build()
-      .unwrap();
+    let temp_file = NamedTempFile::new().unwrap();
+    let db_path = temp_file.path().to_str().unwrap();
+    let server = create_test_server(db_path);
 
     let schema = crate::graphql::schema::build_schema().finish();
     let app = server.build_router(schema);
@@ -460,11 +481,9 @@ mod tests {
 
   #[tokio::test]
   async fn test_build_router_404_handler_with_post_method() {
-    let secret = vec![1u8; 32];
-    let server = DpsAuthApiBuilder::default()
-      .session_secret(secret)
-      .build()
-      .unwrap();
+    let temp_file = NamedTempFile::new().unwrap();
+    let db_path = temp_file.path().to_str().unwrap();
+    let server = create_test_server(db_path);
 
     let schema = crate::graphql::schema::build_schema().finish();
     let app = server.build_router(schema);
@@ -494,12 +513,9 @@ mod tests {
 
   #[tokio::test]
   async fn test_bind_listener_success() {
-    let secret = vec![1u8; 32];
-    let server = DpsAuthApiBuilder::default()
-      .session_secret(secret)
-      .port(0) // Use port 0 to get any available port
-      .build()
-      .unwrap();
+    let temp_file = NamedTempFile::new().unwrap();
+    let db_path = temp_file.path().to_str().unwrap();
+    let server = create_test_server_with_port(db_path, 0); // Use port 0 to get any available port
 
     let result = server.bind_listener().await;
     assert!(result.is_ok());
@@ -511,12 +527,9 @@ mod tests {
 
   #[tokio::test]
   async fn test_bind_listener_uses_configured_port() {
-    let secret = vec![1u8; 32];
-    let server = DpsAuthApiBuilder::default()
-      .session_secret(secret)
-      .port(0) // Use port 0 for available port
-      .build()
-      .unwrap();
+    let temp_file = NamedTempFile::new().unwrap();
+    let db_path = temp_file.path().to_str().unwrap();
+    let server = create_test_server_with_port(db_path, 0); // Use port 0 for available port
 
     let result = server.bind_listener().await;
     assert!(result.is_ok());
@@ -533,12 +546,7 @@ mod tests {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
 
-    let secret = vec![1u8; 32];
-    let server = DpsAuthApiBuilder::default()
-      .session_secret(secret)
-      .sqlite_file_path(db_path)
-      .build()
-      .unwrap();
+    let server = create_test_server(db_path);
 
     let result = server.migrate_database().await;
     assert!(result.is_ok());
@@ -546,12 +554,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_migrate_database_invalid_path() {
-    let secret = vec![1u8; 32];
-    let server = DpsAuthApiBuilder::default()
-      .session_secret(secret)
-      .sqlite_file_path("/invalid/path/that/does/not/exist/test.db")
-      .build()
-      .unwrap();
+    let server = create_test_server("/invalid/path/that/does/not/exist/test.db");
 
     let result = server.migrate_database().await;
     assert!(matches!(result, Err(DpsAuthApiError::DatabaseError(_))));
@@ -562,12 +565,7 @@ mod tests {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
 
-    let secret = vec![1u8; 32];
-    let server = DpsAuthApiBuilder::default()
-      .session_secret(secret)
-      .sqlite_file_path(db_path)
-      .build()
-      .unwrap();
+    let server = create_test_server(db_path);
 
     // First run migrations to set up tables
     let migrate_result = server.migrate_database().await;
@@ -580,12 +578,7 @@ mod tests {
 
   #[tokio::test]
   async fn test_seed_database_invalid_path() {
-    let secret = vec![1u8; 32];
-    let server = DpsAuthApiBuilder::default()
-      .session_secret(secret)
-      .sqlite_file_path("/invalid/path/that/does/not/exist/test.db")
-      .build()
-      .unwrap();
+    let server = create_test_server("/invalid/path/that/does/not/exist/test.db");
 
     let result = server.seed_database().await;
     assert!(matches!(result, Err(DpsAuthApiError::DatabaseError(_))));
@@ -596,12 +589,7 @@ mod tests {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
 
-    let secret = vec![1u8; 32];
-    let server = DpsAuthApiBuilder::default()
-      .session_secret(secret)
-      .sqlite_file_path(db_path)
-      .build()
-      .unwrap();
+    let server = create_test_server(db_path);
 
     // Test that each operation can be called independently
 
@@ -623,12 +611,7 @@ mod tests {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
 
-    let secret = vec![1u8; 32];
-    let server = DpsAuthApiBuilder::default()
-      .session_secret(secret)
-      .sqlite_file_path(db_path)
-      .build()
-      .unwrap();
+    let server = create_test_server(db_path);
 
     // This test verifies that initialize_database is public and can be called from tests
     let result = server.initialize_database().await;

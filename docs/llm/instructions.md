@@ -4,6 +4,8 @@ Follow these instructions for all your tasks:
 
 - When you need to get the current date or time, run `date +%Y-%m-%d@%H:%M` to get the date and time (without seconds) in `YYYY-MM-DD@HH:MM` format. NEVER guess the date or time. The hour is always in 24-hour format. NEVER use AM or PM.
 
+- Git operations such as commits, branches, merges, rebases, etc. are NOT part of your tasks. The user will handle all git operations.
+
 ## Working with Plans
 
 - When you're asked to write a plan:
@@ -14,6 +16,9 @@ Follow these instructions for all your tasks:
 
 - When you're asked to proceed with the implementation of a plan, and during the implementation you have to deviate from the plan, you must STOP and inform the user about the deviation in chat, offering options to proceed for the user to choose from.
   - When you're implementing a plan, do not implement anything that is not in the plan.
+
+- Never include any git operations in plans.
+- Never include tasks like "changelogs" or "PR descriptions" or "version bumps" in plans.
 
 ## Running Commands
 
