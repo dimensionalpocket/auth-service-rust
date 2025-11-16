@@ -43,7 +43,7 @@ dps-auth-api = { git = "https://github.com/dimensionalpocket/dps-auth-api", tag 
 
 ## Usage
 
-### Minimal Example (with defaults)
+### Quickstart (minimal example)
 
 ```rust
 use dps_auth_api::DpsAuthApi;
@@ -60,7 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Complete Configuration Example
+### Full example (complete configuration)
 
 ```rust
 use dps_auth_api::DpsAuthApi;
@@ -85,30 +85,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### With Logging Example
-
-```rust
-use dps_auth_api::DpsAuthApi;
-use dps_config::DpsConfig;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize logging
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "dps_auth_api=debug,tower_http=debug".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
-
-    let config = DpsConfig::new();
-    let server = DpsAuthApi::new(config)?;
-
-    server.start().await
-}
-```
 
 ## Configuration
 
@@ -145,89 +121,29 @@ All configuration options except `auth_api_session_secret` have sensible default
 
 ## Local Development
 
-For local development, use the provided script:
+For local development, set the environment variables (see the "Environment Variables" section) and run the provided binary:
 
 ```bash
-# Set environment variables in .env file
+# Set environment variables in .env file, then:
 cargo run --bin run_local_server
 ```
 
-The `run_local_server` binary uses environment variables for configuration:
-- `DPS_AUTH_API_SESSION_SECRET`: 32-byte secret (required)
-- `DPS_AUTH_API_SQLITE_MAIN_FILE_PATH`: SQLite database file path (optional, defaults to "data/main-development.db")
-- `DPS_AUTH_API_PORT`: Server port (optional, defaults to 3000)
-- `DPS_DOMAIN`: Base domain (optional, defaults to "dps.localhost")
-- `DPS_API_SUBDOMAIN`: API subdomain (optional, defaults to "api")
-- `DPS_AUTH_API_INSECURE_COOKIE`: Set to "Y" to enable insecure cookies (optional)
-- `DPS_DEVELOPMENT_MODE`: Set to "Y" to enable development mode (optional)
-- `DPS_AUTH_API_SQLITE_MAIN_POOL_SIZE`: Database pool size (optional, defaults to 1)
+Note: When using the library directly in your code, use the `DpsAuthApi::new(config)` pattern instead.
 
 **Note**: When using the library directly in your code, use the `DpsAuthApi::new(config)` pattern instead.
 
 ## Database Setup
 
-### Using the Migration Binary
+The library provides a `dps-auth-api-migrate` binary for database setup. Quick reference:
 
-The library provides a `dps-auth-api-migrate` binary for database setup.
+- Build (debug): `cargo build --bin dps-auth-api-migrate`
+- Build (release): `cargo build --release --bin dps-auth-api-migrate`
+- Run migrations (development): `cargo run --bin dps-auth-api-migrate`
+- Run with custom SQLite file: `cargo run --bin dps-auth-api-migrate -- --sqlite-file ./my-auth.db`
+- Production: build in release mode and run `./target/release/dps-auth-api-migrate --sqlite-file ./production.db`
 
-#### Building the Migration Binary
-
-When you include this library as a dependency, you can build the migration binary:
-
-    # Build the migration binary
-    cargo build --bin dps-auth-api-migrate
-
-    # Or build in release mode for production
-    cargo build --release --bin dps-auth-api-migrate
-
-The binary will be available at:
-- Debug: `target/debug/dps-auth-api-migrate`
-- Release: `target/release/dps-auth-api-migrate`
-
-#### Running the Migration Binary
-
-    # Basic usage with defaults (during development)
-    cargo run --bin dps-auth-api-migrate
-
-    # With custom SQLite file
-    cargo run --bin dps-auth-api-migrate -- --sqlite-file ./my-auth.db
-
-    # Skip seeds
-    cargo run --bin dps-auth-api-migrate --skip-seeds
-
-#### Production Deployment
-
-For production deployments, build the binary in release mode and run it directly:
-
-    # Build for production
-    cargo build --release --bin dps-auth-api-migrate
-
-    # Run the built binary
-    ./target/release/dps-auth-api-migrate --sqlite-file ./production.db
-
-    # Or with environment variables
-    export DPS_AUTH_API_SQLITE_FILE="./production.db"
-    export DPS_AUTH_API_MIGRATE_SKIP_SEEDS="false"
-    ./target/release/dps-auth-api-migrate
-
-#### Docker Deployment
-
-If using Docker, include the binary in your Dockerfile:
-
-    # Build stage
-    FROM rust:1.88.0 as builder
-    WORKDIR /app
-    COPY . .
-    RUN cargo build --release --bin your-app --bin dps-auth-api-migrate
-
-    # Runtime stage
-    FROM debian:bullseye-slim
-    WORKDIR /app
-    COPY --from=builder /app/target/release/your-app /app/your-app
-    COPY --from=builder /app/target/release/dps-auth-api-migrate /app/dps-auth-api-migrate
-
-    # Run migrations before starting your app
-    CMD ["sh", "-c", "./dps-auth-api-migrate && ./your-app"]
+Docker note
+- Build the migration binary in your builder stage and run it before starting your app in the runtime stage. See the repo Dockerfile or docs for an example.
 
 ### Configuration Methods
 
