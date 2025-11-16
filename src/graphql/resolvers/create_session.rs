@@ -1,6 +1,9 @@
+use crate::middleware::session::SESSION_COOKIE_NAME;
 use crate::services::{SessionError, SessionService};
+use crate::DpsAuthApiConfig;
 use async_graphql::{Context, InputObject, Object, Result, SimpleObject};
 use sqlx::SqlitePool;
+use std::sync::Arc;
 use tracing::instrument;
 
 /// Input type for creating a new session (sign-in)
@@ -35,7 +38,7 @@ impl CreateSessionResolver {
     input: CreateSessionInput,
   ) -> Result<CreateSessionResponse> {
     let pool = ctx.data::<SqlitePool>()?;
-    let config = ctx.data::<std::sync::Arc<crate::DpsAuthApiConfig>>()?;
+    let config = ctx.data::<Arc<DpsAuthApiConfig>>()?;
     let session_secret = config.session_secret.clone();
     let cookie_domain = config.cookie_domain.clone();
     let insecure_cookie = config.insecure_cookie;
@@ -48,7 +51,7 @@ impl CreateSessionResolver {
 
         let cookie_value = format!(
           "{}={}; Domain={}; Path=/; HttpOnly; SameSite=Strict{}; Max-Age={}",
-          crate::middleware::session::SESSION_COOKIE_NAME,
+          SESSION_COOKIE_NAME,
           token,
           cookie_domain,
           if insecure_cookie { "" } else { "; Secure" },
@@ -114,7 +117,7 @@ mod tests {
       .unwrap();
 
     // Create GraphQL schema with just the mutation
-    let test_config = crate::DpsAuthApiConfig {
+    let test_config = DpsAuthApiConfig {
       port: 0,
       sqlite_main_file_path: "test.db".to_string(),
       session_secret: TEST_SECRET.to_vec(),
@@ -129,7 +132,7 @@ mod tests {
       EmptySubscription,
     )
     .data(pool)
-    .data(std::sync::Arc::new(test_config))
+    .data(Arc::new(test_config))
     .finish();
 
     // Test: Call the mutation
@@ -165,7 +168,7 @@ mod tests {
   async fn test_create_session_maps_authentication_error() {
     let (pool, _temp_file) = create_test_database().await;
 
-    let test_config = crate::DpsAuthApiConfig {
+    let test_config = DpsAuthApiConfig {
       port: 0,
       sqlite_main_file_path: "test.db".to_string(),
       session_secret: TEST_SECRET.to_vec(),
@@ -180,7 +183,7 @@ mod tests {
       EmptySubscription,
     )
     .data(pool)
-    .data(std::sync::Arc::new(test_config))
+    .data(Arc::new(test_config))
     .finish();
 
     // Test: Call with non-existent user
@@ -203,7 +206,7 @@ mod tests {
   #[tokio::test]
   async fn test_create_session_maps_database_error() {
     // Create a schema without database pool to trigger database error
-    let test_config = crate::DpsAuthApiConfig {
+    let test_config = DpsAuthApiConfig {
       port: 0,
       sqlite_main_file_path: "test.db".to_string(),
       session_secret: TEST_SECRET.to_vec(),
@@ -217,7 +220,7 @@ mod tests {
       CreateSessionResolver,
       EmptySubscription,
     )
-    .data(std::sync::Arc::new(test_config))
+    .data(Arc::new(test_config))
     .finish();
 
     let query = r#"

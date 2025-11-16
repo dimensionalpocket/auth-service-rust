@@ -1,5 +1,6 @@
 use crate::graphql::schema::AppSchema;
 use crate::middleware::session::SessionContext;
+use crate::DpsAuthApiConfig;
 use async_graphql_axum::GraphQLResponse;
 use axum::{
   extract::{Request, State},
@@ -23,7 +24,7 @@ static WHITESPACE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s+").unwrap())
 pub async fn graphql_post_handler(
   State(schema): State<AppSchema>,
   http_req: Request,
-  config: Arc<crate::DpsAuthApiConfig>,
+  config: Arc<DpsAuthApiConfig>,
 ) -> impl IntoResponse {
   let start = Instant::now();
 
