@@ -8,6 +8,7 @@ use axum::{
 };
 use once_cell::sync::Lazy;
 use regex::Regex;
+use std::sync::Arc;
 use std::time::Instant;
 use tracing::{error, info, instrument};
 
@@ -22,7 +23,7 @@ static WHITESPACE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s+").unwrap())
 pub async fn graphql_post_handler(
   State(schema): State<AppSchema>,
   http_req: Request,
-  config: std::sync::Arc<crate::DpsAuthApiConfig>,
+  config: Arc<crate::DpsAuthApiConfig>,
 ) -> impl IntoResponse {
   let start = Instant::now();
 

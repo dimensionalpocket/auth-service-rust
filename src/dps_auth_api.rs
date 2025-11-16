@@ -1,12 +1,13 @@
 use crate::graphql::schema::AppSchema;
 use axum::{middleware::from_fn, routing::get, Router};
+use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::cors::CorsLayer;
 
 #[derive(Debug)]
 pub struct DpsAuthApi {
-  pub(crate) config: std::sync::Arc<DpsAuthApiConfig>,
+  pub(crate) config: Arc<DpsAuthApiConfig>,
 }
 
 #[derive(Debug, Clone)]
@@ -102,7 +103,7 @@ impl DpsAuthApi {
     };
 
     Ok(DpsAuthApi {
-      config: std::sync::Arc::new(config),
+      config: Arc::new(config),
     })
   }
 
