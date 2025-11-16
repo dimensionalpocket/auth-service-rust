@@ -9,4 +9,4 @@ pub mod queries;
 pub mod services;
 
 pub use database::Database;
-pub use dps_auth_api::{DpsAuthApi, DpsAuthApiError};
+pub use dps_auth_api::{DpsAuthApi, DpsAuthApiConfig, DpsAuthApiError};

@@ -35,16 +35,16 @@ impl CreateSessionResolver {
     input: CreateSessionInput,
   ) -> Result<CreateSessionResponse> {
     let pool = ctx.data::<SqlitePool>()?;
-    let session_secret = ctx.data::<Vec<u8>>()?;
+    let config = ctx.data::<std::sync::Arc<crate::DpsAuthApiConfig>>()?;
+    let session_secret = config.session_secret.clone();
+    let cookie_domain = config.cookie_domain.clone();
+    let insecure_cookie = config.insecure_cookie;
 
-    match SessionService::create_session(pool, &input.username, &input.password, session_secret)
+    match SessionService::create_session(pool, &input.username, &input.password, &session_secret)
       .await
     {
       Ok(token) => {
-        // Build cookie value and insert into GraphQL response headers
-        let default_domain = ".api.dps.localhost".to_string();
-        let cookie_domain = ctx.data::<String>().unwrap_or(&default_domain);
-        let insecure_cookie = *ctx.data::<bool>().unwrap_or(&false);
+        // cookie_domain and insecure_cookie are provided by config
 
         let cookie_value = format!(
           "{}={}; Domain={}; Path=/; HttpOnly; SameSite=Strict{}; Max-Age={}",
@@ -114,13 +114,22 @@ mod tests {
       .unwrap();
 
     // Create GraphQL schema with just the mutation
+    let test_config = crate::DpsAuthApiConfig {
+      port: 0,
+      sqlite_main_file_path: "test.db".to_string(),
+      session_secret: TEST_SECRET.to_vec(),
+      cookie_domain: ".api.dps.localhost".to_string(),
+      insecure_cookie: false,
+      development_mode: true,
+      sqlite_main_pool_size: 1,
+    };
     let schema = Schema::build(
       async_graphql::EmptyMutation,
       CreateSessionResolver,
       EmptySubscription,
     )
     .data(pool)
-    .data(TEST_SECRET.to_vec())
+    .data(std::sync::Arc::new(test_config))
     .finish();
 
     // Test: Call the mutation
@@ -156,13 +165,22 @@ mod tests {
   async fn test_create_session_maps_authentication_error() {
     let (pool, _temp_file) = create_test_database().await;
 
+    let test_config = crate::DpsAuthApiConfig {
+      port: 0,
+      sqlite_main_file_path: "test.db".to_string(),
+      session_secret: TEST_SECRET.to_vec(),
+      cookie_domain: ".api.dps.localhost".to_string(),
+      insecure_cookie: false,
+      development_mode: true,
+      sqlite_main_pool_size: 1,
+    };
     let schema = Schema::build(
       async_graphql::EmptyMutation,
       CreateSessionResolver,
       EmptySubscription,
     )
     .data(pool)
-    .data(TEST_SECRET.to_vec())
+    .data(std::sync::Arc::new(test_config))
     .finish();
 
     // Test: Call with non-existent user
@@ -185,12 +203,21 @@ mod tests {
   #[tokio::test]
   async fn test_create_session_maps_database_error() {
     // Create a schema without database pool to trigger database error
+    let test_config = crate::DpsAuthApiConfig {
+      port: 0,
+      sqlite_main_file_path: "test.db".to_string(),
+      session_secret: TEST_SECRET.to_vec(),
+      cookie_domain: ".api.dps.localhost".to_string(),
+      insecure_cookie: false,
+      development_mode: true,
+      sqlite_main_pool_size: 1,
+    };
     let schema = Schema::build(
       async_graphql::EmptyMutation,
       CreateSessionResolver,
       EmptySubscription,
     )
-    .data(TEST_SECRET.to_vec())
+    .data(std::sync::Arc::new(test_config))
     .finish();
 
     let query = r#"

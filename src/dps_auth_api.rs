@@ -6,11 +6,11 @@ use tower_http::cors::CorsLayer;
 
 #[derive(Debug)]
 pub struct DpsAuthApi {
-  pub(crate) config: DpsAuthApiConfig,
+  pub(crate) config: std::sync::Arc<DpsAuthApiConfig>,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct DpsAuthApiConfig {
+pub struct DpsAuthApiConfig {
   pub port: u16,
   pub sqlite_main_file_path: String,
   pub session_secret: Vec<u8>,
@@ -101,7 +101,9 @@ impl DpsAuthApi {
       sqlite_main_pool_size: dps_config.get_auth_api_sqlite_main_pool_size(),
     };
 
-    Ok(DpsAuthApi { config })
+    Ok(DpsAuthApi {
+      config: std::sync::Arc::new(config),
+    })
   }
 
   pub async fn start(self) -> Result<(), DpsAuthApiError> {
@@ -186,17 +188,9 @@ impl DpsAuthApi {
           move || crate::handlers::graphql::graphql_get_handler(development_mode)
         })
         .post({
-          let cookie_domain = self.config.cookie_domain.clone();
-          let insecure_cookie = self.config.insecure_cookie;
-          let session_secret = self.config.session_secret.clone();
+          let config = self.config.clone();
           move |state, request| {
-            crate::handlers::graphql::graphql_post_handler(
-              state,
-              request,
-              cookie_domain.clone(),
-              insecure_cookie,
-              session_secret.clone(),
-            )
+            crate::handlers::graphql::graphql_post_handler(state, request, config.clone())
           }
         })
         .layer(from_fn(

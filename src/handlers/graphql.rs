@@ -18,13 +18,11 @@ static WHITESPACE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s+").unwrap())
 // `GraphQLResponse::into_response()` to include those headers in the final HTTP response.
 
 /// GraphQL POST handler for actual queries
-#[instrument(skip(schema, http_req, cookie_domain, insecure_cookie, session_secret))]
+#[instrument(skip(schema, http_req, config))]
 pub async fn graphql_post_handler(
   State(schema): State<AppSchema>,
   http_req: Request,
-  cookie_domain: String,
-  insecure_cookie: bool,
-  session_secret: Vec<u8>,
+  config: std::sync::Arc<crate::DpsAuthApiConfig>,
 ) -> impl IntoResponse {
   let start = Instant::now();
 
@@ -41,12 +39,10 @@ pub async fn graphql_post_handler(
     Err(response) => return response,
   };
 
-  // Add session context, response headers, and config to GraphQL request data
+  // Add session context and config to GraphQL request data
   let mut request = graphql_request;
   request = request.data(session_context);
-  request = request.data(cookie_domain);
-  request = request.data(insecure_cookie);
-  request = request.data(session_secret);
+  request = request.data(config.clone());
 
   // Extract operation name from the request
   let operation_name = request
