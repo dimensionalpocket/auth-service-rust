@@ -26,3 +26,8 @@ Follow these instructions for all your tasks:
 ## Running Commands
 
 - When running Rust commands (`cargo`, `rustc`, etc), always prepend the command with `mise exec --` to ensure the correct environment is used. Example: `mise exec -- cargo test`.
+
+## Project Structure
+
+- Database migrations are in `config/database/migrations`.
+  - Each migration is numbered and has two files: a `.sql` with the migration itself, and `.down.sql` with the rollback. The files contain native SQL code.

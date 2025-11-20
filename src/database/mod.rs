@@ -164,6 +164,57 @@ impl Database {
     Ok(())
   }
 
+  /// Revert the last N migrations
+  ///
+  /// This executes the `.down.sql` files in reverse order.
+  /// Each revert is transactional and will roll back on error.
+  ///
+  /// # Arguments
+  /// * `steps` - Number of migrations to revert (default: 1)
+  ///
+  /// # Returns
+  /// * `Ok(usize)` - Number of migrations successfully reverted
+  /// * `Err` - If any migration revert fails
+  pub async fn revert(&self, steps: usize) -> Result<usize, sqlx::migrate::MigrateError> {
+    // Get list of applied migrations (checking both success = true and success = 1 for compatibility)
+    let applied =
+      sqlx::query("SELECT version FROM _sqlx_migrations WHERE success != 0 ORDER BY version ASC")
+        .fetch_all(&self.pool)
+        .await
+        .unwrap_or_else(|_| Vec::new());
+
+    if applied.is_empty() {
+      println!("No migrations to revert");
+      return Ok(0);
+    }
+
+    let applied_count = applied.len();
+    let revert_count = steps.min(applied_count);
+
+    println!("Found {applied_count} applied migration(s)");
+    println!("Reverting {revert_count} migration(s)...");
+
+    // Calculate target version
+    // If we want to revert N migrations, we need to go back to the version
+    // that is (applied_count - revert_count) from the start
+    // If reverting all migrations, target is 0 (empty database)
+    let target_version = if revert_count >= applied_count {
+      0 // Revert all migrations
+    } else {
+      // Get the version to revert TO (the one that should remain applied)
+      let target_index = applied_count - revert_count - 1;
+      applied[target_index].get::<i64, _>("version")
+    };
+
+    println!("Target version: {target_version}");
+
+    // Perform the revert operation
+    MIGRATOR.undo(&self.pool, target_version).await?;
+
+    println!("Successfully reverted {revert_count} migration(s)");
+    Ok(revert_count)
+  }
+
   pub async fn seed(&self) -> Result<(), Box<dyn std::error::Error>> {
     let seeds_dir = "config/database/seeds";
 
@@ -556,6 +607,159 @@ mod tests {
       table_pos < index_pos,
       "Tables should come before indexes in schema dump"
     );
+  }
+
+  #[tokio::test]
+  async fn test_revert_single_migration() {
+    use tempfile::NamedTempFile;
+
+    // Create test database and run migrations
+    let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    let sqlite_file_path = temp_file.path().display().to_string();
+    let database = Database::new(&sqlite_file_path)
+      .await
+      .expect("Failed to create test database");
+
+    database.migrate().await.expect("Failed to run migrations");
+
+    // Verify migrations were applied
+    let applied_before: i64 =
+      sqlx::query_scalar("SELECT COUNT(*) FROM _sqlx_migrations WHERE success != 0")
+        .fetch_one(&database.pool)
+        .await
+        .expect("Failed to count migrations");
+
+    assert!(applied_before > 0, "No migrations were applied");
+
+    // Revert one migration
+    let reverted = database
+      .revert(1)
+      .await
+      .expect("Failed to revert migration");
+    assert_eq!(reverted, 1, "Expected to revert 1 migration");
+
+    // Verify one migration was reverted (success != 0 means still applied)
+    let applied_after: i64 =
+      sqlx::query_scalar("SELECT COUNT(*) FROM _sqlx_migrations WHERE success != 0")
+        .fetch_one(&database.pool)
+        .await
+        .expect("Failed to count migrations");
+
+    // The count should have decreased by the number of reverted migrations
+    assert!(
+      applied_after < applied_before,
+      "Migration count should decrease after revert. Before: {applied_before}, After: {applied_after}"
+    );
+    assert_eq!(
+      applied_before - applied_after,
+      1,
+      "Expected exactly 1 migration to be reverted"
+    );
+  }
+
+  #[tokio::test]
+  async fn test_revert_multiple_migrations() {
+    use tempfile::NamedTempFile;
+
+    let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    let sqlite_file_path = temp_file.path().display().to_string();
+    let database = Database::new(&sqlite_file_path)
+      .await
+      .expect("Failed to create test database");
+
+    database.migrate().await.expect("Failed to run migrations");
+
+    let applied_before: i64 =
+      sqlx::query_scalar("SELECT COUNT(*) FROM _sqlx_migrations WHERE success != 0")
+        .fetch_one(&database.pool)
+        .await
+        .expect("Failed to count migrations");
+
+    // Revert 2 migrations
+    let reverted = database
+      .revert(2)
+      .await
+      .expect("Failed to revert migrations");
+    assert_eq!(reverted, 2, "Expected to revert 2 migrations");
+
+    let applied_after: i64 =
+      sqlx::query_scalar("SELECT COUNT(*) FROM _sqlx_migrations WHERE success != 0")
+        .fetch_one(&database.pool)
+        .await
+        .expect("Failed to count migrations");
+
+    assert_eq!(
+      applied_after,
+      applied_before - 2,
+      "Expected two less applied migrations"
+    );
+  }
+
+  #[tokio::test]
+  async fn test_revert_more_than_available() {
+    use tempfile::NamedTempFile;
+
+    let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    let sqlite_file_path = temp_file.path().display().to_string();
+    let database = Database::new(&sqlite_file_path)
+      .await
+      .expect("Failed to create test database");
+
+    database.migrate().await.expect("Failed to run migrations");
+
+    let applied_before: i64 =
+      sqlx::query_scalar("SELECT COUNT(*) FROM _sqlx_migrations WHERE success != 0")
+        .fetch_one(&database.pool)
+        .await
+        .expect("Failed to count migrations");
+
+    // Try to revert more migrations than exist
+    let reverted = database
+      .revert(100)
+      .await
+      .expect("Failed to revert migrations");
+
+    // Should only revert the number of available migrations
+    assert_eq!(
+      reverted, applied_before as usize,
+      "Should revert all available migrations"
+    );
+
+    let applied_after: i64 =
+      sqlx::query_scalar("SELECT COUNT(*) FROM _sqlx_migrations WHERE success != 0")
+        .fetch_one(&database.pool)
+        .await
+        .expect("Failed to count migrations");
+
+    // All user migrations should be reverted (may have 0 or 1 remaining for schema itself)
+    assert!(
+      applied_after <= 1,
+      "All user migrations should be reverted. Remaining: {applied_after}"
+    );
+    assert_eq!(
+      applied_before - applied_after,
+      reverted as i64,
+      "Count reduction should match number reverted"
+    );
+  }
+
+  #[tokio::test]
+  async fn test_revert_empty_database() {
+    use tempfile::NamedTempFile;
+
+    let temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    let sqlite_file_path = temp_file.path().display().to_string();
+    let database = Database::new(&sqlite_file_path)
+      .await
+      .expect("Failed to create test database");
+
+    // Don't run migrations - try to revert on empty database
+    let reverted = database
+      .revert(1)
+      .await
+      .expect("Failed to handle empty revert");
+
+    assert_eq!(reverted, 0, "Should not revert anything on empty database");
   }
 }
 

@@ -128,21 +128,40 @@ For local development, set the environment variables (see the "Environment Varia
 cargo run --bin run_local_server
 ```
 
-Note: When using the library directly in your code, use the `DpsAuthApi::new(config)` pattern instead.
-
 **Note**: When using the library directly in your code, use the `DpsAuthApi::new(config)` pattern instead.
 
 ## Database Setup
 
-The library provides a `dps-auth-api-migrate` binary for database setup. Quick reference:
+The library provides a `dps-auth-api-migrate` binary for database setup and rollback.
+
+### Forward Migrations
 
 - Build (debug): `cargo build --bin dps-auth-api-migrate`
 - Build (release): `cargo build --release --bin dps-auth-api-migrate`
 - Run migrations (development): `cargo run --bin dps-auth-api-migrate`
 - Run with custom SQLite file: `cargo run --bin dps-auth-api-migrate -- --sqlite-file ./my-auth.db`
-- Production: build in release mode and run `./target/release/dps-auth-api-migrate --sqlite-file ./production.db`
+- Production: `./target/release/dps-auth-api-migrate --sqlite-file ./production.db`
 
-Docker note
+### Migration Rollback
+
+Rollback the last migration:
+```bash
+cargo run --bin dps-auth-api-migrate -- --revert
+```
+
+Rollback multiple migrations:
+```bash
+cargo run --bin dps-auth-api-migrate -- --revert 3
+```
+
+Rollback in production:
+```bash
+./target/release/dps-auth-api-migrate --sqlite-file ./production.db --revert
+```
+
+**Important**: Rollback will automatically regenerate the schema dump after reverting migrations.
+
+Docker note:
 - Build the migration binary in your builder stage and run it before starting your app in the runtime stage. See the repo Dockerfile or docs for an example.
 
 ### Configuration Methods
@@ -153,7 +172,11 @@ export DPS_AUTH_API_SQLITE_FILE="data/development.db"
 export DPS_AUTH_API_MIGRATE_SKIP_SEEDS="false"
 ```
 
-2. **Command-line Arguments** (see `--help` for full list)
+2. **Command-line Arguments**:
+   - `--sqlite-file <PATH>` - SQLite database file path
+   - `--skip-seeds` - Skip running seed files
+   - `--revert [N]` - Revert last N migrations (default: 1)
+   - `--help` - Show all available options
 
 ## License
 

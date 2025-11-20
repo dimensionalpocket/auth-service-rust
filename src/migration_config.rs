@@ -13,12 +13,17 @@ pub struct CliArgs {
   /// Skip running seed files
   #[arg(long, env = "DPS_AUTH_API_MIGRATE_SKIP_SEEDS")]
   pub skip_seeds: bool,
+
+  /// Revert the last N migrations (default: 1)
+  #[arg(long, value_name = "N", default_missing_value = "1")]
+  pub revert: Option<usize>,
 }
 
 #[derive(Debug)]
 pub struct MigrationConfig {
   pub sqlite_file: PathBuf,
   pub skip_seeds: bool,
+  pub revert: Option<usize>,
 }
 
 impl MigrationConfig {
@@ -30,10 +35,12 @@ impl MigrationConfig {
       .unwrap_or_else(|| PathBuf::from("data/development.db"));
 
     let skip_seeds = cli_args.skip_seeds;
+    let revert = cli_args.revert;
 
     Ok(MigrationConfig {
       sqlite_file,
       skip_seeds,
+      revert,
     })
   }
 }

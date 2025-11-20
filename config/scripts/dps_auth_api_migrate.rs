@@ -14,10 +14,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   println!("📊 Configuration:");
   println!("   SQLite file: {}", config.sqlite_file.display());
   println!("   Skip seeds: {}", config.skip_seeds);
+  if let Some(revert_steps) = config.revert {
+    println!("   Revert steps: {revert_steps}");
+  }
   println!();
 
   // Initialize database
   let database = Database::new(&config.sqlite_file.display().to_string()).await?;
+
+  // Handle revert mode
+  if let Some(steps) = config.revert {
+    println!("⏮️  Revert mode enabled");
+    database.revert(steps).await?;
+
+    // Regenerate schema dump after revert
+    database
+      .dump_schema_to_file("config/database/schema.sql")
+      .await?;
+
+    println!("🎉 Migration revert completed successfully!");
+    return Ok(());
+  }
 
   // Run migrations (always use library's internal migrations)
   database.migrate().await?;
