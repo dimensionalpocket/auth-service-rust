@@ -1,0 +1,401 @@
+use crate::middleware::session::SessionContext;
+use crate::queries::sites::CreateSiteData;
+use crate::queries::users::GetUserByIdQuery;
+use crate::services::{SiteError, SiteService, UserRoleService};
+use async_graphql::{Context, InputObject, Object, Result};
+use sqlx::SqlitePool;
+use tracing::instrument;
+
+/// Input type for creating a new site
+#[derive(InputObject)]
+pub struct CreateSiteInput {
+  /// Unique slug identifier for the site (3-20 chars, alphanumeric + underscore/hyphen)
+  pub slug: String,
+  /// Optional subdomain for the site
+  pub subdomain: Option<String>,
+  /// Optional port number for the site
+  pub port: Option<i64>,
+  /// Protocol (defaults to "https" if not specified)
+  pub protocol: Option<String>,
+  /// Optional JSON metadata for the site
+  pub metadata_json: Option<String>,
+}
+
+/// GraphQL output type for site creation response
+#[derive(async_graphql::SimpleObject)]
+pub struct CreateSiteResponse {
+  /// The created site's database ID
+  pub id: i64,
+  /// The site's unique slug
+  pub slug: String,
+  /// The site's subdomain (if any)
+  pub subdomain: Option<String>,
+  /// The site's port (if any)
+  pub port: Option<i64>,
+  /// The site's protocol
+  pub protocol: String,
+  /// The site's metadata JSON (if any)
+  pub metadata_json: Option<String>,
+  /// Timestamp when the site was created
+  pub created_ts: i64,
+  /// Timestamp when the site was last updated
+  pub updated_ts: i64,
+}
+
+/// Site creation mutation resolver
+#[derive(Default, Debug)]
+pub struct CreateSiteResolver;
+
+#[Object]
+impl CreateSiteResolver {
+  /// Creates a new site with the provided parameters.
+  ///
+  /// This mutation:
+  /// - Requires user authentication
+  /// - Checks if the user has "can_create_site" permission
+  /// - Validates the slug format and uniqueness
+  /// - Creates the site in the database
+  /// - Returns the created site information
+  ///
+  /// # Arguments
+  /// * `input` - CreateSiteInput containing site creation parameters
+  ///
+  /// # Returns
+  /// * `CreateSiteResponse` - The created site information
+  ///
+  /// # Errors
+  /// * Returns "Authentication required" if user is not authenticated
+  /// * Returns "User not found" if authenticated user doesn't exist in database
+  /// * Returns "Forbidden" if user lacks "can_create_site" permission
+  /// * Returns GraphQL error if slug validation fails
+  /// * Returns GraphQL error if slug already exists
+  /// * Returns GraphQL error if database operation fails
+  #[instrument(skip(ctx, input), fields(slug = %input.slug))]
+  async fn create_site(
+    &self,
+    ctx: &Context<'_>,
+    input: CreateSiteInput,
+  ) -> Result<CreateSiteResponse> {
+    let pool = ctx.data::<SqlitePool>()?;
+
+    // Get session context and extract user
+    let session_context = SessionContext::from_context(ctx)?;
+    let user_id = session_context.user_id().ok_or("Authentication required")?;
+    let user = GetUserByIdQuery::run(pool, user_id)
+      .await
+      .map_err(|_| "Failed to fetch user")?
+      .ok_or("User not found")?;
+
+    // Check permissions
+    let allowed = UserRoleService::check_user_permission(pool, &user, "can_create_site").await?;
+    if !allowed {
+      return Err(async_graphql::Error::new("Forbidden"));
+    }
+
+    let create_data = CreateSiteData {
+      slug: input.slug,
+      subdomain: input.subdomain,
+      port: input.port,
+      protocol: input.protocol,
+      metadata_json: input.metadata_json,
+    };
+
+    match SiteService::create_site(pool, create_data).await {
+      Ok(site) => Ok(CreateSiteResponse {
+        id: site.id,
+        slug: site.slug,
+        subdomain: site.subdomain,
+        port: site.port,
+        protocol: site.protocol,
+        metadata_json: site.metadata_json,
+        created_ts: site.created_ts,
+        updated_ts: site.updated_ts,
+      }),
+      Err(SiteError::SlugAlreadyExists(slug)) => Err(async_graphql::Error::new(format!(
+        "Slug '{slug}' is already in use"
+      ))),
+      Err(SiteError::ValidationError(msg)) => Err(async_graphql::Error::new(format!(
+        "Validation error: {msg}"
+      ))),
+      Err(err) => {
+        tracing::error!("Failed to create site: {}", err);
+        Err(async_graphql::Error::new("Failed to create site"))
+      }
+    }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::database::test_utils::create_test_database;
+  use crate::middleware::session::SessionContext;
+  use async_graphql::*;
+  use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
+
+  // Minimal query struct for testing mutations in isolation
+  #[derive(Default)]
+  struct TestEmptyQuery;
+
+  #[Object]
+  impl TestEmptyQuery {
+    async fn dummy(&self) -> &str {
+      "test"
+    }
+  }
+
+  #[tokio::test]
+  async fn test_create_site_success() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Insert admin role with can_create_site permission
+    sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('admin', 1234567890, FALSE, '[\"is_admin\", \"can_create_site\"]')"
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    // Insert admin user
+    let admin_user_result = sqlx::query(
+      "INSERT INTO users (uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json) VALUES ('admin-uuid', 1234567890, 1234567890, 'admin', 1, 'hashed_password', NULL)"
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let admin_user_id = admin_user_result.last_insert_rowid();
+
+    // Create session context for admin user
+    let session_payload = ServiceSessionPayload {
+      sub: admin_user_id,
+      iat: 1706356800,
+      exp: 1706616000,
+    };
+    let session_context = SessionContext::new(Some(session_payload));
+
+    let mutation = CreateSiteResolver;
+    let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
+      .data(pool)
+      .data(session_context)
+      .finish();
+
+    let query = r#"
+      mutation {
+        createSite(input: { 
+          slug: "test-site", 
+          subdomain: "www", 
+          port: 443, 
+          protocol: "https",
+          metadataJson: "{\"description\": \"Test site\"}"
+        }) {
+          id
+          slug
+          subdomain
+          port
+          protocol
+          metadataJson
+          createdTs
+          updatedTs
+        }
+      }
+    "#;
+
+    let result = schema.execute(query).await;
+    assert!(result.errors.is_empty());
+
+    let data = result.data.into_json().unwrap();
+    let site_data = &data["createSite"];
+
+    assert!(site_data["id"].as_i64().unwrap() > 0);
+    assert_eq!(site_data["slug"].as_str().unwrap(), "test-site");
+    assert_eq!(site_data["subdomain"].as_str().unwrap(), "www");
+    assert_eq!(site_data["port"].as_i64().unwrap(), 443);
+    assert_eq!(site_data["protocol"].as_str().unwrap(), "https");
+    assert_eq!(
+      site_data["metadataJson"].as_str().unwrap(),
+      "{\"description\": \"Test site\"}"
+    );
+    assert!(site_data["createdTs"].as_i64().unwrap() > 0);
+    assert!(site_data["updatedTs"].as_i64().unwrap() > 0);
+  }
+
+  #[tokio::test]
+  async fn test_create_site_forbidden() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Insert user role without can_create_site permission
+    sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('user', 1234567890, TRUE, '[\"can_view_user_self\"]')"
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    // Insert regular user
+    let user_result = sqlx::query(
+      "INSERT INTO users (uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json) VALUES ('user-uuid', 1234567890, 1234567890, 'user', 1, 'hashed_password', NULL)"
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let user_id = user_result.last_insert_rowid();
+
+    // Create session context for regular user
+    let session_payload = ServiceSessionPayload {
+      sub: user_id,
+      iat: 1706356800,
+      exp: 1706616000,
+    };
+    let session_context = SessionContext::new(Some(session_payload));
+
+    let mutation = CreateSiteResolver;
+    let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
+      .data(pool)
+      .data(session_context)
+      .finish();
+
+    let query = r#"
+      mutation {
+        createSite(input: { slug: "forbidden-site" }) {
+          id
+          slug
+        }
+      }
+    "#;
+
+    let result = schema.execute(query).await;
+    assert!(!result.errors.is_empty());
+    assert!(result.errors[0].message.contains("Forbidden"));
+  }
+
+  #[tokio::test]
+  async fn test_create_site_unauthenticated() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create session context with no user (unauthenticated)
+    let session_context = SessionContext::new(None);
+
+    let mutation = CreateSiteResolver;
+    let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
+      .data(pool)
+      .data(session_context)
+      .finish();
+
+    let query = r#"
+      mutation {
+        createSite(input: { slug: "unauth-site" }) {
+          id
+          slug
+        }
+      }
+    "#;
+
+    let result = schema.execute(query).await;
+    assert!(!result.errors.is_empty());
+    assert!(result.errors[0].message.contains("Authentication required"));
+  }
+
+  #[tokio::test]
+  async fn test_create_site_duplicate_slug() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Insert admin role with can_create_site permission
+    sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('admin', 1234567890, FALSE, '[\"is_admin\", \"can_create_site\"]')"
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    // Insert admin user
+    let admin_user_result = sqlx::query(
+      "INSERT INTO users (uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json) VALUES ('admin-uuid', 1234567890, 1234567890, 'admin', 1, 'hashed_password', NULL)"
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let admin_user_id = admin_user_result.last_insert_rowid();
+
+    // Create session context for admin user
+    let session_payload = ServiceSessionPayload {
+      sub: admin_user_id,
+      iat: 1706356800,
+      exp: 1706616000,
+    };
+    let session_context = SessionContext::new(Some(session_payload));
+
+    let mutation = CreateSiteResolver;
+    let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
+      .data(pool)
+      .data(session_context)
+      .finish();
+
+    let query = r#"
+      mutation {
+        createSite(input: { slug: "duplicate" }) {
+          id
+          slug
+        }
+      }
+    "#;
+
+    // First creation should succeed
+    let result = schema.execute(query).await;
+    assert!(result.errors.is_empty());
+
+    // Second creation with same slug should fail
+    let result = schema.execute(query).await;
+    assert!(!result.errors.is_empty());
+    assert!(result.errors[0].message.contains("already in use"));
+  }
+
+  #[tokio::test]
+  async fn test_create_site_invalid_slug() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Insert admin role with can_create_site permission
+    sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('admin', 1234567890, FALSE, '[\"is_admin\", \"can_create_site\"]')"
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    // Insert admin user
+    let admin_user_result = sqlx::query(
+      "INSERT INTO users (uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json) VALUES ('admin-uuid', 1234567890, 1234567890, 'admin', 1, 'hashed_password', NULL)"
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let admin_user_id = admin_user_result.last_insert_rowid();
+
+    // Create session context for admin user
+    let session_payload = ServiceSessionPayload {
+      sub: admin_user_id,
+      iat: 1706356800,
+      exp: 1706616000,
+    };
+    let session_context = SessionContext::new(Some(session_payload));
+
+    let mutation = CreateSiteResolver;
+    let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
+      .data(pool)
+      .data(session_context)
+      .finish();
+
+    // Test slug that's too short
+    let query = r#"
+      mutation {
+        createSite(input: { slug: "ab" }) {
+          id
+          slug
+        }
+      }
+    "#;
+
+    let result = schema.execute(query).await;
+    assert!(!result.errors.is_empty());
+    assert!(result.errors[0].message.contains("Validation error"));
+  }
+}

@@ -1,5 +1,6 @@
 use crate::graphql::resolvers::{
-  CreateSessionResolver, CreateUserResolver, GetCurrentSessionResolver, GetServerTimestampResolver,
+  CreateSessionResolver, CreateSiteResolver, CreateUserResolver, GetCurrentSessionResolver,
+  GetServerTimestampResolver,
 };
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 
@@ -31,15 +32,24 @@ impl Query {
 /// Available mutations:
 /// - createUser: Create a new user account
 /// - createSession: Authenticate user and create session (sign-in)
+/// - createSite: Create a new site (requires can_create_site permission)
 ///
 /// Future mutations will be added here as the service expands to include
 /// user management, authentication, and other auth-related operations.
 #[derive(MergedObject, Default)]
-pub struct Mutation(CreateUserResolver, CreateSessionResolver);
+pub struct Mutation(
+  CreateUserResolver,
+  CreateSessionResolver,
+  CreateSiteResolver,
+);
 
 impl Mutation {
   pub fn new() -> Self {
-    Self(CreateUserResolver, CreateSessionResolver)
+    Self(
+      CreateUserResolver,
+      CreateSessionResolver,
+      CreateSiteResolver,
+    )
   }
 }
 

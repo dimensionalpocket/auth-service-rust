@@ -27,7 +27,7 @@ impl CreateSiteQuery {
     .bind(now)
     .bind(&data.slug)
     .bind(&data.subdomain)
-    .bind(&data.port)
+    .bind(data.port)
     .bind(&protocol)
     .bind(&data.metadata_json)
     .execute(pool)
