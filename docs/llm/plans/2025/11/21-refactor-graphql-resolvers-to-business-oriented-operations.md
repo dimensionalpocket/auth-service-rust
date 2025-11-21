@@ -184,19 +184,50 @@ This plan outlines the refactoring of GraphQL resolvers from pure CRUD operation
 ### Phase 7: Update Documentation
 
 **Files to Modify:**
-- `README.md` - Update GraphQL API examples and operation names
-- Any other documentation referencing GraphQL operations
+- `README.md` - Complete GraphQL API documentation overhaul
+- `docs/api.md` - DELETE this file (consolidate into README)
 
 **Documentation Updates:**
-- Replace `createSession` with `authLogin` in examples
-- Replace `createUser` with `authRegister` in examples  
+
+#### 7.1 Update GraphQL Operations Section
+- Replace `createUser` with `authRegister` in examples
+- Replace `createSession` with `authLogin` in examples  
 - Replace `getCurrentSession` with `authMe` in examples
 - Replace `getSites` with `sites` in examples
 - Replace `createSite` with `addSite` in examples
 - Replace `deleteSite` with `removeSite` in examples
-- Update GraphQL schema documentation
-- Update any curl/Postman examples in documentation
-- Document GraphQL endpoints directly in README instead of separate API docs
+
+#### 7.2 Add Comprehensive GraphQL Resolvers Table
+Create a new section in README with detailed markdown tables documenting all GraphQL operations:
+
+**Mutations Table:**
+
+| Operation | Description | Input Fields | Response Fields | Auth Required |
+|-----------|-------------|--------------|-----------------|---------------|
+| `authRegister` | Register new user account | username (String!), password (String!), passwordConfirmation (String!) | user_id (Int), username (String), message (String) | None |
+| `authLogin` | Authenticate user and create session | username (String!), password (String!) | token (String), user_id (Int), username (String), message (String) | None (sets cookie) |
+| `addSite` | Add new site to database | name (String!), url (String!) | site_id (Int), name (String), url (String), message (String) | can_create_site |
+| `updateSite` | Update existing site | site_id (Int!), name (String), url (String) | site_id (Int), name (String), url (String), message (String) | can_update_site |
+| `removeSite` | Remove existing site | site_id (Int!) | site_id (Int), message (String) | can_delete_site |
+
+**Queries Table:**
+
+| Operation | Description | Response Fields | Auth Required |
+|-----------|-------------|-----------------|---------------|
+| `getServerTimestamp` | Get current server timestamp | timestamp (String) | None |
+| `authMe` | Get current authenticated user profile | user_id (Int), username (String), role (String), created_ts (String) | Valid session cookie |
+| `sites` | List all sites in database | sites: [site_id (Int), name (String), url (String), created_ts (String)] | None |
+
+#### 7.4 Consolidate Documentation
+- Delete `docs/api.md` file
+- Move any useful content from api.md to README
+- Ensure README is the single source of truth for all API documentation
+- Update any references to the separate api.md file
+
+#### 7.5 Update Schema Documentation
+- Update GraphQL schema documentation comments
+- Ensure all operation descriptions match business-oriented naming
+- Document authentication requirements and permission systems
 
 ## Benefits of This Approach
 
@@ -269,8 +300,8 @@ This refactoring uses a per-resolver approach to ensure each phase is fully test
 4. Phase 4: Refactor getSites → sites (30-60 minutes) ✅ COMPLETED
 5. Phase 5: Refactor createSite → addSite (30-60 minutes) ✅ COMPLETED
 6. Phase 6: Refactor deleteSite → removeSite (30-60 minutes) ✅ COMPLETED
-7. Phase 7: Update documentation (1 hour)
+7. Phase 7: Update documentation (2-3 hours)
 
-Total estimated time: 1 hour remaining
+Total estimated time: 2-3 hours remaining
 
 Each phase includes updating the resolver, updating schema/module files, and ensuring all tests pass before moving to the next resolver. Orchestration services are only created when complexity warrants it.

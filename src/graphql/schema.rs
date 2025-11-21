@@ -11,8 +11,8 @@ use async_graphql::{EmptySubscription, MergedObject, Schema};
 ///
 /// Available queries:
 /// - getServerTimestamp: Get current server time for synchronization
-/// - authMe: Get current authenticated user information
-/// - sites: Get all sites in the database (no authentication required)
+/// - authMe: Get current authenticated user profile
+/// - sites: List all sites in the database (no authentication required)
 ///
 /// Future queries will be added here as the service expands to include
 /// user authentication, profile management, and other auth-related operations.
@@ -32,8 +32,8 @@ impl Query {
 ///
 /// Available mutations:
 /// - authRegister: Register a new user account
-/// - authLogin: Authenticate user and create session (sign-in)
-/// - addSite: Add a new site (requires can_create_site permission)
+/// - authLogin: Authenticate user and create session
+/// - addSite: Add a new site to the database (requires can_create_site permission)
 /// - updateSite: Update an existing site (requires can_update_site permission)
 /// - removeSite: Remove an existing site (requires can_delete_site permission)
 ///
