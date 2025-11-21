@@ -1,5 +1,7 @@
 use crate::models::Site;
-use crate::queries::sites::{CreateSiteData, CreateSiteQuery, GetAllSitesQuery};
+use crate::queries::sites::{
+  CreateSiteData, CreateSiteQuery, GetAllSitesQuery, UpdateSiteData, UpdateSiteQuery,
+};
 use sqlx::SqlitePool;
 
 /// Custom error type for site operations
@@ -11,6 +13,8 @@ pub enum SiteError {
   DatabaseError(sqlx::Error),
   /// Input validation failed
   ValidationError(String),
+  /// Site not found
+  SiteNotFound(i64),
 }
 
 impl std::fmt::Display for SiteError {
@@ -21,6 +25,7 @@ impl std::fmt::Display for SiteError {
       }
       SiteError::DatabaseError(err) => write!(f, "Database error: {err}"),
       SiteError::ValidationError(msg) => write!(f, "Validation error: {msg}"),
+      SiteError::SiteNotFound(id) => write!(f, "Site with ID {id} not found"),
     }
   }
 }
@@ -129,6 +134,49 @@ impl SiteService {
     GetAllSitesQuery::run(pool)
       .await
       .map_err(SiteError::DatabaseError)
+  }
+
+  /// Update an existing site with partial data
+  ///
+  /// # Arguments
+  /// * `pool` - Database connection pool
+  /// * `id` - Site ID to update
+  /// * `data` - Partial update data
+  ///
+  /// # Returns
+  /// * `Ok(Some(Site))` - Successfully updated site
+  /// * `Ok(None)` - Site not found
+  /// * `Err(SiteError)` - Update failed due to validation, uniqueness, or database error
+  pub async fn update_site(
+    pool: &SqlitePool,
+    id: i64,
+    data: UpdateSiteData,
+  ) -> Result<Option<Site>, SiteError> {
+    // Validate slug if provided
+    if let Some(ref slug) = data.slug {
+      Self::validate_slug(slug)?;
+
+      // Check slug uniqueness (excluding current site)
+      let existing_site = sqlx::query_as::<_, Site>(
+        "SELECT id, created_ts, updated_ts, slug, subdomain, port, protocol, metadata_json FROM sites WHERE slug = ? AND id != ?"
+      )
+      .bind(slug)
+      .bind(id)
+      .fetch_optional(pool)
+      .await
+      .map_err(SiteError::DatabaseError)?;
+
+      if existing_site.is_some() {
+        return Err(SiteError::SlugAlreadyExists(slug.clone()));
+      }
+    }
+
+    // Delegate to query
+    match UpdateSiteQuery::run(pool, UpdateSiteData { id, ..data }).await {
+      Ok(Some(site)) => Ok(Some(site)),
+      Ok(None) => Err(SiteError::SiteNotFound(id)),
+      Err(err) => Err(SiteError::DatabaseError(err)),
+    }
   }
 }
 
@@ -288,5 +336,137 @@ mod tests {
     assert_eq!(sites.len(), 2);
     assert_eq!(sites[0].slug, "test1");
     assert_eq!(sites[1].slug, "test2");
+  }
+
+  #[tokio::test]
+  async fn test_update_site_success() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create a site first
+    let create_data = CreateSiteData {
+      slug: "update-test".to_string(),
+      subdomain: Some("www".to_string()),
+      port: Some(443),
+      protocol: None,
+      metadata_json: Some(r#"{"test": true}"#.to_string()),
+    };
+    let site = SiteService::create_site(&pool, create_data).await.unwrap();
+
+    // Add a delay to ensure different timestamps
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+    // Update the site
+    let update_data = UpdateSiteData {
+      id: site.id,
+      slug: Some("updated-slug".to_string()),
+      subdomain: Some(None), // Set to null
+      port: Some(Some(8080)),
+      protocol: Some("http".to_string()),
+      metadata_json: Some(None), // Set to null
+    };
+
+    let updated_site = SiteService::update_site(&pool, site.id, update_data)
+      .await
+      .unwrap()
+      .unwrap();
+
+    assert_eq!(updated_site.id, site.id);
+    assert_eq!(updated_site.slug, "updated-slug");
+    assert_eq!(updated_site.subdomain, None);
+    assert_eq!(updated_site.port, Some(8080));
+    assert_eq!(updated_site.protocol, "http");
+    assert_eq!(updated_site.metadata_json, None);
+    assert!(updated_site.updated_ts > site.updated_ts);
+  }
+
+  #[tokio::test]
+  async fn test_update_site_slug_already_exists() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create two sites
+    let data1 = CreateSiteData {
+      slug: "site1".to_string(),
+      subdomain: None,
+      port: None,
+      protocol: None,
+      metadata_json: None,
+    };
+    let data2 = CreateSiteData {
+      slug: "site2".to_string(),
+      subdomain: None,
+      port: None,
+      protocol: None,
+      metadata_json: None,
+    };
+
+    let site1 = SiteService::create_site(&pool, data1).await.unwrap();
+    SiteService::create_site(&pool, data2).await.unwrap();
+
+    // Try to update site1 with site2's slug
+    let update_data = UpdateSiteData {
+      id: site1.id,
+      slug: Some("site2".to_string()),
+      subdomain: None,
+      port: None,
+      protocol: None,
+      metadata_json: None,
+    };
+
+    let result = SiteService::update_site(&pool, site1.id, update_data).await;
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      SiteError::SlugAlreadyExists(slug) => assert_eq!(slug, "site2"),
+      _ => panic!("Expected SlugAlreadyExists error"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_update_site_not_found() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    let update_data = UpdateSiteData {
+      id: 999,
+      slug: Some("nonexistent".to_string()),
+      subdomain: None,
+      port: None,
+      protocol: None,
+      metadata_json: None,
+    };
+
+    let result = SiteService::update_site(&pool, 999, update_data).await;
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      SiteError::SiteNotFound(id) => assert_eq!(id, 999),
+      _ => panic!("Expected SiteNotFound error"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_update_site_invalid_slug() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create a site first
+    let create_data = CreateSiteData {
+      slug: "valid-site".to_string(),
+      subdomain: None,
+      port: None,
+      protocol: None,
+      metadata_json: None,
+    };
+    let site = SiteService::create_site(&pool, create_data).await.unwrap();
+
+    // Try to update with invalid slug
+    let update_data = UpdateSiteData {
+      id: site.id,
+      slug: Some("ab".to_string()), // Too short
+      subdomain: None,
+      port: None,
+      protocol: None,
+      metadata_json: None,
+    };
+
+    let result = SiteService::update_site(&pool, site.id, update_data).await;
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("Validation error"));
   }
 }
