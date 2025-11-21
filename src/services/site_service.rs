@@ -1,5 +1,5 @@
 use crate::models::Site;
-use crate::queries::sites::{CreateSiteData, CreateSiteQuery};
+use crate::queries::sites::{CreateSiteData, CreateSiteQuery, GetAllSitesQuery};
 use sqlx::SqlitePool;
 
 /// Custom error type for site operations
@@ -115,6 +115,20 @@ impl SiteService {
     }
 
     Ok(())
+  }
+
+  /// Get all sites from the database
+  ///
+  /// # Arguments
+  /// * `pool` - Database connection pool
+  ///
+  /// # Returns
+  /// * `Ok(Vec<Site>)` - Vector of all sites
+  /// * `Err(SiteError)` - Database operation failed
+  pub async fn get_all_sites(pool: &SqlitePool) -> Result<Vec<Site>, SiteError> {
+    GetAllSitesQuery::run(pool)
+      .await
+      .map_err(SiteError::DatabaseError)
   }
 }
 
@@ -244,5 +258,35 @@ mod tests {
     assert!(SiteService::validate_slug("my_site").is_ok());
     assert!(SiteService::validate_slug("abc").is_ok());
     assert!(SiteService::validate_slug("z9x").is_ok());
+  }
+
+  #[tokio::test]
+  async fn test_get_all_sites() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create test sites
+    let data1 = CreateSiteData {
+      slug: "test1".to_string(),
+      subdomain: Some("www".to_string()),
+      port: Some(443),
+      protocol: None,
+      metadata_json: None,
+    };
+
+    let data2 = CreateSiteData {
+      slug: "test2".to_string(),
+      subdomain: None,
+      port: Some(80),
+      protocol: Some("http".to_string()),
+      metadata_json: None,
+    };
+
+    SiteService::create_site(&pool, data1).await.unwrap();
+    SiteService::create_site(&pool, data2).await.unwrap();
+
+    let sites = SiteService::get_all_sites(&pool).await.unwrap();
+    assert_eq!(sites.len(), 2);
+    assert_eq!(sites[0].slug, "test1");
+    assert_eq!(sites[1].slug, "test2");
   }
 }

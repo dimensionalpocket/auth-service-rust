@@ -1,6 +1,6 @@
 use crate::graphql::resolvers::{
   CreateSessionResolver, CreateSiteResolver, CreateUserResolver, GetCurrentSessionResolver,
-  GetServerTimestampResolver,
+  GetServerTimestampResolver, GetSitesResolver,
 };
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 
@@ -12,11 +12,16 @@ use async_graphql::{EmptySubscription, MergedObject, Schema};
 /// Available queries:
 /// - getServerTimestamp: Get current server time for synchronization
 /// - getCurrentSession: Get current authenticated user session information
+/// - getSites: Get all sites in the database (no authentication required)
 ///
 /// Future queries will be added here as the service expands to include
 /// user authentication, profile management, and other auth-related operations.
 #[derive(MergedObject, Default)]
-pub struct Query(GetServerTimestampResolver, GetCurrentSessionResolver);
+pub struct Query(
+  GetServerTimestampResolver,
+  GetCurrentSessionResolver,
+  GetSitesResolver,
+);
 
 impl Query {
   pub fn new() -> Self {
