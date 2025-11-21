@@ -1,6 +1,7 @@
 use crate::models::Site;
 use crate::queries::sites::{
-  CreateSiteData, CreateSiteQuery, GetAllSitesQuery, UpdateSiteData, UpdateSiteQuery,
+  CreateSiteData, CreateSiteQuery, DeleteSiteQuery, GetAllSitesQuery, UpdateSiteData,
+  UpdateSiteQuery,
 };
 use sqlx::SqlitePool;
 
@@ -177,6 +178,24 @@ impl SiteService {
       Ok(None) => Err(SiteError::SiteNotFound(id)),
       Err(err) => Err(SiteError::DatabaseError(err)),
     }
+  }
+
+  /// Delete a site by ID
+  ///
+  /// # Arguments
+  /// * `pool` - Database connection pool
+  /// * `site_id` - ID of site to delete
+  ///
+  /// # Returns
+  /// * `Ok(())` - Site successfully deleted
+  /// * `Err(SiteError)` - Deletion failed due to site not found or database error
+  pub async fn delete_site(pool: &SqlitePool, site_id: i64) -> Result<(), SiteError> {
+    DeleteSiteQuery::run(pool, site_id)
+      .await
+      .map_err(|e| match e {
+        sqlx::Error::RowNotFound => SiteError::SiteNotFound(site_id),
+        _ => SiteError::DatabaseError(e),
+      })
   }
 }
 
@@ -377,6 +396,7 @@ mod tests {
     assert_eq!(updated_site.protocol, "http");
     assert_eq!(updated_site.metadata_json, None);
     assert!(updated_site.updated_ts > site.updated_ts);
+    assert_eq!(updated_site.created_ts, site.created_ts);
   }
 
   #[tokio::test]
