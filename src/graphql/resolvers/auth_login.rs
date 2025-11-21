@@ -1,58 +1,59 @@
 use crate::middleware::session::SESSION_COOKIE_NAME;
-use crate::services::{SessionError, SessionService};
+use crate::services::{AuthService, SessionError};
 use crate::DpsAuthApiConfig;
 use async_graphql::{Context, InputObject, Object, Result, SimpleObject};
 use sqlx::SqlitePool;
 use std::sync::Arc;
 use tracing::instrument;
 
-/// Input type for creating a new session (sign-in)
+/// Input type for user authentication (login)
 #[derive(InputObject)]
-pub struct CreateSessionInput {
+pub struct AuthLoginInput {
   /// Username for authentication
   pub username: String,
   /// Password for authentication
   pub password: String,
 }
 
-/// GraphQL output type for session creation response
+/// GraphQL output type for authentication response
 #[derive(SimpleObject)]
-pub struct CreateSessionResponse {
+pub struct AuthLoginResponse {
   /// The session token for API authentication
   pub token: String,
+  /// The authenticated user's ID
+  pub user_id: i64,
+  /// The authenticated user's username
+  pub username: String,
   /// Success message
   pub message: String,
 }
 
-/// GraphQL mutation for creating user sessions (sign-in)
+/// GraphQL mutation for user authentication (login)
 #[derive(Default)]
-pub struct CreateSessionResolver;
+pub struct AuthLoginResolver;
 
 #[Object]
-impl CreateSessionResolver {
-  /// Create a new session by authenticating user credentials
+impl AuthLoginResolver {
+  /// Authenticate user credentials and create a session
   #[instrument(skip(self, ctx, input), fields(username = %input.username))]
-  async fn create_session(
+  async fn auth_login(
     &self,
     ctx: &Context<'_>,
-    input: CreateSessionInput,
-  ) -> Result<CreateSessionResponse> {
+    input: AuthLoginInput,
+  ) -> Result<AuthLoginResponse> {
     let pool = ctx.data::<SqlitePool>()?;
     let config = ctx.data::<Arc<DpsAuthApiConfig>>()?;
     let session_secret = config.session_secret.clone();
     let cookie_domain = config.cookie_domain.clone();
     let insecure_cookie = config.insecure_cookie;
 
-    match SessionService::create_session(pool, &input.username, &input.password, &session_secret)
-      .await
-    {
-      Ok(token) => {
-        // cookie_domain and insecure_cookie are provided by config
-
+    match AuthService::login(pool, &input.username, &input.password, &session_secret).await {
+      Ok(auth_result) => {
+        // Set session cookie
         let cookie_value = format!(
           "{}={}; Domain={}; Path=/; HttpOnly; SameSite=Strict{}; Max-Age={}",
           SESSION_COOKIE_NAME,
-          token,
+          auth_result.session_token,
           cookie_domain,
           if insecure_cookie { "" } else { "; Secure" },
           3 * 24 * 60 * 60
@@ -61,8 +62,10 @@ impl CreateSessionResolver {
         // Use append to allow multiple cookies; ignore the return value
         let _ = ctx.append_http_header("set-cookie", cookie_value);
 
-        Ok(CreateSessionResponse {
-          token,
+        Ok(AuthLoginResponse {
+          token: auth_result.session_token,
+          user_id: auth_result.user_id,
+          username: auth_result.username,
           message: "Authentication successful".to_string(),
         })
       }
@@ -107,7 +110,7 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn test_create_session_calls_service_with_correct_parameters() {
+  async fn test_auth_login_calls_service_with_correct_parameters() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user
@@ -128,7 +131,7 @@ mod tests {
     };
     let schema = Schema::build(
       async_graphql::EmptyMutation,
-      CreateSessionResolver,
+      AuthLoginResolver,
       EmptySubscription,
     )
     .data(pool)
@@ -138,8 +141,10 @@ mod tests {
     // Test: Call the mutation
     let query = r#"
       mutation {
-        createSession(input: { username: "testuser", password: "password123" }) {
+        authLogin(input: { username: "testuser", password: "password123" }) {
           token
+          userId
+          username
           message
         }
       }
@@ -155,17 +160,19 @@ mod tests {
     );
 
     let data = result.data.into_json().unwrap();
-    let create_session = &data["createSession"];
+    let auth_login = &data["authLogin"];
 
-    assert!(!create_session["token"].as_str().unwrap().is_empty());
+    assert!(!auth_login["token"].as_str().unwrap().is_empty());
+    assert!(auth_login["userId"].as_i64().unwrap() > 0);
+    assert_eq!(auth_login["username"].as_str().unwrap(), "testuser");
     assert_eq!(
-      create_session["message"].as_str().unwrap(),
+      auth_login["message"].as_str().unwrap(),
       "Authentication successful"
     );
   }
 
   #[tokio::test]
-  async fn test_create_session_maps_authentication_error() {
+  async fn test_auth_login_maps_authentication_error() {
     let (pool, _temp_file) = create_test_database().await;
 
     let test_config = DpsAuthApiConfig {
@@ -179,7 +186,7 @@ mod tests {
     };
     let schema = Schema::build(
       async_graphql::EmptyMutation,
-      CreateSessionResolver,
+      AuthLoginResolver,
       EmptySubscription,
     )
     .data(pool)
@@ -189,8 +196,10 @@ mod tests {
     // Test: Call with non-existent user
     let query = r#"
       mutation {
-        createSession(input: { username: "nonexistent", password: "password123" }) {
+        authLogin(input: { username: "nonexistent", password: "password123" }) {
           token
+          userId
+          username
           message
         }
       }
@@ -204,7 +213,7 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn test_create_session_maps_database_error() {
+  async fn test_auth_login_maps_database_error() {
     // Create a schema without database pool to trigger database error
     let test_config = DpsAuthApiConfig {
       port: 0,
@@ -217,7 +226,7 @@ mod tests {
     };
     let schema = Schema::build(
       async_graphql::EmptyMutation,
-      CreateSessionResolver,
+      AuthLoginResolver,
       EmptySubscription,
     )
     .data(Arc::new(test_config))
@@ -225,8 +234,10 @@ mod tests {
 
     let query = r#"
       mutation {
-        createSession(input: { username: "testuser", password: "password123" }) {
+        authLogin(input: { username: "testuser", password: "password123" }) {
           token
+          userId
+          username
           message
         }
       }

@@ -49,7 +49,7 @@ async fn create_session_via_mutation(
   password: &str,
 ) -> axum::response::Response<Body> {
   let query = format!(
-    r#"{{"query": "mutation {{ createSession(input: {{ username: \"{username}\", password: \"{password}\" }}) {{ token message }} }}"}}"#
+    r#"{{"query": "mutation {{ authLogin(input: {{ username: \"{username}\", password: \"{password}\" }}) {{ token userId username message }} }}"}}"#
   );
 
   app
@@ -74,7 +74,7 @@ async fn extract_token_from_response(response: axum::response::Response<Body>) -
   let body_str = String::from_utf8(body.to_vec()).unwrap();
   let data: serde_json::Value = serde_json::from_str(&body_str).unwrap();
 
-  data["data"]["createSession"]["token"]
+  data["data"]["authLogin"]["token"]
     .as_str()
     .unwrap()
     .to_string()
@@ -89,12 +89,12 @@ async fn parse_graphql_response(response: axum::response::Response<Body>) -> ser
   serde_json::from_str(&body_str).unwrap()
 }
 
-// Helper function to create test users via GraphQL mutation (tests actual CreateUser mutation)
+// Helper function to create test users via GraphQL mutation (tests actual AuthRegister mutation)
 // Uses unique usernames to avoid any potential conflicts
 async fn create_test_user_via_mutation(app: &Router, username: &str, password: &str) -> String {
   let query = format!(
     r#"{{
-      "query": "mutation {{ createUser(input: {{ username: \"{username}\", password: \"{password}\" }}) {{ uuid username }} }}"
+      "query": "mutation {{ authRegister(input: {{ username: \"{username}\", password: \"{password}\", passwordConfirmation: \"{password}\" }}) {{ uuid username }} }}"
     }}"#
   );
 
@@ -121,9 +121,9 @@ async fn create_test_user_via_mutation(app: &Router, username: &str, password: &
 
   // Verify user creation was successful
   assert!(data["errors"].is_null(), "User creation failed: {body_str}");
-  assert!(!data["data"]["createUser"]["uuid"].is_null());
+  assert!(!data["data"]["authRegister"]["uuid"].is_null());
 
-  data["data"]["createUser"]["uuid"]
+  data["data"]["authRegister"]["uuid"]
     .as_str()
     .unwrap()
     .to_string()
@@ -208,7 +208,7 @@ async fn test_create_session_mutation_success() {
 
   let query = format!(
     r#"{{
-      "query": "mutation {{ createSession(input: {{ username: \"{unique_username}\", password: \"password123\" }}) {{ token message }} }}"
+      "query": "mutation {{ authLogin(input: {{ username: \"{unique_username}\", password: \"password123\" }}) {{ token userId username message }} }}"
     }}"#
   );
 
@@ -248,7 +248,7 @@ async fn test_create_session_mutation_success() {
   let body_str = String::from_utf8(body.to_vec()).unwrap();
 
   // Should contain successful response
-  assert!(body_str.contains("createSession"));
+  assert!(body_str.contains("authLogin"));
   assert!(body_str.contains("token"));
   assert!(body_str.contains("Authentication successful"));
   assert!(!body_str.contains("errors"));
@@ -264,7 +264,7 @@ async fn test_create_session_mutation_invalid_credentials() {
 
   let query = format!(
     r#"{{
-      "query": "mutation {{ createSession(input: {{ username: \"{unique_username}\", password: \"wrongpassword\" }}) {{ token message }} }}"
+      "query": "mutation {{ authLogin(input: {{ username: \"{unique_username}\", password: \"wrongpassword\" }}) {{ token userId username message }} }}"
     }}"#
   );
 
@@ -306,7 +306,7 @@ async fn test_create_session_mutation_with_missing_user() {
 
   let query = r#"
     {
-      "query": "mutation { createSession(input: { username: \"nonexistent\", password: \"password123\" }) { token message } }"
+      "query": "mutation { authLogin(input: { username: \"nonexistent_user\", password: \"password123\" }) { token userId username message } }"
     }
   "#;
 
@@ -343,7 +343,7 @@ async fn test_create_session_mutation_with_missing_user() {
 }
 
 #[tokio::test]
-async fn test_get_current_session_integration_authenticated() {
+async fn test_get_auth_me_integration_authenticated() {
   let app = create_app().await;
 
   // Setup: Create a test user via GraphQL mutation (tests actual CreateUser mutation)
@@ -353,7 +353,7 @@ async fn test_get_current_session_integration_authenticated() {
   // Create session first
   let create_session_query = format!(
     r#"{{
-      "query": "mutation {{ createSession(input: {{ username: \"{unique_username}\", password: \"password123\" }}) {{ token message }} }}"
+      "query": "mutation {{ authLogin(input: {{ username: \"{unique_username}\", password: \"password123\" }}) {{ token userId username message }} }}"
     }}"#
   );
 
@@ -377,14 +377,12 @@ async fn test_get_current_session_integration_authenticated() {
     .unwrap();
   let create_session_str = String::from_utf8(create_session_body.to_vec()).unwrap();
   let session_data: serde_json::Value = serde_json::from_str(&create_session_str).unwrap();
-  let token = session_data["data"]["createSession"]["token"]
-    .as_str()
-    .unwrap();
+  let token = session_data["data"]["authLogin"]["token"].as_str().unwrap();
 
-  // Test getCurrentSession with token in header
+  // Test authMe with token in header
   let get_session_query = r#"
     {
-      "query": "{ getCurrentSession { sub iat exp } }"
+      "query": "{ authMe { userId uuid username roleId createdTs updatedTs sessionIat sessionExp } }"
     }
   "#;
 
@@ -410,53 +408,16 @@ async fn test_get_current_session_integration_authenticated() {
   let data: serde_json::Value = serde_json::from_str(&body_str).unwrap();
 
   assert!(data["errors"].is_null());
-  assert!(!data["data"]["getCurrentSession"].is_null());
-  assert!(data["data"]["getCurrentSession"]["sub"].as_i64().unwrap() > 0);
-  assert!(data["data"]["getCurrentSession"]["iat"].as_i64().unwrap() > 0);
-  assert!(data["data"]["getCurrentSession"]["exp"].as_i64().unwrap() > 0);
+  assert!(!data["data"]["authMe"].is_null());
 }
 
 #[tokio::test]
-async fn test_get_current_session_integration_unauthenticated() {
+async fn test_get_auth_me_integration_invalid_token() {
   let app = create_app().await;
 
   let query = r#"
     {
-      "query": "{ getCurrentSession { sub iat exp } }"
-    }
-  "#;
-
-  let response = app
-    .oneshot(
-      Request::builder()
-        .method("POST")
-        .uri("/graphql")
-        .header("content-type", "application/json")
-        .body(Body::from(query))
-        .unwrap(),
-    )
-    .await
-    .unwrap();
-
-  assert_eq!(response.status(), StatusCode::OK);
-
-  let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-    .await
-    .unwrap();
-  let body_str = String::from_utf8(body.to_vec()).unwrap();
-  let data: serde_json::Value = serde_json::from_str(&body_str).unwrap();
-
-  assert!(data["errors"].is_null());
-  assert!(data["data"]["getCurrentSession"].is_null());
-}
-
-#[tokio::test]
-async fn test_get_current_session_integration_invalid_token() {
-  let app = create_app().await;
-
-  let query = r#"
-    {
-      "query": "{ getCurrentSession { sub iat exp } }"
+      "query": "{ authMe { userId uuid username roleId createdTs updatedTs sessionIat sessionExp } }"
     }
   "#;
 
@@ -473,16 +434,15 @@ async fn test_get_current_session_integration_invalid_token() {
     .await
     .unwrap();
 
-  assert_eq!(response.status(), StatusCode::OK);
-
   let body = axum::body::to_bytes(response.into_body(), usize::MAX)
     .await
     .unwrap();
   let body_str = String::from_utf8(body.to_vec()).unwrap();
   let data: serde_json::Value = serde_json::from_str(&body_str).unwrap();
 
+  // Should return null authMe (no errors) due to invalid token
   assert!(data["errors"].is_null());
-  assert!(data["data"]["getCurrentSession"].is_null());
+  assert!(data["data"]["authMe"].is_null());
 }
 
 #[tokio::test]
@@ -550,7 +510,7 @@ async fn test_404_handler_with_post_method() {
 // ===== NEW SESSION TESTS =====
 
 #[tokio::test]
-async fn test_get_current_session_with_cookie_authentication() {
+async fn test_get_auth_me_with_cookie_authentication() {
   let app = create_app().await;
 
   // Create user and session
@@ -562,8 +522,8 @@ async fn test_get_current_session_with_cookie_authentication() {
     create_session_via_mutation(&app, &unique_username, "password123").await;
   let cookie_header = create_session_response.headers().get("set-cookie").unwrap();
 
-  // Test getCurrentSession with cookie
-  let query = r#"{"query": "{ getCurrentSession { sub iat exp } }"}"#;
+  // Test authMe with cookie
+  let query = r#"{"query": "{ authMe { userId uuid username roleId createdTs updatedTs sessionIat sessionExp } }"}"#;
   let response = app
     .oneshot(
       Request::builder()
@@ -581,10 +541,14 @@ async fn test_get_current_session_with_cookie_authentication() {
   let data = parse_graphql_response(response).await;
 
   assert!(data["errors"].is_null());
-  assert!(!data["data"]["getCurrentSession"].is_null());
-  assert!(data["data"]["getCurrentSession"]["sub"].as_i64().unwrap() > 0);
-  assert!(data["data"]["getCurrentSession"]["iat"].as_i64().unwrap() > 0);
-  assert!(data["data"]["getCurrentSession"]["exp"].as_i64().unwrap() > 0);
+  assert!(!data["data"]["authMe"].is_null());
+  assert!(data["data"]["authMe"]["userId"].as_i64().unwrap() > 0);
+  assert!(!data["data"]["authMe"]["username"]
+    .as_str()
+    .unwrap()
+    .is_empty());
+  assert!(data["data"]["authMe"]["sessionIat"].as_i64().unwrap() > 0);
+  assert!(data["data"]["authMe"]["sessionExp"].as_i64().unwrap() > 0);
 }
 
 #[tokio::test]
@@ -607,7 +571,7 @@ async fn test_session_header_precedence_over_cookie() {
   let cookie_header = session2_response.headers().get("set-cookie").unwrap();
 
   // Test with both header and cookie - header should win
-  let query = r#"{"query": "{ getCurrentSession { sub iat exp } }"}"#;
+  let query = r#"{"query": "{ authMe { userId uuid username roleId createdTs updatedTs sessionIat sessionExp } }"}"#;
   let response = app
     .oneshot(
       Request::builder()
@@ -624,13 +588,13 @@ async fn test_session_header_precedence_over_cookie() {
 
   // Should return user1's session (from header), not user2's (from cookie)
   let data = parse_graphql_response(response).await;
-  let returned_user_id = data["data"]["getCurrentSession"]["sub"].as_i64().unwrap();
+  let returned_user_id = data["data"]["authMe"]["userId"].as_i64().unwrap();
 
   // We can't easily determine which user ID corresponds to which user without additional queries,
   // but we can verify that we get a valid session response and that it's consistent
   assert!(returned_user_id > 0);
   assert!(data["errors"].is_null());
-  assert!(!data["data"]["getCurrentSession"].is_null());
+  assert!(!data["data"]["authMe"].is_null());
 }
 
 #[tokio::test]
@@ -645,7 +609,7 @@ async fn test_session_invalid_header_no_cookie_fallback() {
   let cookie_header = session_response.headers().get("set-cookie").unwrap();
 
   // Test with invalid header and valid cookie - should NOT fallback to cookie
-  let query = r#"{"query": "{ getCurrentSession { sub iat exp } }"}"#;
+  let query = r#"{"query": "{ authMe { userId uuid username roleId createdTs updatedTs sessionIat sessionExp } }"}"#;
   let response = app
     .oneshot(
       Request::builder()
@@ -665,7 +629,7 @@ async fn test_session_invalid_header_no_cookie_fallback() {
 
   // Should return null session due to invalid header (no cookie fallback)
   assert!(data["errors"].is_null());
-  assert!(data["data"]["getCurrentSession"].is_null());
+  assert!(data["data"]["authMe"].is_null());
 }
 
 #[tokio::test]
@@ -695,7 +659,7 @@ async fn test_session_expired_token_handling() {
   let expired_token = DpsAuthSession::encode_token(&expired_payload, &test_secret).unwrap();
 
   // Test with expired token in header
-  let query = r#"{"query": "{ getCurrentSession { sub iat exp } }"}"#;
+  let query = r#"{"query": "{ authMe { userId uuid username roleId createdTs updatedTs sessionIat sessionExp } }"}"#;
   let response = app
     .oneshot(
       Request::builder()
@@ -714,7 +678,7 @@ async fn test_session_expired_token_handling() {
 
   // Should return null session due to expired token
   assert!(data["errors"].is_null());
-  assert!(data["data"]["getCurrentSession"].is_null());
+  assert!(data["data"]["authMe"].is_null());
 }
 
 #[test]

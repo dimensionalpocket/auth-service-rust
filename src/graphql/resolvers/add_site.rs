@@ -6,10 +6,10 @@ use async_graphql::{Context, InputObject, Object, Result};
 use sqlx::SqlitePool;
 use tracing::instrument;
 
-/// Input type for creating a new site
+/// Input type for adding a new site
 #[derive(InputObject)]
-pub struct CreateSiteInput {
-  /// Unique slug identifier for the site (3-20 chars, alphanumeric + underscore/hyphen)
+pub struct AddSiteInput {
+  /// Unique slug identifier for site (3-20 chars, alphanumeric + underscore/hyphen)
   pub slug: String,
   /// Optional subdomain for the site
   pub subdomain: Option<String>,
@@ -21,9 +21,9 @@ pub struct CreateSiteInput {
   pub metadata_json: Option<String>,
 }
 
-/// GraphQL output type for site creation response
+/// GraphQL output type for site addition response
 #[derive(async_graphql::SimpleObject)]
-pub struct CreateSiteResponse {
+pub struct AddSiteResponse {
   /// The created site's database ID
   pub id: i64,
   /// The site's unique slug
@@ -42,13 +42,13 @@ pub struct CreateSiteResponse {
   pub updated_ts: i64,
 }
 
-/// Site creation mutation resolver
+/// Site addition mutation resolver
 #[derive(Default, Debug)]
-pub struct CreateSiteResolver;
+pub struct AddSiteResolver;
 
 #[Object]
-impl CreateSiteResolver {
-  /// Creates a new site with the provided parameters.
+impl AddSiteResolver {
+  /// Adds a new site with the provided parameters.
   ///
   /// This mutation:
   /// - Requires user authentication
@@ -58,10 +58,10 @@ impl CreateSiteResolver {
   /// - Returns the created site information
   ///
   /// # Arguments
-  /// * `input` - CreateSiteInput containing site creation parameters
+  /// * `input` - AddSiteInput containing site addition parameters
   ///
   /// # Returns
-  /// * `CreateSiteResponse` - The created site information
+  /// * `AddSiteResponse` - The created site information
   ///
   /// # Errors
   /// * Returns "Authentication required" if user is not authenticated
@@ -71,11 +71,7 @@ impl CreateSiteResolver {
   /// * Returns GraphQL error if slug already exists
   /// * Returns GraphQL error if database operation fails
   #[instrument(skip(ctx, input), fields(slug = %input.slug))]
-  async fn create_site(
-    &self,
-    ctx: &Context<'_>,
-    input: CreateSiteInput,
-  ) -> Result<CreateSiteResponse> {
+  async fn add_site(&self, ctx: &Context<'_>, input: AddSiteInput) -> Result<AddSiteResponse> {
     let pool = ctx.data::<SqlitePool>()?;
 
     // Get session context and extract user
@@ -101,7 +97,7 @@ impl CreateSiteResolver {
     };
 
     match SiteService::create_site(pool, create_data).await {
-      Ok(site) => Ok(CreateSiteResponse {
+      Ok(site) => Ok(AddSiteResponse {
         id: site.id,
         slug: site.slug,
         subdomain: site.subdomain,
@@ -145,7 +141,7 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn test_create_site_success() {
+  async fn test_add_site_success() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert admin role with can_create_site permission
@@ -173,7 +169,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let mutation = CreateSiteResolver;
+    let mutation = AddSiteResolver;
     let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
       .data(pool)
       .data(session_context)
@@ -181,7 +177,7 @@ mod tests {
 
     let query = r#"
       mutation {
-        createSite(input: { 
+        addSite(input: { 
           slug: "test-site", 
           subdomain: "www", 
           port: 443, 
@@ -204,7 +200,7 @@ mod tests {
     assert!(result.errors.is_empty());
 
     let data = result.data.into_json().unwrap();
-    let site_data = &data["createSite"];
+    let site_data = &data["addSite"];
 
     assert!(site_data["id"].as_i64().unwrap() > 0);
     assert_eq!(site_data["slug"].as_str().unwrap(), "test-site");
@@ -220,7 +216,7 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn test_create_site_forbidden() {
+  async fn test_add_site_forbidden() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert user role without can_create_site permission
@@ -248,7 +244,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let mutation = CreateSiteResolver;
+    let mutation = AddSiteResolver;
     let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
       .data(pool)
       .data(session_context)
@@ -256,7 +252,7 @@ mod tests {
 
     let query = r#"
       mutation {
-        createSite(input: { slug: "forbidden-site" }) {
+        addSite(input: { slug: "forbidden-site" }) {
           id
           slug
         }
@@ -269,13 +265,13 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn test_create_site_unauthenticated() {
+  async fn test_add_site_unauthenticated() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create session context with no user (unauthenticated)
     let session_context = SessionContext::new(None);
 
-    let mutation = CreateSiteResolver;
+    let mutation = AddSiteResolver;
     let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
       .data(pool)
       .data(session_context)
@@ -283,7 +279,7 @@ mod tests {
 
     let query = r#"
       mutation {
-        createSite(input: { slug: "unauth-site" }) {
+        addSite(input: { slug: "unauth-site" }) {
           id
           slug
         }
@@ -296,7 +292,7 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn test_create_site_duplicate_slug() {
+  async fn test_add_site_duplicate_slug() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert admin role with can_create_site permission
@@ -324,7 +320,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let mutation = CreateSiteResolver;
+    let mutation = AddSiteResolver;
     let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
       .data(pool)
       .data(session_context)
@@ -332,7 +328,7 @@ mod tests {
 
     let query = r#"
       mutation {
-        createSite(input: { slug: "duplicate" }) {
+        addSite(input: { slug: "duplicate" }) {
           id
           slug
         }
@@ -350,7 +346,7 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn test_create_site_invalid_slug() {
+  async fn test_add_site_invalid_slug() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert admin role with can_create_site permission
@@ -378,7 +374,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let mutation = CreateSiteResolver;
+    let mutation = AddSiteResolver;
     let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
       .data(pool)
       .data(session_context)
@@ -387,7 +383,7 @@ mod tests {
     // Test slug that's too short
     let query = r#"
       mutation {
-        createSite(input: { slug: "ab" }) {
+        addSite(input: { slug: "ab" }) {
           id
           slug
         }

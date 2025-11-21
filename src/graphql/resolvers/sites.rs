@@ -6,10 +6,10 @@ use tracing::instrument;
 
 /// Sites query resolver for retrieving site information
 #[derive(Default, Debug)]
-pub struct GetSitesResolver;
+pub struct SitesResolver;
 
 #[Object]
-impl GetSitesResolver {
+impl SitesResolver {
   /// Returns all sites in the database.
   ///
   /// This query does not require authentication and returns basic site information
@@ -18,7 +18,7 @@ impl GetSitesResolver {
   /// Example response:
   /// ```json
   /// {
-  ///   "getSites": [
+  ///   "sites": [
   ///     {
   ///       "id": 1,
   ///       "slug": "example",
@@ -30,7 +30,7 @@ impl GetSitesResolver {
   /// }
   /// ```
   #[instrument(skip(self, ctx))]
-  async fn get_sites(&self, ctx: &Context<'_>) -> Result<Vec<SiteListing>> {
+  async fn sites(&self, ctx: &Context<'_>) -> Result<Vec<SiteListing>> {
     let pool = ctx.data::<SqlitePool>()?;
     let sites = SiteService::get_all_sites(pool).await?;
 
@@ -57,25 +57,25 @@ mod tests {
   use async_graphql::*;
 
   #[tokio::test]
-  async fn test_get_sites_empty() {
+  async fn test_sites_empty() {
     let (pool, _tmp) = create_test_database().await;
-    let query = GetSitesResolver;
+    let query = SitesResolver;
     let schema = Schema::build(query, EmptyMutation, EmptySubscription)
       .data(pool)
       .finish();
 
     let result = schema
-      .execute("{ getSites { id slug subdomain port protocol } }")
+      .execute("{ sites { id slug subdomain port protocol } }")
       .await;
 
     assert!(result.errors.is_empty());
     let data = result.data.into_json().unwrap();
-    let sites = data["getSites"].as_array().unwrap();
+    let sites = data["sites"].as_array().unwrap();
     assert_eq!(sites.len(), 0);
   }
 
   #[tokio::test]
-  async fn test_get_sites_with_data() {
+  async fn test_sites_with_data() {
     let (pool, _tmp) = create_test_database().await;
 
     // Create test sites
@@ -98,18 +98,18 @@ mod tests {
     CreateSiteQuery::run(&pool, site1_data).await.unwrap();
     CreateSiteQuery::run(&pool, site2_data).await.unwrap();
 
-    let query = GetSitesResolver;
+    let query = SitesResolver;
     let schema = Schema::build(query, EmptyMutation, EmptySubscription)
       .data(pool)
       .finish();
 
     let result = schema
-      .execute("{ getSites { id slug subdomain port protocol } }")
+      .execute("{ sites { id slug subdomain port protocol } }")
       .await;
 
     assert!(result.errors.is_empty());
     let data = result.data.into_json().unwrap();
-    let sites = data["getSites"].as_array().unwrap();
+    let sites = data["sites"].as_array().unwrap();
     assert_eq!(sites.len(), 2);
 
     // Verify field structure

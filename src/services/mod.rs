@@ -1,3 +1,4 @@
+pub mod auth_service;
 pub mod password_service;
 pub mod server_service;
 pub mod session_service;
@@ -6,6 +7,7 @@ pub mod site_service;
 pub mod user_role_service;
 pub mod user_service;
 
+pub use auth_service::{AuthMeResult, AuthResult, AuthService, RegisterResult};
 pub use password_service::{PasswordError, PasswordService};
 pub use server_service::ServerService;
 pub use session_service::{SessionError, SessionService};

@@ -1,73 +1,90 @@
-use crate::services::{UserError, UserService};
+use crate::services::{AuthService, UserError};
 use async_graphql::{Context, InputObject, Object, Result};
 use sqlx::SqlitePool;
 use tracing::instrument;
 
-/// Input type for creating a new user
+/// Input type for user registration
 #[derive(InputObject)]
-pub struct CreateUserInput {
-  /// Username for the new user (must be unique)
+pub struct AuthRegisterInput {
+  /// Username for new user account (must be unique)
   pub username: String,
-  /// Password for the new user (will be hashed)
+  /// Password for new user account (will be hashed)
   pub password: String,
+  /// Password confirmation to ensure password is entered correctly
+  pub password_confirmation: String,
 }
 
-/// GraphQL output type for user creation response
+/// GraphQL output type for user registration response
 #[derive(async_graphql::SimpleObject)]
-pub struct CreateUserResponse {
-  /// The created user's UUID (public identifier)
+pub struct AuthRegisterResponse {
+  /// The registered user's ID
+  pub user_id: i64,
+  /// The registered user's UUID (public identifier)
   pub uuid: String,
-  /// The created user's username
+  /// The registered user's username
   pub username: String,
-  /// The created user's role ID
+  /// The registered user's role ID
   pub role_id: i64,
   /// Timestamp when the user was created
   pub created_ts: i64,
   /// Timestamp when the user was last updated
   pub updated_ts: i64,
+  /// Success message
+  pub message: String,
 }
 
-/// User creation mutation resolver
+/// GraphQL mutation for user registration
 #[derive(Default, Debug)]
-pub struct CreateUserResolver;
+pub struct AuthRegisterResolver;
 
 #[Object]
-impl CreateUserResolver {
-  /// Creates a new user with the provided username and password.
+impl AuthRegisterResolver {
+  /// Register a new user account with the provided username, password, and password confirmation.
   ///
   /// This mutation:
-  /// - Validates the input (username and password)
+  /// - Validates the input (username, password, and password confirmation)
   /// - Checks if the username is already in use (case-insensitive)
+  /// - Verifies that password and password confirmation match
   /// - Hashes the password using Argon2
   /// - Assigns the default user role
   /// - Creates the user in the database
   /// - Returns the created user information (without password hash)
   ///
   /// # Arguments
-  /// * `input` - CreateUserInput containing username and password
+  /// * `input` - AuthRegisterInput containing username, password, and password confirmation
   ///
   /// # Returns
-  /// * `CreateUserResponse` - The created user information
+  /// * `AuthRegisterResponse` - The registered user information
   ///
   /// # Errors
   /// * Returns GraphQL error if username already exists
+  /// * Returns GraphQL error if password and confirmation don't match
   /// * Returns GraphQL error if input validation fails
   /// * Returns GraphQL error if database operation fails
-  #[instrument(skip(ctx, input), fields(username = %input.username))]
-  async fn create_user(
+  #[instrument(skip(self, ctx, input), fields(username = %input.username))]
+  async fn auth_register(
     &self,
     ctx: &Context<'_>,
-    input: CreateUserInput,
-  ) -> Result<CreateUserResponse> {
+    input: AuthRegisterInput,
+  ) -> Result<AuthRegisterResponse> {
     let pool = ctx.data::<SqlitePool>()?;
 
-    match UserService::create_user(pool, &input.username, &input.password).await {
-      Ok(user) => Ok(CreateUserResponse {
-        uuid: user.uuid,
-        username: user.name,
-        role_id: user.role_id,
-        created_ts: user.created_ts,
-        updated_ts: user.updated_ts,
+    match AuthService::register(
+      pool,
+      &input.username,
+      &input.password,
+      &input.password_confirmation,
+    )
+    .await
+    {
+      Ok(register_result) => Ok(AuthRegisterResponse {
+        user_id: register_result.user_id,
+        uuid: register_result.uuid,
+        username: register_result.username,
+        role_id: register_result.role_id,
+        created_ts: register_result.created_ts,
+        updated_ts: register_result.updated_ts,
+        message: "User registration successful".to_string(),
       }),
       Err(UserError::UsernameAlreadyExists(username)) => Err(async_graphql::Error::new(format!(
         "Username '{username}' is already in use"
@@ -76,8 +93,8 @@ impl CreateUserResolver {
         "Validation error: {msg}"
       ))),
       Err(err) => {
-        tracing::error!("Failed to create user: {}", err);
-        Err(async_graphql::Error::new("Failed to create user"))
+        tracing::error!("Failed to register user: {}", err);
+        Err(async_graphql::Error::new("Failed to register user"))
       }
     }
   }
@@ -101,7 +118,7 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn test_create_user_calls_service_with_correct_parameters() {
+  async fn test_auth_register_calls_service_with_correct_parameters() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert default role first
@@ -112,19 +129,21 @@ mod tests {
     .await
     .unwrap();
 
-    let mutation = CreateUserResolver;
+    let mutation = AuthRegisterResolver;
     let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
       .data(pool)
       .finish();
 
     let query = r#"
       mutation {
-        createUser(input: { username: "testuser", password: "testpass123" }) {
+        authRegister(input: { username: "testuser", password: "testpass123", passwordConfirmation: "testpass123" }) {
+          userId
           uuid
           username
           roleId
           createdTs
           updatedTs
+          message
         }
       }
     "#;
@@ -133,17 +152,22 @@ mod tests {
     assert!(result.errors.is_empty());
 
     let data = result.data.into_json().unwrap();
-    let user_data = &data["createUser"];
+    let user_data = &data["authRegister"];
 
+    assert!(user_data["userId"].as_i64().unwrap() > 0);
     assert!(!user_data["uuid"].as_str().unwrap().is_empty());
     assert_eq!(user_data["username"].as_str().unwrap(), "testuser");
     assert!(user_data["roleId"].as_i64().unwrap() > 0);
     assert!(user_data["createdTs"].as_i64().unwrap() > 0);
     assert!(user_data["updatedTs"].as_i64().unwrap() > 0);
+    assert_eq!(
+      user_data["message"].as_str().unwrap(),
+      "User registration successful"
+    );
   }
 
   #[tokio::test]
-  async fn test_create_user_returns_error_for_duplicate_username() {
+  async fn test_auth_register_returns_error_for_duplicate_username() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert default role first
@@ -154,15 +178,15 @@ mod tests {
     .await
     .unwrap();
 
-    let mutation = CreateUserResolver;
+    let mutation = AuthRegisterResolver;
     let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
       .data(pool)
       .finish();
 
     let query = r#"
       mutation {
-        createUser(input: { username: "testuser", password: "testpass123" }) {
-          uuid
+        authRegister(input: { username: "testuser", password: "testpass123", passwordConfirmation: "testpass123" }) {
+          userId
           username
         }
       }
@@ -179,10 +203,10 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn test_create_user_validates_input() {
+  async fn test_auth_register_validates_input() {
     let (pool, _temp_file) = create_test_database().await;
 
-    let mutation = CreateUserResolver;
+    let mutation = AuthRegisterResolver;
     let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
       .data(pool)
       .finish();
@@ -190,8 +214,8 @@ mod tests {
     // Test empty username
     let query = r#"
       mutation {
-        createUser(input: { username: "", password: "testpass123" }) {
-          uuid
+        authRegister(input: { username: "", password: "testpass123", passwordConfirmation: "testpass123" }) {
+          userId
           username
         }
       }
@@ -199,5 +223,29 @@ mod tests {
 
     let result = schema.execute(query).await;
     assert!(!result.errors.is_empty());
+  }
+
+  #[tokio::test]
+  async fn test_auth_register_password_confirmation_mismatch() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    let mutation = AuthRegisterResolver;
+    let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
+      .data(pool)
+      .finish();
+
+    // Test password confirmation mismatch
+    let query = r#"
+      mutation {
+        authRegister(input: { username: "testuser", password: "testpass123", passwordConfirmation: "differentpass" }) {
+          userId
+          username
+        }
+      }
+    "#;
+
+    let result = schema.execute(query).await;
+    assert!(!result.errors.is_empty());
+    assert!(result.errors[0].message.contains("Passwords do not match"));
   }
 }

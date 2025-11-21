@@ -1,5 +1,7 @@
 use crate::models::User;
-use crate::queries::users::{CreateUserData, CreateUserQuery, GetUserByNameQuery};
+use crate::queries::users::{
+  CreateUserData, CreateUserQuery, GetUserByIdQuery, GetUserByNameQuery,
+};
 use crate::services::{PasswordError, PasswordService};
 use sqlx::SqlitePool;
 use uuid::Uuid;
@@ -112,6 +114,23 @@ impl UserService {
     name: &str,
   ) -> Result<Option<User>, sqlx::Error> {
     GetUserByNameQuery::run(pool, name).await
+  }
+
+  /// Retrieve a user by ID
+  ///
+  /// # Arguments
+  /// * `pool` - Database connection pool
+  /// * `user_id` - The ID of the user to retrieve
+  ///
+  /// # Returns
+  /// * `Ok(Some(User))` - User found
+  /// * `Ok(None)` - User not found
+  /// * `Err(sqlx::Error)` - Database error occurred
+  pub async fn get_user_by_id(
+    pool: &SqlitePool,
+    user_id: i64,
+  ) -> Result<Option<User>, sqlx::Error> {
+    GetUserByIdQuery::run(pool, user_id).await
   }
 
   /// Validate username according to business rules

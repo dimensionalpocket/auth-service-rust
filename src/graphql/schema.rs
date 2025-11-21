@@ -1,6 +1,6 @@
 use crate::graphql::resolvers::{
-  CreateSessionResolver, CreateSiteResolver, CreateUserResolver, DeleteSiteResolver,
-  GetCurrentSessionResolver, GetServerTimestampResolver, GetSitesResolver, UpdateSiteResolver,
+  AddSiteResolver, AuthLoginResolver, AuthMeResolver, AuthRegisterResolver,
+  GetServerTimestampResolver, RemoveSiteResolver, SitesResolver, UpdateSiteResolver,
 };
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 
@@ -11,17 +11,13 @@ use async_graphql::{EmptySubscription, MergedObject, Schema};
 ///
 /// Available queries:
 /// - getServerTimestamp: Get current server time for synchronization
-/// - getCurrentSession: Get current authenticated user session information
-/// - getSites: Get all sites in the database (no authentication required)
+/// - authMe: Get current authenticated user information
+/// - sites: Get all sites in the database (no authentication required)
 ///
 /// Future queries will be added here as the service expands to include
 /// user authentication, profile management, and other auth-related operations.
 #[derive(MergedObject, Default)]
-pub struct Query(
-  GetServerTimestampResolver,
-  GetCurrentSessionResolver,
-  GetSitesResolver,
-);
+pub struct Query(GetServerTimestampResolver, AuthMeResolver, SitesResolver);
 
 impl Query {
   pub fn new() -> Self {
@@ -35,30 +31,30 @@ impl Query {
 /// individual mutation resolvers into a single unified interface using MergedObject.
 ///
 /// Available mutations:
-/// - createUser: Create a new user account
-/// - createSession: Authenticate user and create session (sign-in)
-/// - createSite: Create a new site (requires can_create_site permission)
+/// - authRegister: Register a new user account
+/// - authLogin: Authenticate user and create session (sign-in)
+/// - addSite: Add a new site (requires can_create_site permission)
 /// - updateSite: Update an existing site (requires can_update_site permission)
-/// - deleteSite: Delete an existing site (requires can_delete_site permission)
+/// - removeSite: Remove an existing site (requires can_delete_site permission)
 ///
 /// Future mutations will be added here as the service expands to include
 /// user management, authentication, and other auth-related operations.
 #[derive(MergedObject, Default)]
 pub struct Mutation(
-  CreateUserResolver,
-  CreateSessionResolver,
-  CreateSiteResolver,
-  DeleteSiteResolver,
+  AuthRegisterResolver,
+  AuthLoginResolver,
+  AddSiteResolver,
+  RemoveSiteResolver,
   UpdateSiteResolver,
 );
 
 impl Mutation {
   pub fn new() -> Self {
     Self(
-      CreateUserResolver,
-      CreateSessionResolver,
-      CreateSiteResolver,
-      DeleteSiteResolver,
+      AuthRegisterResolver,
+      AuthLoginResolver,
+      AddSiteResolver,
+      RemoveSiteResolver,
       UpdateSiteResolver,
     )
   }

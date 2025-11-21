@@ -5,34 +5,34 @@ use async_graphql::{Context, Object, Result};
 use sqlx::SqlitePool;
 use tracing::instrument;
 
-/// GraphQL output type for site deletion response
+/// GraphQL output type for site removal response
 #[derive(async_graphql::SimpleObject)]
-pub struct DeleteSiteResponse {
-  /// Whether deletion was successful
+pub struct RemoveSiteResponse {
+  /// Whether removal was successful
   pub success: bool,
   /// Success or error message
   pub message: String,
 }
 
-/// Site deletion mutation resolver
+/// Site removal mutation resolver
 #[derive(Default, Debug)]
-pub struct DeleteSiteResolver;
+pub struct RemoveSiteResolver;
 
 #[Object]
-impl DeleteSiteResolver {
-  /// Deletes an existing site.
+impl RemoveSiteResolver {
+  /// Removes an existing site.
   ///
   /// This mutation:
   /// - Requires user authentication
   /// - Checks if the user has "can_delete_site" permission
-  /// - Deletes the site from the database
+  /// - Removes the site from the database
   /// - Returns success confirmation
   ///
   /// # Arguments
-  /// * `site_id` - ID of the site to delete
+  /// * `site_id` - ID of the site to remove
   ///
   /// # Returns
-  /// * `DeleteSiteResponse` - Success confirmation
+  /// * `RemoveSiteResponse` - Success confirmation
   ///
   /// # Errors
   /// * Returns "Authentication required" if user is not authenticated
@@ -41,7 +41,7 @@ impl DeleteSiteResolver {
   /// * Returns GraphQL error if site is not found
   /// * Returns GraphQL error if database operation fails
   #[instrument(skip(ctx), fields(site_id = %site_id))]
-  async fn delete_site(&self, ctx: &Context<'_>, site_id: i64) -> Result<DeleteSiteResponse> {
+  async fn remove_site(&self, ctx: &Context<'_>, site_id: i64) -> Result<RemoveSiteResponse> {
     let pool = ctx.data::<SqlitePool>()?;
 
     // Get session context and extract user
@@ -59,9 +59,9 @@ impl DeleteSiteResolver {
     }
 
     match SiteService::delete_site(pool, site_id).await {
-      Ok(_) => Ok(DeleteSiteResponse {
+      Ok(_) => Ok(RemoveSiteResponse {
         success: true,
-        message: "Site deleted successfully".to_string(),
+        message: "Site removed successfully".to_string(),
       }),
       Err(SiteError::SiteNotFound(id)) => Err(async_graphql::Error::new(format!(
         "Site with ID {id} not found"
