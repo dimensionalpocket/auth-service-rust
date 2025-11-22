@@ -1,9 +1,19 @@
+use crate::models::Site;
 use sqlx::SqlitePool;
 
 pub struct DeleteSiteQuery;
 
 impl DeleteSiteQuery {
-  pub async fn run(pool: &SqlitePool, site_id: i64) -> Result<(), sqlx::Error> {
+  pub async fn run(pool: &SqlitePool, site_id: i64) -> Result<Site, sqlx::Error> {
+    // First fetch the site to return its data
+    let site = sqlx::query_as::<_, Site>(
+      "SELECT id, created_ts, updated_ts, slug, subdomain, port, protocol, metadata_json FROM sites WHERE id = ?"
+    )
+    .bind(site_id)
+    .fetch_one(pool)
+    .await?;
+
+    // Then delete the site
     let result = sqlx::query("DELETE FROM sites WHERE id = ?")
       .bind(site_id)
       .execute(pool)
@@ -13,7 +23,7 @@ impl DeleteSiteQuery {
       return Err(sqlx::Error::RowNotFound);
     }
 
-    Ok(())
+    Ok(site)
   }
 }
 
@@ -38,10 +48,20 @@ mod tests {
     };
     let site = CreateSiteQuery::run(&pool, create_data).await.unwrap();
 
-    // Delete the site
-    DeleteSiteQuery::run(&pool, site.id).await.unwrap();
+    // Delete the site and get returned data
+    let deleted_site = DeleteSiteQuery::run(&pool, site.id).await.unwrap();
 
-    // Verify site is deleted
+    // Verify returned data matches original
+    assert_eq!(deleted_site.id, site.id);
+    assert_eq!(deleted_site.slug, site.slug);
+    assert_eq!(deleted_site.subdomain, site.subdomain);
+    assert_eq!(deleted_site.port, site.port);
+    assert_eq!(deleted_site.protocol, site.protocol);
+    assert_eq!(deleted_site.metadata_json, site.metadata_json);
+    assert_eq!(deleted_site.created_ts, site.created_ts);
+    assert_eq!(deleted_site.updated_ts, site.updated_ts);
+
+    // Verify site is deleted from database
     let result = sqlx::query("SELECT COUNT(*) FROM sites WHERE id = ?")
       .bind(site.id)
       .fetch_one(&pool)

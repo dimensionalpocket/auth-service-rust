@@ -29,18 +29,18 @@ It is intended to be deployed as a microservice with a volume to house the SQLit
 | Operation | Description | Response Fields | Auth Required |
 |-----------|-------------|-----------------|---------------|
 | `getServerTimestamp` | Get current server timestamp | timestamp (String) | None |
-| `authMe` | Get current authenticated user profile | user_id (Int), username (String), role (String), created_ts (String) | Valid session cookie |
-| `sites` | List all sites in database | sites: [site_id (Int), name (String), url (String), created_ts (String)] | None |
+| `authMe` | Get current authenticated user profile | user_id (Int), uuid (String), username (String), role_id (Int), created_ts (Int), updated_ts (Int), session_iat (Int), session_exp (Int) | Valid session cookie |
+| `sites` | List all sites in database | sites: [id (Int), slug (String), subdomain (String), port (Int), protocol (String)] | None |
 
 #### Mutations
 
 | Operation | Description | Input Fields | Response Fields | Auth Required |
 |-----------|-------------|--------------|-----------------|---------------|
-| `authRegister` | Register new user account | username (String!), password (String!), passwordConfirmation (String!) | user_id (Int), username (String), message (String) | None |
+| `authRegister` | Register new user account | username (String!), password (String!), passwordConfirmation (String!) | user_id (Int), uuid (String), username (String), role_id (Int), created_ts (Int), updated_ts (Int), message (String) | None |
 | `authLogin` | Authenticate user and create session | username (String!), password (String!) | token (String), user_id (Int), username (String), message (String) | None (sets cookie) |
-| `addSite` | Add new site to database | name (String!), url (String!) | site_id (Int), name (String), url (String), message (String) | can_create_site |
-| `updateSite` | Update existing site | site_id (Int!), name (String), url (String) | site_id (Int), name (String), url (String), message (String) | can_update_site |
-| `removeSite` | Remove existing site | site_id (Int!) | site_id (Int), message (String) | can_delete_site |
+| `addSite` | Add new site to database | slug (String!), subdomain (String), port (Int), protocol (String), metadataJson (String) | id (Int), slug (String), subdomain (String), port (Int), protocol (String), metadataJson (String), created_ts (Int), updated_ts (Int) | can_create_site |
+| `updateSite` | Update existing site | id (Int!), slug (String), subdomain (String), port (Int), protocol (String), metadataJson (String) | id (Int), slug (String), subdomain (String), port (Int), protocol (String), metadataJson (String), created_ts (Int), updated_ts (Int) | can_update_site |
+| `removeSite` | Remove existing site | site_id (Int!) | id (Int), slug (String), subdomain (String), port (Int), protocol (String), metadataJson (String), created_ts (Int), updated_ts (Int) | can_delete_site |
 
 ## Installation
 

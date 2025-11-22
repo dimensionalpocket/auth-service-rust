@@ -187,9 +187,9 @@ impl SiteService {
   /// * `site_id` - ID of site to delete
   ///
   /// # Returns
-  /// * `Ok(())` - Site successfully deleted
+  /// * `Ok(Site)` - Successfully deleted site data
   /// * `Err(SiteError)` - Deletion failed due to site not found or database error
-  pub async fn delete_site(pool: &SqlitePool, site_id: i64) -> Result<(), SiteError> {
+  pub async fn delete_site(pool: &SqlitePool, site_id: i64) -> Result<Site, SiteError> {
     DeleteSiteQuery::run(pool, site_id)
       .await
       .map_err(|e| match e {
@@ -488,5 +488,49 @@ mod tests {
     let result = SiteService::update_site(&pool, site.id, update_data).await;
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("Validation error"));
+  }
+
+  #[tokio::test]
+  async fn test_delete_site_success() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create a site first
+    let create_data = CreateSiteData {
+      slug: "delete-test".to_string(),
+      subdomain: Some("www".to_string()),
+      port: Some(443),
+      protocol: Some("https".to_string()),
+      metadata_json: Some(r#"{"test": true}"#.to_string()),
+    };
+    let site = SiteService::create_site(&pool, create_data).await.unwrap();
+
+    // Delete the site
+    let deleted_site = SiteService::delete_site(&pool, site.id).await.unwrap();
+
+    // Verify returned data matches original
+    assert_eq!(deleted_site.id, site.id);
+    assert_eq!(deleted_site.slug, site.slug);
+    assert_eq!(deleted_site.subdomain, site.subdomain);
+    assert_eq!(deleted_site.port, site.port);
+    assert_eq!(deleted_site.protocol, site.protocol);
+    assert_eq!(deleted_site.metadata_json, site.metadata_json);
+    assert_eq!(deleted_site.created_ts, site.created_ts);
+    assert_eq!(deleted_site.updated_ts, site.updated_ts);
+
+    // Verify site is deleted from database
+    let all_sites = SiteService::get_all_sites(&pool).await.unwrap();
+    assert_eq!(all_sites.len(), 0);
+  }
+
+  #[tokio::test]
+  async fn test_delete_site_not_found() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    let result = SiteService::delete_site(&pool, 999).await;
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      SiteError::SiteNotFound(id) => assert_eq!(id, 999),
+      _ => panic!("Expected SiteNotFound error"),
+    }
   }
 }
