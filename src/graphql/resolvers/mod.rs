@@ -1,4 +1,5 @@
 pub mod add_site;
+pub mod auth_change_password;
 pub mod auth_login;
 pub mod auth_me;
 pub mod auth_register;
@@ -8,6 +9,7 @@ pub mod sites;
 pub mod update_site;
 
 pub use add_site::AddSiteResolver;
+pub use auth_change_password::AuthChangePasswordResolver;
 pub use auth_login::AuthLoginResolver;
 pub use auth_me::AuthMeResolver;
 pub use auth_register::AuthRegisterResolver;

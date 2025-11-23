@@ -1,6 +1,7 @@
 use crate::models::User;
 use crate::queries::users::{
-  CreateUserData, CreateUserQuery, GetUserByIdQuery, GetUserByNameQuery,
+  CreateUserData, CreateUserQuery, GetUserByIdQuery, GetUserByNameQuery, UpdateUserPasswordData,
+  UpdateUserPasswordQuery,
 };
 use crate::services::{PasswordError, PasswordService};
 use sqlx::SqlitePool;
@@ -164,6 +165,69 @@ impl UserService {
     }
 
     Ok(())
+  }
+
+  /// Update a user's password with validation and verification
+  ///
+  /// This method validates the new password, verifies the current password,
+  /// and updates the user's password in the database.
+  ///
+  /// # Arguments
+  /// * `pool` - Database connection pool
+  /// * `user_id` - The ID of the user to update
+  /// * `current_password` - The user's current password for verification
+  /// * `new_password` - The new password to set
+  /// * `new_password_confirmation` - Confirmation of the new password
+  ///
+  /// # Returns
+  /// * `Ok(User)` - Successfully updated user
+  /// * `Err(UserError)` - Update failed due to validation, verification, or database error
+  pub async fn update_password(
+    pool: &SqlitePool,
+    user_id: i64,
+    current_password: &str,
+    new_password: &str,
+    new_password_confirmation: &str,
+  ) -> Result<User, UserError> {
+    // Validate new password
+    Self::validate_password(new_password)?;
+
+    // Validate password confirmation matches
+    if new_password != new_password_confirmation {
+      return Err(UserError::ValidationError(
+        "Passwords do not match".to_string(),
+      ));
+    }
+
+    // Get current user to verify current password
+    let user = GetUserByIdQuery::run(pool, user_id)
+      .await
+      .map_err(UserError::DatabaseError)?
+      .ok_or_else(|| UserError::ValidationError("User not found".to_string()))?;
+
+    // Verify current password
+    let is_current_password_valid = PasswordService::verify(current_password, &user.password_hash)
+      .map_err(UserError::PasswordHashingFailed)?;
+
+    if !is_current_password_valid {
+      return Err(UserError::ValidationError(
+        "Current password is incorrect".to_string(),
+      ));
+    }
+
+    // Hash the new password
+    let new_password_hash = PasswordService::generate(new_password)?;
+
+    // Update the password in database
+    let update_data = UpdateUserPasswordData {
+      password_hash: new_password_hash,
+    };
+
+    let updated_user = UpdateUserPasswordQuery::run(pool, user_id, update_data)
+      .await
+      .map_err(UserError::DatabaseError)?;
+
+    Ok(updated_user)
   }
 
   /// Validate password according to business rules
@@ -458,5 +522,171 @@ mod tests {
       .unwrap();
 
     assert!(user.is_none());
+  }
+
+  #[tokio::test]
+  async fn test_update_password_success() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create default role and user
+    sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let user = UserService::create_user(&pool, "testuser", "oldpassword123")
+      .await
+      .unwrap();
+
+    // Test: Update password
+    let updated_user = UserService::update_password(
+      &pool,
+      user.id,
+      "oldpassword123",
+      "newpassword456",
+      "newpassword456",
+    )
+    .await
+    .unwrap();
+
+    // Verify: Password hash changed and update was successful
+    assert_eq!(updated_user.id, user.id);
+    assert_eq!(updated_user.name, user.name);
+    assert_ne!(updated_user.password_hash, user.password_hash);
+    // Note: timestamp might be the same in fast test environments, so we just verify the update succeeded
+
+    // Verify: New password works for authentication
+    let is_new_password_valid =
+      PasswordService::verify("newpassword456", &updated_user.password_hash).unwrap();
+    assert!(is_new_password_valid);
+
+    // Verify: Old password no longer works
+    let is_old_password_valid =
+      PasswordService::verify("oldpassword123", &updated_user.password_hash).unwrap();
+    assert!(!is_old_password_valid);
+  }
+
+  #[tokio::test]
+  async fn test_update_password_invalid_current_password() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create default role and user
+    sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let user = UserService::create_user(&pool, "testuser", "correctpassword")
+      .await
+      .unwrap();
+
+    // Test: Try to update with wrong current password
+    let result = UserService::update_password(
+      &pool,
+      user.id,
+      "wrongpassword",
+      "newpassword456",
+      "newpassword456",
+    )
+    .await;
+
+    // Verify: Should return error
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::ValidationError(msg) => {
+        assert!(msg.contains("Current password is incorrect"));
+      }
+      _ => panic!("Expected ValidationError"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_update_password_password_confirmation_mismatch() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create default role and user
+    sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let user = UserService::create_user(&pool, "testuser", "currentpassword")
+      .await
+      .unwrap();
+
+    // Test: Try to update with mismatched password confirmation
+    let result = UserService::update_password(
+      &pool,
+      user.id,
+      "currentpassword",
+      "newpassword456",
+      "differentpassword",
+    )
+    .await;
+
+    // Verify: Should return error
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::ValidationError(msg) => {
+        assert!(msg.contains("Passwords do not match"));
+      }
+      _ => panic!("Expected ValidationError"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_update_password_invalid_new_password() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create default role and user
+    sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let user = UserService::create_user(&pool, "testuser", "currentpassword")
+      .await
+      .unwrap();
+
+    // Test: Try to update with invalid new password (too short)
+    let result =
+      UserService::update_password(&pool, user.id, "currentpassword", "123", "123").await;
+
+    // Verify: Should return error
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::ValidationError(msg) => {
+        assert!(msg.contains("at least 6 characters"));
+      }
+      _ => panic!("Expected ValidationError"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_update_password_nonexistent_user() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Test: Try to update password for non-existent user
+    let result = UserService::update_password(
+      &pool,
+      999,
+      "anypassword",
+      "newpassword456",
+      "newpassword456",
+    )
+    .await;
+
+    // Verify: Should return error
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::ValidationError(msg) => {
+        assert!(msg.contains("User not found"));
+      }
+      _ => panic!("Expected ValidationError"),
+    }
   }
 }
