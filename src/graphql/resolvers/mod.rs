@@ -1,6 +1,7 @@
 pub mod add_site;
 pub mod auth_change_password;
 pub mod auth_login;
+pub mod auth_logout;
 pub mod auth_me;
 pub mod auth_register;
 pub mod get_server_timestamp;
@@ -11,6 +12,7 @@ pub mod update_site;
 pub use add_site::AddSiteResolver;
 pub use auth_change_password::AuthChangePasswordResolver;
 pub use auth_login::AuthLoginResolver;
+pub use auth_logout::AuthLogoutResolver;
 pub use auth_me::AuthMeResolver;
 pub use auth_register::AuthRegisterResolver;
 pub use get_server_timestamp::GetServerTimestampResolver;

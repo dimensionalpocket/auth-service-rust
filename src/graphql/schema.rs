@@ -1,7 +1,7 @@
 use crate::graphql::resolvers::{
-  AddSiteResolver, AuthChangePasswordResolver, AuthLoginResolver, AuthMeResolver,
-  AuthRegisterResolver, GetServerTimestampResolver, RemoveSiteResolver, SitesResolver,
-  UpdateSiteResolver,
+  AddSiteResolver, AuthChangePasswordResolver, AuthLoginResolver, AuthLogoutResolver,
+  AuthMeResolver, AuthRegisterResolver, GetServerTimestampResolver, RemoveSiteResolver,
+  SitesResolver, UpdateSiteResolver,
 };
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 
@@ -34,6 +34,7 @@ impl Query {
 /// Available mutations:
 /// - authRegister: Register a new user account
 /// - authLogin: Authenticate user and create session
+/// - authLogout: Logout user by clearing session cookie
 /// - authChangePassword: Change password for authenticated user
 /// - addSite: Add a new site to the database (requires can_create_site permission)
 /// - updateSite: Update an existing site (requires can_update_site permission)
@@ -45,6 +46,7 @@ impl Query {
 pub struct Mutation(
   AuthRegisterResolver,
   AuthLoginResolver,
+  AuthLogoutResolver,
   AuthChangePasswordResolver,
   AddSiteResolver,
   RemoveSiteResolver,
@@ -56,6 +58,7 @@ impl Mutation {
     Self(
       AuthRegisterResolver,
       AuthLoginResolver,
+      AuthLogoutResolver,
       AuthChangePasswordResolver,
       AddSiteResolver,
       RemoveSiteResolver,
