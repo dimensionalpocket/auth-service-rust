@@ -1,18 +1,7 @@
 use crate::services::{AuthService, UserError};
-use async_graphql::{Context, InputObject, Object, Result};
+use async_graphql::{Context, Object, Result};
 use sqlx::SqlitePool;
 use tracing::instrument;
-
-/// Input type for user registration
-#[derive(InputObject)]
-pub struct AuthRegisterInput {
-  /// Username for new user account (must be unique)
-  pub username: String,
-  /// Password for new user account (will be hashed)
-  pub password: String,
-  /// Password confirmation to ensure password is entered correctly
-  pub password_confirmation: String,
-}
 
 /// GraphQL output type for user registration response
 #[derive(async_graphql::SimpleObject)]
@@ -51,7 +40,9 @@ impl AuthRegisterResolver {
   /// - Returns the created user information (without password hash)
   ///
   /// # Arguments
-  /// * `input` - AuthRegisterInput containing username, password, and password confirmation
+  /// * `username` - Username for new user account (must be unique)
+  /// * `password` - Password for new user account (will be hashed)
+  /// * `password_confirmation` - Password confirmation to ensure password is entered correctly
   ///
   /// # Returns
   /// * `AuthRegisterResponse` - The registered user information
@@ -61,22 +52,17 @@ impl AuthRegisterResolver {
   /// * Returns GraphQL error if password and confirmation don't match
   /// * Returns GraphQL error if input validation fails
   /// * Returns GraphQL error if database operation fails
-  #[instrument(skip(self, ctx, input), fields(username = %input.username))]
+  #[instrument(skip(self, ctx), fields(username = %username))]
   async fn auth_register(
     &self,
     ctx: &Context<'_>,
-    input: AuthRegisterInput,
+    username: String,
+    password: String,
+    password_confirmation: String,
   ) -> Result<AuthRegisterResponse> {
     let pool = ctx.data::<SqlitePool>()?;
 
-    match AuthService::register(
-      pool,
-      &input.username,
-      &input.password,
-      &input.password_confirmation,
-    )
-    .await
-    {
+    match AuthService::register(pool, &username, &password, &password_confirmation).await {
       Ok(register_result) => Ok(AuthRegisterResponse {
         user_id: register_result.user_id,
         uuid: register_result.uuid,
@@ -136,7 +122,7 @@ mod tests {
 
     let query = r#"
       mutation {
-        authRegister(input: { username: "testuser", password: "testpass123", passwordConfirmation: "testpass123" }) {
+        authRegister(username: "testuser", password: "testpass123", passwordConfirmation: "testpass123") {
           userId
           uuid
           username
@@ -185,7 +171,7 @@ mod tests {
 
     let query = r#"
       mutation {
-        authRegister(input: { username: "testuser", password: "testpass123", passwordConfirmation: "testpass123" }) {
+        authRegister(username: "testuser", password: "testpass123", passwordConfirmation: "testpass123") {
           userId
           username
         }
@@ -214,7 +200,7 @@ mod tests {
     // Test empty username
     let query = r#"
       mutation {
-        authRegister(input: { username: "", password: "testpass123", passwordConfirmation: "testpass123" }) {
+        authRegister(username: "", password: "testpass123", passwordConfirmation: "testpass123") {
           userId
           username
         }
@@ -237,7 +223,7 @@ mod tests {
     // Test password confirmation mismatch
     let query = r#"
       mutation {
-        authRegister(input: { username: "testuser", password: "testpass123", passwordConfirmation: "differentpass" }) {
+        authRegister(username: "testuser", password: "testpass123", passwordConfirmation: "differentpass") {
           userId
           username
         }

@@ -2,26 +2,9 @@ use crate::middleware::session::SessionContext;
 use crate::orchestrators::site_orchestrator::SiteOrchestrator;
 use crate::queries::sites::UpdateSiteData;
 use crate::services::SiteError;
-use async_graphql::{Context, InputObject, Object, Result};
+use async_graphql::{Context, Object, Result};
 use sqlx::SqlitePool;
 use tracing::instrument;
-
-/// Input type for updating an existing site
-#[derive(InputObject)]
-pub struct UpdateSiteInput {
-  /// Site ID to update
-  pub id: i64,
-  /// Optional new slug for the site (3-20 chars, alphanumeric + underscore/hyphen)
-  pub slug: Option<String>,
-  /// Optional new subdomain for the site
-  pub subdomain: Option<String>,
-  /// Optional new port number for the site
-  pub port: Option<i64>,
-  /// Optional new protocol for the site
-  pub protocol: Option<String>,
-  /// Optional new JSON metadata for the site
-  pub metadata_json: Option<String>,
-}
 
 /// GraphQL output type for site update response
 #[derive(async_graphql::SimpleObject)]
@@ -56,13 +39,18 @@ impl UpdateSiteResolver {
   /// - Requires user authentication
   /// - Checks if the user has "can_update_site" permission
   /// - Validates the slug format and uniqueness if provided
-  /// - Updates only the fields provided in the input (PATCH semantics)
+  /// - Updates only the fields provided (PATCH semantics)
   /// - Explicit null values set database columns to NULL
   /// - Automatically updates the updated_ts timestamp
   /// - Returns the updated site information
   ///
   /// # Arguments
-  /// * `input` - UpdateSiteInput containing site update parameters
+  /// * `id` - Site ID to update
+  /// * `slug` - Optional new slug for the site (3-20 chars, alphanumeric + underscore/hyphen)
+  /// * `subdomain` - Optional new subdomain for the site
+  /// * `port` - Optional new port number for the site
+  /// * `protocol` - Optional new protocol for the site
+  /// * `metadata_json` - Optional new JSON metadata for the site
   ///
   /// # Returns
   /// * `UpdateSiteResponse` - The updated site information
@@ -75,31 +63,36 @@ impl UpdateSiteResolver {
   /// * Returns GraphQL error if slug already exists
   /// * Returns GraphQL error if site is not found
   /// * Returns GraphQL error if database operation fails
-  #[instrument(skip(ctx, input), fields(id = %input.id))]
+  #[instrument(skip(ctx), fields(id = %id))]
   async fn update_site(
     &self,
     ctx: &Context<'_>,
-    input: UpdateSiteInput,
+    id: i64,
+    slug: Option<String>,
+    subdomain: Option<String>,
+    port: Option<i64>,
+    protocol: Option<String>,
+    metadata_json: Option<String>,
   ) -> Result<UpdateSiteResponse> {
     let pool = ctx.data::<SqlitePool>()?;
 
     // Get session context
     let session_context = SessionContext::from_context(ctx)?;
 
-    // Convert Input to UpdateSiteData with proper null handling
+    // Convert parameters to UpdateSiteData with proper null handling
     let update_data = UpdateSiteData {
-      id: input.id,
-      slug: input.slug,
-      subdomain: input.subdomain.map(Some), // Convert Option<T> to Option<Option<T>>
-      port: input.port.map(Some),
-      protocol: input.protocol,
-      metadata_json: input.metadata_json.map(Some),
+      id,
+      slug,
+      subdomain: subdomain.map(Some), // Convert Option<T> to Option<Option<T>>
+      port: port.map(Some),
+      protocol,
+      metadata_json: metadata_json.map(Some),
     };
 
     match SiteOrchestrator::update_site_with_permission_check(
       pool,
       session_context.clone(),
-      input.id,
+      id,
       update_data,
     )
     .await
@@ -201,14 +194,14 @@ mod tests {
 
     let query = r#"
       mutation {
-        updateSite(input: { 
+        updateSite(
           id: $SITE_ID,
           slug: "updated-site", 
           subdomain: "api", 
           port: 8080, 
           protocol: "http",
           metadataJson: "{\"updated\": true}"
-        }) {
+        ) {
           id
           slug
           subdomain
@@ -278,7 +271,7 @@ mod tests {
 
     let query = r#"
       mutation {
-        updateSite(input: { id: 1, slug: "forbidden-site" }) {
+        updateSite(id: 1, slug: "forbidden-site") {
           id
           slug
         }
@@ -305,7 +298,7 @@ mod tests {
 
     let query = r#"
       mutation {
-        updateSite(input: { id: 1, slug: "unauth-site" }) {
+        updateSite(id: 1, slug: "unauth-site") {
           id
           slug
         }
@@ -354,7 +347,7 @@ mod tests {
 
     let query = r#"
       mutation {
-        updateSite(input: { id: 999, slug: "nonexistent-site" }) {
+        updateSite(id: 999, slug: "nonexistent-site") {
           id
           slug
         }
@@ -413,10 +406,10 @@ mod tests {
 
     let query = r#"
       mutation {
-        updateSite(input: { 
+        updateSite(
           id: $SITE_ID,
           slug: "ab"
-        }) {
+        ) {
           id
           slug
         }

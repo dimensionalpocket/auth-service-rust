@@ -1,19 +1,10 @@
 use crate::middleware::session::SESSION_COOKIE_NAME;
 use crate::services::{AuthService, SessionError};
 use crate::DpsAuthApiConfig;
-use async_graphql::{Context, InputObject, Object, Result, SimpleObject};
+use async_graphql::{Context, Object, Result, SimpleObject};
 use sqlx::SqlitePool;
 use std::sync::Arc;
 use tracing::instrument;
-
-/// Input type for user authentication (login)
-#[derive(InputObject)]
-pub struct AuthLoginInput {
-  /// Username for authentication
-  pub username: String,
-  /// Password for authentication
-  pub password: String,
-}
 
 /// GraphQL output type for authentication response
 #[derive(SimpleObject)]
@@ -35,11 +26,12 @@ pub struct AuthLoginResolver;
 #[Object]
 impl AuthLoginResolver {
   /// Authenticate user credentials and create a session
-  #[instrument(skip(self, ctx, input), fields(username = %input.username))]
+  #[instrument(skip(self, ctx), fields(username = %username))]
   async fn auth_login(
     &self,
     ctx: &Context<'_>,
-    input: AuthLoginInput,
+    username: String,
+    password: String,
   ) -> Result<AuthLoginResponse> {
     let pool = ctx.data::<SqlitePool>()?;
     let config = ctx.data::<Arc<DpsAuthApiConfig>>()?;
@@ -47,7 +39,7 @@ impl AuthLoginResolver {
     let cookie_domain = config.cookie_domain.clone();
     let insecure_cookie = config.insecure_cookie;
 
-    match AuthService::login(pool, &input.username, &input.password, &session_secret).await {
+    match AuthService::login(pool, &username, &password, &session_secret).await {
       Ok(auth_result) => {
         // Set session cookie
         let cookie_value = format!(
@@ -141,7 +133,7 @@ mod tests {
     // Test: Call the mutation
     let query = r#"
       mutation {
-        authLogin(input: { username: "testuser", password: "password123" }) {
+        authLogin(username: "testuser", password: "password123") {
           token
           userId
           username
@@ -196,7 +188,7 @@ mod tests {
     // Test: Call with non-existent user
     let query = r#"
       mutation {
-        authLogin(input: { username: "nonexistent", password: "password123" }) {
+        authLogin(username: "testuser", password: "password123") {
           token
           userId
           username

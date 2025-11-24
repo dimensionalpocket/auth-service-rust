@@ -1,5 +1,7 @@
 # Dimensional Pocket - Auth Service
 
+(This is a historical document. The roadmap has been completed.)
+
 This document outlines the project configuration and roadmap for the Rust-based GraphQL Auth Service for Dimensional Pocket. The service will provide REST endpoints, a GraphQL API, and user management functionalities.
 
 ## Project Configuration
@@ -179,7 +181,7 @@ This document outlines the project configuration and roadmap for the Rust-based 
 
 - Email support
 - Cookie-less session management (using custom headers in response)
-- Password change (when logged in)
+- Password change (when logged in) (DONE)
 - Password reset (requires email support)
 - Username change
 - User deletion/redaction

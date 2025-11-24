@@ -2,24 +2,9 @@ use crate::middleware::session::SessionContext;
 use crate::orchestrators::site_orchestrator::SiteOrchestrator;
 use crate::queries::sites::CreateSiteData;
 use crate::services::SiteError;
-use async_graphql::{Context, InputObject, Object, Result};
+use async_graphql::{Context, Object, Result};
 use sqlx::SqlitePool;
 use tracing::instrument;
-
-/// Input type for adding a new site
-#[derive(InputObject)]
-pub struct AddSiteInput {
-  /// Unique slug identifier for site (3-20 chars, alphanumeric + underscore/hyphen)
-  pub slug: String,
-  /// Optional subdomain for the site
-  pub subdomain: Option<String>,
-  /// Optional port number for the site
-  pub port: Option<i64>,
-  /// Protocol (defaults to "https" if not specified)
-  pub protocol: Option<String>,
-  /// Optional JSON metadata for the site
-  pub metadata_json: Option<String>,
-}
 
 /// GraphQL output type for site addition response
 #[derive(async_graphql::SimpleObject)]
@@ -58,7 +43,11 @@ impl AddSiteResolver {
   /// - Returns the created site information
   ///
   /// # Arguments
-  /// * `input` - AddSiteInput containing site addition parameters
+  /// * `slug` - Unique slug identifier for site (3-20 chars, alphanumeric + underscore/hyphen)
+  /// * `subdomain` - Optional subdomain for the site
+  /// * `port` - Optional port number for the site
+  /// * `protocol` - Protocol (defaults to "https" if not specified)
+  /// * `metadata_json` - Optional JSON metadata for the site
   ///
   /// # Returns
   /// * `AddSiteResponse` - The created site information
@@ -70,17 +59,25 @@ impl AddSiteResolver {
   /// * Returns GraphQL error if slug validation fails
   /// * Returns GraphQL error if slug already exists
   /// * Returns GraphQL error if database operation fails
-  #[instrument(skip(ctx, input), fields(slug = %input.slug))]
-  async fn add_site(&self, ctx: &Context<'_>, input: AddSiteInput) -> Result<AddSiteResponse> {
+  #[instrument(skip(ctx), fields(slug = %slug))]
+  async fn add_site(
+    &self,
+    ctx: &Context<'_>,
+    slug: String,
+    subdomain: Option<String>,
+    port: Option<i64>,
+    protocol: Option<String>,
+    metadata_json: Option<String>,
+  ) -> Result<AddSiteResponse> {
     let pool = ctx.data::<SqlitePool>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
     let create_data = CreateSiteData {
-      slug: input.slug,
-      subdomain: input.subdomain,
-      port: input.port,
-      protocol: input.protocol,
-      metadata_json: input.metadata_json,
+      slug,
+      subdomain,
+      port,
+      protocol,
+      metadata_json,
     };
 
     match SiteOrchestrator::create_site_with_permission_check(
@@ -172,13 +169,13 @@ mod tests {
 
     let query = r#"
       mutation {
-        addSite(input: { 
+        addSite(
           slug: "test-site", 
           subdomain: "www", 
           port: 443, 
           protocol: "https",
           metadataJson: "{\"description\": \"Test site\"}"
-        }) {
+        ) {
           id
           slug
           subdomain
@@ -247,7 +244,7 @@ mod tests {
 
     let query = r#"
       mutation {
-        addSite(input: { slug: "forbidden-site" }) {
+        addSite(slug: "forbidden-site") {
           id
           slug
         }
@@ -274,7 +271,7 @@ mod tests {
 
     let query = r#"
       mutation {
-        addSite(input: { slug: "unauth-site" }) {
+        addSite(slug: "unauth-site") {
           id
           slug
         }
@@ -323,7 +320,7 @@ mod tests {
 
     let query = r#"
       mutation {
-        addSite(input: { slug: "duplicate" }) {
+        addSite(slug: "duplicate") {
           id
           slug
         }
@@ -378,7 +375,7 @@ mod tests {
     // Test slug that's too short
     let query = r#"
       mutation {
-        addSite(input: { slug: "ab" }) {
+        addSite(slug: "ab") {
           id
           slug
         }

@@ -1,20 +1,9 @@
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::auth_orchestrator::AuthOrchestrator;
 use crate::services::UserError;
-use async_graphql::{Context, InputObject, Object, Result, SimpleObject};
+use async_graphql::{Context, Object, Result, SimpleObject};
 use sqlx::SqlitePool;
 use tracing::instrument;
-
-/// Input type for changing user password
-#[derive(InputObject)]
-pub struct AuthChangePasswordInput {
-  /// Current password for verification
-  pub current_password: String,
-  /// New password to set
-  pub new_password: String,
-  /// Confirmation of the new password
-  pub new_password_confirmation: String,
-}
 
 /// GraphQL output type for password change response
 #[derive(SimpleObject)]
@@ -41,7 +30,9 @@ impl AuthChangePasswordResolver {
   /// - Returns a success message with timestamp
   ///
   /// # Arguments
-  /// * `input` - AuthChangePasswordInput containing current password, new password, and confirmation
+  /// * `current_password` - Current password for verification
+  /// * `new_password` - New password to set
+  /// * `new_password_confirmation` - Confirmation of the new password
   ///
   /// # Returns
   /// * `AuthChangePasswordResponse` - Success message and timestamp
@@ -52,11 +43,13 @@ impl AuthChangePasswordResolver {
   /// * Returns GraphQL error if new password validation fails
   /// * Returns GraphQL error if password confirmation doesn't match
   /// * Returns GraphQL error if database operation fails
-  #[instrument(skip(self, ctx, input))]
+  #[instrument(skip(self, ctx))]
   async fn auth_change_password(
     &self,
     ctx: &Context<'_>,
-    input: AuthChangePasswordInput,
+    current_password: String,
+    new_password: String,
+    new_password_confirmation: String,
   ) -> Result<AuthChangePasswordResponse> {
     let pool = ctx.data::<SqlitePool>()?;
     let session_context = SessionContext::from_context(ctx)?;
@@ -64,9 +57,9 @@ impl AuthChangePasswordResolver {
     match AuthOrchestrator::change_authenticated_user_password(
       pool,
       session_context.clone(),
-      &input.current_password,
-      &input.new_password,
-      &input.new_password_confirmation,
+      &current_password,
+      &new_password,
+      &new_password_confirmation,
     )
     .await
     {
@@ -158,11 +151,11 @@ mod tests {
     // Test: Change password
     let query = r#"
       mutation {
-        authChangePassword(input: { 
+        authChangePassword(
           currentPassword: "oldpassword123", 
           newPassword: "newpassword456", 
           newPasswordConfirmation: "newpassword456" 
-        }) {
+        ) {
           message
           updatedTs
         }
@@ -206,11 +199,11 @@ mod tests {
     // Test: Try to change with wrong current password
     let query = r#"
       mutation {
-        authChangePassword(input: { 
+        authChangePassword(
           currentPassword: "wrongpassword", 
           newPassword: "newpassword456", 
           newPasswordConfirmation: "newpassword456" 
-        }) {
+        ) {
           message
           updatedTs
         }
@@ -244,11 +237,11 @@ mod tests {
     // Test: Try to change with mismatched confirmation
     let query = r#"
       mutation {
-        authChangePassword(input: { 
+        authChangePassword(
           currentPassword: "currentpassword", 
           newPassword: "newpassword456", 
           newPasswordConfirmation: "differentpassword" 
-        }) {
+        ) {
           message
           updatedTs
         }
@@ -279,11 +272,11 @@ mod tests {
     // Test: Try to change password without authentication
     let query = r#"
       mutation {
-        authChangePassword(input: { 
+        authChangePassword(
           currentPassword: "anypassword", 
           newPassword: "newpassword456", 
           newPasswordConfirmation: "newpassword456" 
-        }) {
+        ) {
           message
           updatedTs
         }
@@ -315,11 +308,11 @@ mod tests {
     // Test: Try to change with invalid new password (too short)
     let query = r#"
       mutation {
-        authChangePassword(input: { 
+        authChangePassword(
           currentPassword: "currentpassword", 
           newPassword: "123", 
           newPasswordConfirmation: "123" 
-        }) {
+        ) {
           message
           updatedTs
         }

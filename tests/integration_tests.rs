@@ -49,7 +49,7 @@ async fn create_session_via_mutation(
   password: &str,
 ) -> axum::response::Response<Body> {
   let query = format!(
-    r#"{{"query": "mutation {{ authLogin(input: {{ username: \"{username}\", password: \"{password}\" }}) {{ token userId username message }} }}"}}"#
+    r#"{{"query": "mutation {{ authLogin(username: \"{username}\", password: \"{password}\") {{ token userId username message }} }}"}}"#
   );
 
   app
@@ -94,7 +94,7 @@ async fn parse_graphql_response(response: axum::response::Response<Body>) -> ser
 async fn create_test_user_via_mutation(app: &Router, username: &str, password: &str) -> String {
   let query = format!(
     r#"{{
-      "query": "mutation {{ authRegister(input: {{ username: \"{username}\", password: \"{password}\", passwordConfirmation: \"{password}\" }}) {{ uuid username }} }}"
+      "query": "mutation {{ authRegister(username: \"{username}\", password: \"{password}\", passwordConfirmation: \"{password}\") {{ uuid username }} }}"
     }}"#
   );
 
@@ -208,7 +208,7 @@ async fn test_create_session_mutation_success() {
 
   let query = format!(
     r#"{{
-      "query": "mutation {{ authLogin(input: {{ username: \"{unique_username}\", password: \"password123\" }}) {{ token userId username message }} }}"
+      "query": "mutation {{ authLogin(username: \"{unique_username}\", password: \"password123\") {{ token userId username message }} }}"
     }}"#
   );
 
@@ -264,7 +264,7 @@ async fn test_create_session_mutation_invalid_credentials() {
 
   let query = format!(
     r#"{{
-      "query": "mutation {{ authLogin(input: {{ username: \"{unique_username}\", password: \"wrongpassword\" }}) {{ token userId username message }} }}"
+      "query": "mutation {{ authLogin(username: \"{unique_username}\", password: \"wrongpassword\") {{ token userId username message }} }}"
     }}"#
   );
 
@@ -306,7 +306,7 @@ async fn test_create_session_mutation_with_missing_user() {
 
   let query = r#"
     {
-      "query": "mutation { authLogin(input: { username: \"nonexistent_user\", password: \"password123\" }) { token userId username message } }"
+      "query": "mutation { authLogin(username: \"nonexistent_user\", password: \"password123\") { token userId username message } }"
     }
   "#;
 
@@ -353,7 +353,7 @@ async fn test_get_auth_me_integration_authenticated() {
   // Create session first
   let create_session_query = format!(
     r#"{{
-      "query": "mutation {{ authLogin(input: {{ username: \"{unique_username}\", password: \"password123\" }}) {{ token userId username message }} }}"
+      "query": "mutation {{ authLogin(username: \"{unique_username}\", password: \"password123\") {{ token userId username message }} }}"
     }}"#
   );
 
