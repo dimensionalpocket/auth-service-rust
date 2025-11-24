@@ -1,7 +1,7 @@
 use crate::middleware::session::SessionContext;
+use crate::orchestrators::site_orchestrator::SiteOrchestrator;
 use crate::queries::sites::CreateSiteData;
-use crate::queries::users::GetUserByIdQuery;
-use crate::services::{SiteError, SiteService, UserRoleService};
+use crate::services::SiteError;
 use async_graphql::{Context, InputObject, Object, Result};
 use sqlx::SqlitePool;
 use tracing::instrument;
@@ -73,20 +73,7 @@ impl AddSiteResolver {
   #[instrument(skip(ctx, input), fields(slug = %input.slug))]
   async fn add_site(&self, ctx: &Context<'_>, input: AddSiteInput) -> Result<AddSiteResponse> {
     let pool = ctx.data::<SqlitePool>()?;
-
-    // Get session context and extract user
     let session_context = SessionContext::from_context(ctx)?;
-    let user_id = session_context.user_id().ok_or("Authentication required")?;
-    let user = GetUserByIdQuery::run(pool, user_id)
-      .await
-      .map_err(|_| "Failed to fetch user")?
-      .ok_or("User not found")?;
-
-    // Check permissions
-    let allowed = UserRoleService::check_user_permission(pool, &user, "can_create_site").await?;
-    if !allowed {
-      return Err(async_graphql::Error::new("Forbidden"));
-    }
 
     let create_data = CreateSiteData {
       slug: input.slug,
@@ -96,7 +83,13 @@ impl AddSiteResolver {
       metadata_json: input.metadata_json,
     };
 
-    match SiteService::create_site(pool, create_data).await {
+    match SiteOrchestrator::create_site_with_permission_check(
+      pool,
+      session_context.clone(),
+      create_data,
+    )
+    .await
+    {
       Ok(site) => Ok(AddSiteResponse {
         id: site.id,
         slug: site.slug,
@@ -107,6 +100,8 @@ impl AddSiteResolver {
         created_ts: site.created_ts,
         updated_ts: site.updated_ts,
       }),
+      Err(SiteError::AuthenticationError(msg)) => Err(async_graphql::Error::new(msg)),
+      Err(SiteError::AuthorizationError(msg)) => Err(async_graphql::Error::new(msg)),
       Err(SiteError::SlugAlreadyExists(slug)) => Err(async_graphql::Error::new(format!(
         "Slug '{slug}' is already in use"
       ))),

@@ -1,7 +1,7 @@
 use crate::middleware::session::SessionContext;
+use crate::orchestrators::site_orchestrator::SiteOrchestrator;
 use crate::queries::sites::UpdateSiteData;
-use crate::queries::users::GetUserByIdQuery;
-use crate::services::{SiteError, SiteService, UserRoleService};
+use crate::services::SiteError;
 use async_graphql::{Context, InputObject, Object, Result};
 use sqlx::SqlitePool;
 use tracing::instrument;
@@ -83,19 +83,8 @@ impl UpdateSiteResolver {
   ) -> Result<UpdateSiteResponse> {
     let pool = ctx.data::<SqlitePool>()?;
 
-    // Get session context and extract user
+    // Get session context
     let session_context = SessionContext::from_context(ctx)?;
-    let user_id = session_context.user_id().ok_or("Authentication required")?;
-    let user = GetUserByIdQuery::run(pool, user_id)
-      .await
-      .map_err(|_| "Failed to fetch user")?
-      .ok_or("User not found")?;
-
-    // Check permissions
-    let allowed = UserRoleService::check_user_permission(pool, &user, "can_update_site").await?;
-    if !allowed {
-      return Err(async_graphql::Error::new("Forbidden"));
-    }
 
     // Convert Input to UpdateSiteData with proper null handling
     let update_data = UpdateSiteData {
@@ -107,7 +96,14 @@ impl UpdateSiteResolver {
       metadata_json: input.metadata_json.map(Some),
     };
 
-    match SiteService::update_site(pool, input.id, update_data).await {
+    match SiteOrchestrator::update_site_with_permission_check(
+      pool,
+      session_context.clone(),
+      input.id,
+      update_data,
+    )
+    .await
+    {
       Ok(Some(site)) => Ok(UpdateSiteResponse {
         id: site.id,
         slug: site.slug,
@@ -128,6 +124,8 @@ impl UpdateSiteResolver {
       Err(SiteError::SiteNotFound(id)) => Err(async_graphql::Error::new(format!(
         "Site with ID {id} not found"
       ))),
+      Err(SiteError::AuthenticationError(msg)) => Err(async_graphql::Error::new(msg)),
+      Err(SiteError::AuthorizationError(msg)) => Err(async_graphql::Error::new(msg)),
       Err(err) => {
         tracing::error!("Failed to update site: {}", err);
         Err(async_graphql::Error::new("Failed to update site"))

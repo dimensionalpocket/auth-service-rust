@@ -16,6 +16,10 @@ pub enum SiteError {
   ValidationError(String),
   /// Site not found
   SiteNotFound(i64),
+  /// Authentication failed
+  AuthenticationError(String),
+  /// Authorization failed
+  AuthorizationError(String),
 }
 
 impl std::fmt::Display for SiteError {
@@ -27,6 +31,8 @@ impl std::fmt::Display for SiteError {
       SiteError::DatabaseError(err) => write!(f, "Database error: {err}"),
       SiteError::ValidationError(msg) => write!(f, "Validation error: {msg}"),
       SiteError::SiteNotFound(id) => write!(f, "Site with ID {id} not found"),
+      SiteError::AuthenticationError(msg) => write!(f, "Authentication error: {msg}"),
+      SiteError::AuthorizationError(msg) => write!(f, "Authorization error: {msg}"),
     }
   }
 }

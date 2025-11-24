@@ -5,6 +5,7 @@ pub mod handlers;
 pub mod middleware;
 pub mod migration_config;
 pub mod models;
+pub mod orchestrators;
 pub mod queries;
 pub mod services;
 

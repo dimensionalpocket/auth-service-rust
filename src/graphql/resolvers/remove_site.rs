@@ -1,6 +1,6 @@
 use crate::middleware::session::SessionContext;
-use crate::queries::users::GetUserByIdQuery;
-use crate::services::{SiteError, SiteService, UserRoleService};
+use crate::orchestrators::site_orchestrator::SiteOrchestrator;
+use crate::services::SiteError;
 use async_graphql::{Context, Object, Result};
 use sqlx::SqlitePool;
 use tracing::instrument;
@@ -55,22 +55,15 @@ impl RemoveSiteResolver {
   #[instrument(skip(ctx), fields(site_id = %site_id))]
   async fn remove_site(&self, ctx: &Context<'_>, site_id: i64) -> Result<RemoveSiteResponse> {
     let pool = ctx.data::<SqlitePool>()?;
-
-    // Get session context and extract user
     let session_context = SessionContext::from_context(ctx)?;
-    let user_id = session_context.user_id().ok_or("Authentication required")?;
-    let user = GetUserByIdQuery::run(pool, user_id)
-      .await
-      .map_err(|_| "Failed to fetch user")?
-      .ok_or("User not found")?;
 
-    // Check permissions
-    let allowed = UserRoleService::check_user_permission(pool, &user, "can_delete_site").await?;
-    if !allowed {
-      return Err(async_graphql::Error::new("Forbidden"));
-    }
-
-    match SiteService::delete_site(pool, site_id).await {
+    match SiteOrchestrator::remove_site_with_permission_check(
+      pool,
+      session_context.clone(),
+      site_id,
+    )
+    .await
+    {
       Ok(site) => Ok(RemoveSiteResponse {
         id: site.id,
         slug: site.slug,
@@ -84,6 +77,8 @@ impl RemoveSiteResolver {
       Err(SiteError::SiteNotFound(id)) => Err(async_graphql::Error::new(format!(
         "Site with ID {id} not found"
       ))),
+      Err(SiteError::AuthenticationError(msg)) => Err(async_graphql::Error::new(msg)),
+      Err(SiteError::AuthorizationError(msg)) => Err(async_graphql::Error::new(msg)),
       Err(err) => {
         tracing::error!("Failed to delete site: {}", err);
         Err(async_graphql::Error::new("Failed to delete site"))

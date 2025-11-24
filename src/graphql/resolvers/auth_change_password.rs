@@ -1,5 +1,6 @@
 use crate::middleware::session::SessionContext;
-use crate::services::{UserError, UserService};
+use crate::orchestrators::auth_orchestrator::AuthOrchestrator;
+use crate::services::UserError;
 use async_graphql::{Context, InputObject, Object, Result, SimpleObject};
 use sqlx::SqlitePool;
 use tracing::instrument;
@@ -60,17 +61,9 @@ impl AuthChangePasswordResolver {
     let pool = ctx.data::<SqlitePool>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
-    // Check if user is authenticated
-    let session_payload = session_context
-      .payload
-      .as_ref()
-      .ok_or_else(|| async_graphql::Error::new("Authentication required"))?;
-
-    let user_id = session_payload.sub;
-
-    match UserService::update_password(
+    match AuthOrchestrator::change_authenticated_user_password(
       pool,
-      user_id,
+      session_context.clone(),
       &input.current_password,
       &input.new_password,
       &input.new_password_confirmation,
@@ -84,6 +77,7 @@ impl AuthChangePasswordResolver {
       Err(UserError::ValidationError(msg)) => Err(async_graphql::Error::new(format!(
         "Validation error: {msg}"
       ))),
+      Err(UserError::AuthenticationError(msg)) => Err(async_graphql::Error::new(msg)),
       Err(UserError::PasswordHashingFailed(_)) => {
         tracing::error!("Password hashing failed during password change");
         Err(async_graphql::Error::new("Failed to process password"))

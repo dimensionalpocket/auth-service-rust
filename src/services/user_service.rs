@@ -18,6 +18,8 @@ pub enum UserError {
   DatabaseError(sqlx::Error),
   /// Input validation failed
   ValidationError(String),
+  /// Authentication failed
+  AuthenticationError(String),
 }
 
 impl std::fmt::Display for UserError {
@@ -29,6 +31,7 @@ impl std::fmt::Display for UserError {
       UserError::PasswordHashingFailed(err) => write!(f, "Password hashing failed: {err}"),
       UserError::DatabaseError(err) => write!(f, "Database error: {err}"),
       UserError::ValidationError(msg) => write!(f, "Validation error: {msg}"),
+      UserError::AuthenticationError(msg) => write!(f, "Authentication error: {msg}"),
     }
   }
 }
