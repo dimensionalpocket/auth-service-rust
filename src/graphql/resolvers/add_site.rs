@@ -20,10 +20,13 @@ pub struct AddSiteResponse {
   /// The site's protocol
   pub protocol: String,
   /// The site's metadata JSON (if any)
+  #[graphql(name = "metadataJson")]
   pub metadata_json: Option<String>,
   /// Timestamp when the site was created
+  #[graphql(name = "createdTs")]
   pub created_ts: i64,
   /// Timestamp when the site was last updated
+  #[graphql(name = "updatedTs")]
   pub updated_ts: i64,
 }
 
@@ -60,6 +63,7 @@ impl AddSiteResolver {
   /// * Returns GraphQL error if slug already exists
   /// * Returns GraphQL error if database operation fails
   #[instrument(skip(ctx), fields(slug = %slug))]
+  #[graphql(name = "addSite")]
   async fn add_site(
     &self,
     ctx: &Context<'_>,
@@ -67,7 +71,7 @@ impl AddSiteResolver {
     subdomain: Option<String>,
     port: Option<i64>,
     protocol: Option<String>,
-    metadata_json: Option<String>,
+    #[graphql(name = "metadataJson")] metadata_json: Option<String>,
   ) -> Result<AddSiteResponse> {
     let pool = ctx.data::<SqlitePool>()?;
     let session_context = SessionContext::from_context(ctx)?;

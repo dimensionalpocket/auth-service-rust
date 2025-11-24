@@ -11,6 +11,7 @@ pub struct AuthChangePasswordResponse {
   /// Success message
   pub message: String,
   /// Timestamp when the password was changed
+  #[graphql(name = "updatedTs")]
   pub updated_ts: i64,
 }
 
@@ -44,12 +45,13 @@ impl AuthChangePasswordResolver {
   /// * Returns GraphQL error if password confirmation doesn't match
   /// * Returns GraphQL error if database operation fails
   #[instrument(skip(self, ctx))]
+  #[graphql(name = "authChangePassword")]
   async fn auth_change_password(
     &self,
     ctx: &Context<'_>,
-    current_password: String,
-    new_password: String,
-    new_password_confirmation: String,
+    #[graphql(name = "currentPassword")] current_password: String,
+    #[graphql(name = "newPassword")] new_password: String,
+    #[graphql(name = "newPasswordConfirmation")] new_password_confirmation: String,
   ) -> Result<AuthChangePasswordResponse> {
     let pool = ctx.data::<SqlitePool>()?;
     let session_context = SessionContext::from_context(ctx)?;

@@ -19,6 +19,7 @@ pub struct AuthLogoutResolver;
 impl AuthLogoutResolver {
   /// Logout user by clearing the session cookie
   #[instrument(skip(self, ctx))]
+  #[graphql(name = "authLogout")]
   async fn auth_logout(&self, ctx: &Context<'_>) -> Result<AuthLogoutResponse> {
     let config = ctx.data::<Arc<DpsAuthApiConfig>>()?;
     let cookie_domain = config.cookie_domain.clone();

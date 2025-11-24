@@ -19,10 +19,13 @@ pub struct RemoveSiteResponse {
   /// The deleted site's protocol
   pub protocol: String,
   /// The deleted site's metadata JSON (if any)
+  #[graphql(name = "metadataJson")]
   pub metadata_json: Option<String>,
   /// Timestamp when the site was created
+  #[graphql(name = "createdTs")]
   pub created_ts: i64,
   /// Timestamp when the site was last updated
+  #[graphql(name = "updatedTs")]
   pub updated_ts: i64,
 }
 
@@ -53,7 +56,12 @@ impl RemoveSiteResolver {
   /// * Returns GraphQL error if site is not found
   /// * Returns GraphQL error if database operation fails
   #[instrument(skip(ctx), fields(site_id = %site_id))]
-  async fn remove_site(&self, ctx: &Context<'_>, site_id: i64) -> Result<RemoveSiteResponse> {
+  #[graphql(name = "removeSite")]
+  async fn remove_site(
+    &self,
+    ctx: &Context<'_>,
+    #[graphql(name = "siteId")] site_id: i64,
+  ) -> Result<RemoveSiteResponse> {
     let pool = ctx.data::<SqlitePool>()?;
     let session_context = SessionContext::from_context(ctx)?;
 

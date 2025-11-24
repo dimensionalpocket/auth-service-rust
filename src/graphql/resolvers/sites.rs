@@ -30,6 +30,7 @@ impl SitesResolver {
   /// }
   /// ```
   #[instrument(skip(self, ctx))]
+  #[graphql(name = "sites")]
   async fn sites(&self, ctx: &Context<'_>) -> Result<Vec<SiteListing>> {
     let pool = ctx.data::<SqlitePool>()?;
     let sites = SiteService::get_all_sites(pool).await?;

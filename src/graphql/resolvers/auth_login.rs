@@ -12,6 +12,7 @@ pub struct AuthLoginResponse {
   /// The session token for API authentication
   pub token: String,
   /// The authenticated user's ID
+  #[graphql(name = "userId")]
   pub user_id: i64,
   /// The authenticated user's username
   pub username: String,
@@ -27,11 +28,12 @@ pub struct AuthLoginResolver;
 impl AuthLoginResolver {
   /// Authenticate user credentials and create a session
   #[instrument(skip(self, ctx), fields(username = %username))]
+  #[graphql(name = "authLogin")]
   async fn auth_login(
     &self,
     ctx: &Context<'_>,
-    username: String,
-    password: String,
+    #[graphql(name = "username")] username: String,
+    #[graphql(name = "password")] password: String,
   ) -> Result<AuthLoginResponse> {
     let pool = ctx.data::<SqlitePool>()?;
     let config = ctx.data::<Arc<DpsAuthApiConfig>>()?;

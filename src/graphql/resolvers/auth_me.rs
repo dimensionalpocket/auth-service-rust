@@ -7,20 +7,26 @@ use tracing::instrument;
 #[derive(async_graphql::SimpleObject)]
 pub struct AuthMeResponse {
   /// The authenticated user's ID
+  #[graphql(name = "userId")]
   pub user_id: i64,
   /// The authenticated user's UUID (public identifier)
   pub uuid: String,
   /// The authenticated user's username
   pub username: String,
   /// The authenticated user's role ID
+  #[graphql(name = "roleId")]
   pub role_id: i64,
   /// Timestamp when the user was created
+  #[graphql(name = "createdTs")]
   pub created_ts: i64,
   /// Timestamp when the user was last updated
+  #[graphql(name = "updatedTs")]
   pub updated_ts: i64,
   /// When the current session was created (seconds since Unix epoch)
+  #[graphql(name = "sessionIat")]
   pub session_iat: i64,
   /// When the current session expires (seconds since Unix epoch)
+  #[graphql(name = "sessionExp")]
   pub session_exp: i64,
 }
 
@@ -91,6 +97,7 @@ impl AuthMeResolver {
   /// }
   /// ```
   #[instrument(skip(self, ctx))]
+  #[graphql(name = "authMe")]
   async fn auth_me(&self, ctx: &Context<'_>) -> Result<Option<AuthMeResponse>> {
     let pool = ctx.data::<sqlx::SqlitePool>()?;
 

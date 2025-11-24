@@ -7,16 +7,20 @@ use tracing::instrument;
 #[derive(async_graphql::SimpleObject)]
 pub struct AuthRegisterResponse {
   /// The registered user's ID
+  #[graphql(name = "userId")]
   pub user_id: i64,
   /// The registered user's UUID (public identifier)
   pub uuid: String,
   /// The registered user's username
   pub username: String,
   /// The registered user's role ID
+  #[graphql(name = "roleId")]
   pub role_id: i64,
   /// Timestamp when the user was created
+  #[graphql(name = "createdTs")]
   pub created_ts: i64,
   /// Timestamp when the user was last updated
+  #[graphql(name = "updatedTs")]
   pub updated_ts: i64,
   /// Success message
   pub message: String,
@@ -53,12 +57,13 @@ impl AuthRegisterResolver {
   /// * Returns GraphQL error if input validation fails
   /// * Returns GraphQL error if database operation fails
   #[instrument(skip(self, ctx), fields(username = %username))]
+  #[graphql(name = "authRegister")]
   async fn auth_register(
     &self,
     ctx: &Context<'_>,
-    username: String,
-    password: String,
-    password_confirmation: String,
+    #[graphql(name = "username")] username: String,
+    #[graphql(name = "password")] password: String,
+    #[graphql(name = "passwordConfirmation")] password_confirmation: String,
   ) -> Result<AuthRegisterResponse> {
     let pool = ctx.data::<SqlitePool>()?;
 

@@ -22,6 +22,7 @@ impl GetServerTimestampResolver {
   ///
   /// Example response: "1706356800000"
   #[instrument]
+  #[graphql(name = "getServerTimestamp")]
   async fn get_server_timestamp(&self) -> Result<String> {
     let timestamp = ServerService::get_server_timestamp();
     Ok(timestamp.to_string())
