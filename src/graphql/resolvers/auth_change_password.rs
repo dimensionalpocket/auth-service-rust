@@ -44,7 +44,7 @@ impl AuthChangePasswordResolver {
   /// * Returns GraphQL error if new password validation fails
   /// * Returns GraphQL error if password confirmation doesn't match
   /// * Returns GraphQL error if database operation fails
-  #[instrument(skip(self, ctx))]
+  #[instrument(skip(self, ctx, current_password, new_password, new_password_confirmation))]
   #[graphql(name = "authChangePassword")]
   async fn auth_change_password(
     &self,

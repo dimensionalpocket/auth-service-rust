@@ -56,7 +56,7 @@ impl AuthRegisterResolver {
   /// * Returns GraphQL error if password and confirmation don't match
   /// * Returns GraphQL error if input validation fails
   /// * Returns GraphQL error if database operation fails
-  #[instrument(skip(self, ctx), fields(username = %username))]
+  #[instrument(skip(self, ctx, password, password_confirmation), fields(username = %username))]
   #[graphql(name = "authRegister")]
   async fn auth_register(
     &self,

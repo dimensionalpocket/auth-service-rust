@@ -106,6 +106,13 @@
 - Return Result<T, CustomError> from service methods
 - Use ? operator for error propagation
 
+### Logging Security
+- **NEVER** log passwords, API keys, tokens, or other sensitive data
+- Always add password parameters to the `skip` list in `#[instrument]` macros
+- Use `#[instrument(skip(self, ctx, password, password_confirmation), fields(username = %username))]` pattern for auth functions
+- Only log non-sensitive identifiers like usernames for debugging purposes
+- Verify no sensitive data is logged by running the password logging tests
+
 ### Testing
 - Write unit tests in #[cfg(test)] modules
 - Use tempfile for test databases

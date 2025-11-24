@@ -58,7 +58,7 @@ impl AuthService {
   /// # Errors
   /// * `UserError` - If user not found or other user-related errors
   /// * `SessionError` - If authentication fails or session creation fails
-  #[instrument(skip(pool, session_secret), fields(username = %username))]
+  #[instrument(skip(pool, session_secret, password), fields(username = %username))]
   pub async fn login(
     pool: &SqlitePool,
     username: &str,

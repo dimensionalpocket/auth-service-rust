@@ -27,7 +27,7 @@ pub struct AuthLoginResolver;
 #[Object]
 impl AuthLoginResolver {
   /// Authenticate user credentials and create a session
-  #[instrument(skip(self, ctx), fields(username = %username))]
+  #[instrument(skip(self, ctx, password), fields(username = %username))]
   #[graphql(name = "authLogin")]
   async fn auth_login(
     &self,

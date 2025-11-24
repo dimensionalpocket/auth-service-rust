@@ -32,7 +32,7 @@ impl MigrationConfig {
   pub fn from_sources(cli_args: CliArgs) -> Result<Self, Box<dyn std::error::Error>> {
     let sqlite_file = cli_args
       .sqlite_file
-      .unwrap_or_else(|| PathBuf::from("data/development.db"));
+      .unwrap_or_else(|| PathBuf::from("data/main-development.db"));
 
     let skip_seeds = cli_args.skip_seeds;
     let revert = cli_args.revert;
