@@ -115,7 +115,8 @@ All configuration is loaded from environment variables via `DpsConfig::new()`:
 - `DPS_AUTH_API_INSECURE_COOKIE`: Set to "Y" to enable insecure cookies (default: false)
 - `DPS_DEVELOPMENT_MODE`: Set to "Y" to enable development features like GraphQL playground (default: false)
 
-The cookie domain is automatically derived as `.{api_subdomain}.{domain}` (e.g., ".api.dps.localhost").
+The cookie domain is automatically derived as `.{domain}` (e.g., ".dps.localhost").
+The cookie path is set to the `api_path` configuration with a leading slash (e.g., "/api").
 
 ### Manual Configuration
 

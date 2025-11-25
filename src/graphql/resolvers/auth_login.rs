@@ -45,10 +45,11 @@ impl AuthLoginResolver {
       Ok(auth_result) => {
         // Set session cookie
         let cookie_value = format!(
-          "{}={}; Domain={}; Path=/; HttpOnly; SameSite=Strict{}; Max-Age={}",
+          "{}={}; Domain={}; Path={}; HttpOnly; SameSite=Lax{}; Max-Age={}",
           SESSION_COOKIE_NAME,
           auth_result.session_token,
           cookie_domain,
+          config.api_path,
           if insecure_cookie { "" } else { "; Secure" },
           3 * 24 * 60 * 60
         );
@@ -118,7 +119,8 @@ mod tests {
       port: 0,
       sqlite_main_file_path: "test.db".to_string(),
       session_secret: TEST_SECRET.to_vec(),
-      cookie_domain: ".api.dps.localhost".to_string(),
+      cookie_domain: ".dps.localhost".to_string(),
+      api_path: "/api".to_string(),
       insecure_cookie: false,
       development_mode: true,
       sqlite_main_pool_size: 1,
@@ -173,7 +175,8 @@ mod tests {
       port: 0,
       sqlite_main_file_path: "test.db".to_string(),
       session_secret: TEST_SECRET.to_vec(),
-      cookie_domain: ".api.dps.localhost".to_string(),
+      cookie_domain: ".dps.localhost".to_string(),
+      api_path: "/api".to_string(),
       insecure_cookie: false,
       development_mode: true,
       sqlite_main_pool_size: 1,
@@ -213,7 +216,8 @@ mod tests {
       port: 0,
       sqlite_main_file_path: "test.db".to_string(),
       session_secret: TEST_SECRET.to_vec(),
-      cookie_domain: ".api.dps.localhost".to_string(),
+      cookie_domain: ".dps.localhost".to_string(),
+      api_path: "/api".to_string(),
       insecure_cookie: false,
       development_mode: true,
       sqlite_main_pool_size: 1,

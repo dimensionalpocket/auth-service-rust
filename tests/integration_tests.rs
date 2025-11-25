@@ -25,7 +25,7 @@ async fn create_app() -> Router {
   config.set_auth_api_session_secret(Some("a".repeat(32).as_str()));
   config.set_auth_api_sqlite_main_file_path(db_path);
   config.set_domain("dps.localhost");
-  config.set_api_subdomain("api");
+  config.set_api_path("api");
   config.set_auth_api_insecure_cookie(true);
   config.set_development_mode(true);
   config.set_auth_api_sqlite_main_pool_size(Some(1)); // Use small pool size for tests to avoid concurrency issues
@@ -236,9 +236,10 @@ async fn test_create_session_mutation_success() {
 
   let cookie_value = cookie_header.unwrap().to_str().unwrap();
   assert!(cookie_value.contains("DpsAuthSession="));
-  assert!(cookie_value.contains("Domain=.api.dps.localhost"));
+  assert!(cookie_value.contains("Domain=.dps.localhost"));
   assert!(cookie_value.contains("HttpOnly"));
-  assert!(cookie_value.contains("SameSite=Strict"));
+  assert!(cookie_value.contains("SameSite=Lax"));
+  assert!(cookie_value.contains("Path=/api"));
   // Should not contain Secure flag due to DPS_AUTH_API_INSECURE_COOKIE=true
   assert!(!cookie_value.contains("Secure"));
 

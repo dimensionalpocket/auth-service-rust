@@ -27,9 +27,10 @@ impl AuthLogoutResolver {
 
     // Set cookie to expire in the past to effectively delete it
     let cookie_value = format!(
-      "{}=; Domain={}; Path=/; HttpOnly; SameSite=Strict{}; Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+      "{}=; Domain={}; Path={}; HttpOnly; SameSite=Lax{}; Expires=Thu, 01 Jan 1970 00:00:00 GMT",
       SESSION_COOKIE_NAME,
       cookie_domain,
+      config.api_path,
       if insecure_cookie { "" } else { "; Secure" }
     );
 
