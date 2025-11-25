@@ -185,7 +185,7 @@ impl DpsAuthApi {
       .route("/", get(crate::handlers::rest::root_handler))
       .route("/health", get(crate::handlers::rest::health_handler))
       .route(
-        "/graphql",
+        &format!("{}/graphql", self.config.api_path),
         get({
           let development_mode = self.config.development_mode;
           move || crate::handlers::graphql::graphql_get_handler(development_mode)
@@ -400,7 +400,7 @@ mod tests {
       .oneshot(
         Request::builder()
           .method("POST")
-          .uri("/graphql")
+          .uri(format!("{}/graphql", server.config.api_path))
           .header("content-type", "application/json")
           .body(Body::from(query))
           .unwrap(),

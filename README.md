@@ -19,8 +19,8 @@ It is intended to be deployed as a microservice with a volume to house the SQLit
 
 - `GET /` - Root endpoint
 - `GET /health` - Health check
-- `GET /graphql` - GraphQL playground (development mode only)
-- `POST /graphql` - GraphQL API
+- `GET {api_path}/graphql` - GraphQL playground (development mode only)
+- `POST {api_path}/graphql` - GraphQL API
 
 ## GraphQL Operations
 

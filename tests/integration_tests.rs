@@ -57,7 +57,7 @@ async fn create_session_via_mutation(
     .oneshot(
       Request::builder()
         .method("POST")
-        .uri("/graphql")
+        .uri("/api/graphql")
         .header("content-type", "application/json")
         .body(Body::from(query))
         .unwrap(),
@@ -103,7 +103,7 @@ async fn create_test_user_via_mutation(app: &Router, username: &str, password: &
     .oneshot(
       Request::builder()
         .method("POST")
-        .uri("/graphql")
+        .uri("/api/graphql")
         .header("content-type", "application/json")
         .body(Body::from(query))
         .unwrap(),
@@ -178,7 +178,7 @@ async fn test_graphql_endpoint() {
     .oneshot(
       Request::builder()
         .method("POST")
-        .uri("/graphql")
+        .uri("/api/graphql")
         .header("content-type", "application/json")
         .body(Body::from(query))
         .unwrap(),
@@ -216,7 +216,7 @@ async fn test_create_session_mutation_success() {
     .oneshot(
       Request::builder()
         .method("POST")
-        .uri("/graphql")
+        .uri("/api/graphql")
         .header("content-type", "application/json")
         .body(Body::from(query))
         .unwrap(),
@@ -273,7 +273,7 @@ async fn test_create_session_mutation_invalid_credentials() {
     .oneshot(
       Request::builder()
         .method("POST")
-        .uri("/graphql")
+        .uri("/api/graphql")
         .header("content-type", "application/json")
         .body(Body::from(query))
         .unwrap(),
@@ -315,7 +315,7 @@ async fn test_create_session_mutation_with_missing_user() {
     .oneshot(
       Request::builder()
         .method("POST")
-        .uri("/graphql")
+        .uri("/api/graphql")
         .header("content-type", "application/json")
         .body(Body::from(query))
         .unwrap(),
@@ -363,7 +363,7 @@ async fn test_get_auth_me_integration_authenticated() {
     .oneshot(
       Request::builder()
         .method("POST")
-        .uri("/graphql")
+        .uri("/api/graphql")
         .header("content-type", "application/json")
         .body(Body::from(create_session_query))
         .unwrap(),
@@ -391,7 +391,7 @@ async fn test_get_auth_me_integration_authenticated() {
     .oneshot(
       Request::builder()
         .method("POST")
-        .uri("/graphql")
+        .uri("/api/graphql")
         .header("content-type", "application/json")
         .header("authorization", format!("Bearer {token}"))
         .body(Body::from(get_session_query))
@@ -426,7 +426,7 @@ async fn test_get_auth_me_integration_invalid_token() {
     .oneshot(
       Request::builder()
         .method("POST")
-        .uri("/graphql")
+        .uri("/api/graphql")
         .header("content-type", "application/json")
         .header("authorization", "Bearer invalid_token")
         .body(Body::from(query))
@@ -529,7 +529,7 @@ async fn test_get_auth_me_with_cookie_authentication() {
     .oneshot(
       Request::builder()
         .method("POST")
-        .uri("/graphql")
+        .uri("/api/graphql")
         .header("content-type", "application/json")
         .header("cookie", cookie_header.to_str().unwrap())
         .body(Body::from(query))
@@ -577,7 +577,7 @@ async fn test_session_header_precedence_over_cookie() {
     .oneshot(
       Request::builder()
         .method("POST")
-        .uri("/graphql")
+        .uri("/api/graphql")
         .header("content-type", "application/json")
         .header("authorization", format!("Bearer {header_token}"))
         .header("cookie", cookie_header.to_str().unwrap())
@@ -615,7 +615,7 @@ async fn test_session_invalid_header_no_cookie_fallback() {
     .oneshot(
       Request::builder()
         .method("POST")
-        .uri("/graphql")
+        .uri("/api/graphql")
         .header("content-type", "application/json")
         .header("authorization", "Bearer invalid-token")
         .header("cookie", cookie_header.to_str().unwrap())
@@ -665,7 +665,7 @@ async fn test_session_expired_token_handling() {
     .oneshot(
       Request::builder()
         .method("POST")
-        .uri("/graphql")
+        .uri("/api/graphql")
         .header("content-type", "application/json")
         .header("authorization", format!("Bearer {expired_token}"))
         .body(Body::from(query))
@@ -732,7 +732,7 @@ async fn test_auth_login_no_password_in_logs() {
     .oneshot(
       Request::builder()
         .method("POST")
-        .uri("/graphql")
+        .uri("/api/graphql")
         .header("content-type", "application/json")
         .body(Body::from(query))
         .unwrap(),
@@ -765,7 +765,7 @@ async fn test_auth_register_no_password_in_logs() {
     .oneshot(
       Request::builder()
         .method("POST")
-        .uri("/graphql")
+        .uri("/api/graphql")
         .header("content-type", "application/json")
         .body(Body::from(query))
         .unwrap(),
