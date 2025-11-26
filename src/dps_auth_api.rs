@@ -207,7 +207,7 @@ impl DpsAuthApi {
             crate::middleware::request_id::request_id_middleware,
           ))
           .layer(from_fn(crate::middleware::logging::rest_logging_middleware))
-          .layer(CorsLayer::permissive()),
+          .layer(CorsLayer::very_permissive()),
       )
       .with_state(schema)
   }
@@ -619,6 +619,53 @@ mod tests {
     assert_eq!(
       std::any::type_name_of_val(&database),
       "dps_auth_api::database::Database"
+    );
+  }
+
+  #[tokio::test]
+  async fn test_cors_headers_with_credentials() {
+    let temp_file = NamedTempFile::new().unwrap();
+    let db_path = temp_file.path().to_str().unwrap();
+    let server = create_test_server(db_path);
+
+    let schema = crate::graphql::schema::build_schema().finish();
+    let app = server.build_router(schema);
+
+    let response = app
+      .oneshot(
+        Request::builder()
+          .method("OPTIONS")
+          .uri(format!("{}/graphql", server.config.api_path))
+          .header("origin", "https://example.com")
+          .header("access-control-request-method", "POST")
+          .header(
+            "access-control-request-headers",
+            "content-type, authorization",
+          )
+          .body(Body::empty())
+          .unwrap(),
+      )
+      .await
+      .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    // Check that origin is reflected back
+    assert_eq!(
+      response
+        .headers()
+        .get("access-control-allow-origin")
+        .unwrap(),
+      "https://example.com"
+    );
+
+    // Check that credentials are allowed
+    assert_eq!(
+      response
+        .headers()
+        .get("access-control-allow-credentials")
+        .unwrap(),
+      "true"
     );
   }
 }
