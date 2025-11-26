@@ -77,14 +77,14 @@ impl Database {
   pub async fn configure_sqlite(pool: &SqlitePool) -> Result<(), sqlx::Error> {
     // Execute each PRAGMA command
     for command in Self::SQLITE_PRAGMA_COMMANDS.iter() {
-      println!("   {command}");
+      // println!("   {command}");
       sqlx::query(command).execute(pool).await?;
     }
 
     // Verify critical settings were applied correctly
     Self::verify_sqlite_config(pool).await?;
 
-    println!("✅ SQLite configuration completed successfully");
+    // println!("✅ SQLite configuration completed successfully");
     Ok(())
   }
 

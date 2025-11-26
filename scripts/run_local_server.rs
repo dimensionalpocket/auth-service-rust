@@ -7,6 +7,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   // Load environment variables from .env file for local development
   dotenvy::dotenv().ok();
 
+  // Print DPS_ environment variables for debugging
+  println!("=== DPS Configuration Variables ===");
+  for (key, value) in std::env::vars() {
+    if key.starts_with("DPS_") {
+      println!("{key}: {value}");
+    }
+  }
+  println!("====================================\n");
+
   // Initialize logging
   tracing_subscriber::registry()
     .with(
