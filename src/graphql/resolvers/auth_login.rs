@@ -51,7 +51,7 @@ impl AuthLoginResolver {
           cookie_domain,
           config.api_path,
           if insecure_cookie { "" } else { "; Secure" },
-          3 * 24 * 60 * 60
+          config.session_ttl_seconds
         );
 
         // Use append to allow multiple cookies; ignore the return value
@@ -124,6 +124,7 @@ mod tests {
       insecure_cookie: false,
       development_mode: true,
       sqlite_main_pool_size: 1,
+      session_ttl_seconds: 3600,
     };
     let schema = Schema::build(
       async_graphql::EmptyMutation,
@@ -180,6 +181,7 @@ mod tests {
       insecure_cookie: false,
       development_mode: true,
       sqlite_main_pool_size: 1,
+      session_ttl_seconds: 3600,
     };
     let schema = Schema::build(
       async_graphql::EmptyMutation,
@@ -221,6 +223,7 @@ mod tests {
       insecure_cookie: false,
       development_mode: true,
       sqlite_main_pool_size: 1,
+      session_ttl_seconds: 3600,
     };
     let schema = Schema::build(
       async_graphql::EmptyMutation,

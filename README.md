@@ -106,14 +106,14 @@ The `DpsAuthApi` uses `DpsConfig` from the `dps-config` crate for configuration 
 
 All configuration is loaded from environment variables via `DpsConfig::new()`:
 
+- `DPS_DOMAIN`: Base domain (default: "dps.localhost")
+- `DPS_API_PATH`: API path, without leading slash (default: "api", meaning DpsAuthApi serves at "/api/graphql")
+- `DPS_DEVELOPMENT_MODE`: Set to "Y" to enable development features like GraphQL playground (default: not defined)
 - `DPS_AUTH_API_PORT`: Server port (default: 3000 if not set)
 - `DPS_AUTH_API_SQLITE_MAIN_FILE_PATH`: SQLite database file path (default: "data/main-development.db")
 - `DPS_AUTH_API_SQLITE_MAIN_POOL_SIZE`: Database connection pool size (default: 1)
 - `DPS_AUTH_API_SESSION_SECRET`: 32-byte secret for session encryption (required)
-- `DPS_DOMAIN`: Base domain (default: "dps.localhost")
-- `DPS_API_SUBDOMAIN`: API subdomain (default: "api")
 - `DPS_AUTH_API_INSECURE_COOKIE`: Set to "Y" to enable insecure cookies (default: false)
-- `DPS_DEVELOPMENT_MODE`: Set to "Y" to enable development features like GraphQL playground (default: false)
 
 The cookie domain is automatically derived as `.{domain}` (e.g., ".dps.localhost").
 The cookie path is set to the `api_path` configuration with a leading slash (e.g., "/api").

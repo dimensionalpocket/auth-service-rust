@@ -4,8 +4,8 @@
 
 - **Build**: `cargo build`
 - **Build release**: `cargo build --release`
-- **Test all**: `cargo test --verbose`
-- **Test single test**: `cargo test <test_name>`
+- **Test all**: `cargo test --quiet`
+- **Test single test**: `cargo test <test_name> --verbose`
 - **Linter**: `cargo clippy --allow-dirty --fix && cargo fmt`
 - **Run local server**: `cargo run --bin run_local_server`
 - **Database migrations**: `cargo run --bin dps-auth-api-migrate`

@@ -20,6 +20,7 @@ pub struct DpsAuthApiConfig {
   pub insecure_cookie: bool,
   pub development_mode: bool,
   pub sqlite_main_pool_size: u16,
+  pub session_ttl_seconds: u32,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -102,6 +103,7 @@ impl DpsAuthApi {
       insecure_cookie: dps_config.get_auth_api_insecure_cookie(),
       development_mode: dps_config.get_development_mode(),
       sqlite_main_pool_size: dps_config.get_auth_api_sqlite_main_pool_size(),
+      session_ttl_seconds: dps_config.get_auth_api_session_ttl_seconds(),
     };
 
     Ok(DpsAuthApi {
