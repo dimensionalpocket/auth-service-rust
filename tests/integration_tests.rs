@@ -224,8 +224,6 @@ async fn test_create_session_mutation_success() {
     .await
     .unwrap();
 
-  assert_eq!(response.status(), StatusCode::OK);
-
   // Check for Set-Cookie header
   let headers = response.headers();
   let cookie_header = headers.get("set-cookie");

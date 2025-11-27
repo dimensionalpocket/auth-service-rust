@@ -1,33 +1,23 @@
 use crate::graphql::schema::AppSchema;
 use crate::middleware::session::SessionContext;
-use crate::DpsAuthApiConfig;
 use async_graphql_axum::GraphQLResponse;
 use axum::{
   extract::{Request, State},
   http::StatusCode,
   response::{Html, IntoResponse, Response},
 };
-use once_cell::sync::Lazy;
-use regex::Regex;
-use std::sync::Arc;
-use std::time::Instant;
-use tracing::{error, info, instrument};
-
-static WHITESPACE_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s+").unwrap());
+use tracing::instrument;
 
 // Note: resolvers should use async-graphql's `ctx.insert_http_header` / `ctx.append_http_header`
 // APIs to write HTTP headers directly into the GraphQL response. The handler relies on
 // `GraphQLResponse::into_response()` to include those headers in the final HTTP response.
 
 /// GraphQL POST handler for actual queries
-#[instrument(skip(schema, http_req, config))]
+#[instrument(skip(schema, http_req))]
 pub async fn graphql_post_handler(
   State(schema): State<AppSchema>,
   http_req: Request,
-  config: Arc<DpsAuthApiConfig>,
 ) -> impl IntoResponse {
-  let start = Instant::now();
-
   // Extract session context from HTTP request extensions (set by middleware)
   let session_context = http_req
     .extensions()
@@ -41,68 +31,15 @@ pub async fn graphql_post_handler(
     Err(response) => return response,
   };
 
-  // Add session context and config to GraphQL request data
-  let mut request = graphql_request;
-  request = request.data(session_context);
-  request = request.data(config.clone());
+  // Add session context to GraphQL request data (config is already in schema data)
+  let request = graphql_request.data(session_context);
 
-  // Extract operation name from the request
-  let operation_name = request
-    .operation_name
-    .clone()
-    .unwrap_or_else(|| "Anonymous".to_string());
-  let query = if operation_name == "Anonymous" {
-    Some(
-      WHITESPACE_REGEX
-        .replace_all(&request.query, " ")
-        .to_string(),
-    )
-  } else {
-    None
-  };
-
+  // Execute GraphQL request with built-in tracing from Tracing extension
   let response = schema.execute(request).await;
-  let duration = start.elapsed();
-
-  // Only log non-introspection queries
-  if operation_name != "IntrospectionQuery" {
-    if response.is_ok() {
-      match &query {
-        Some(q) => info!(
-          operation_name = %operation_name,
-          query = %q,
-          duration_ms = duration.as_millis(),
-          "GraphQL Request"
-        ),
-        None => info!(
-          operation_name = %operation_name,
-          duration_ms = duration.as_millis(),
-          "GraphQL Request"
-        ),
-      }
-    } else {
-      match &query {
-        Some(q) => error!(
-          operation_name = %operation_name,
-          query = %q,
-          duration_ms = duration.as_millis(),
-          "GraphQL Request Error"
-        ),
-        None => error!(
-          operation_name = %operation_name,
-          duration_ms = duration.as_millis(),
-          "GraphQL Request Error"
-        ),
-      }
-    }
-  }
 
   // Convert GraphQL response (resolvers may have inserted headers via async-graphql APIs)
-
-  {
-    let graphql_response: GraphQLResponse = response.into();
-    graphql_response.into_response()
-  }
+  let graphql_response: GraphQLResponse = response.into();
+  graphql_response.into_response()
 }
 
 /// Parse GraphQL request from HTTP request
@@ -157,12 +94,17 @@ async fn parse_graphql_request(req: Request) -> Result<async_graphql::Request, R
   }
 }
 
-/// GraphQL GET handler for playground (development only)
-pub async fn graphql_get_handler(development_mode: bool) -> Response {
+/// GraphQL GET handler - only allows POST operations
+pub async fn graphql_get_handler() -> Response {
+  (StatusCode::METHOD_NOT_ALLOWED, "Method not allowed").into_response()
+}
+
+/// Playground handler for development mode only
+pub async fn playground_handler(development_mode: bool) -> Response {
   if development_mode {
     Html(playground_html()).into_response()
   } else {
-    (StatusCode::METHOD_NOT_ALLOWED, "Method not allowed").into_response()
+    (StatusCode::NOT_FOUND, "Not found").into_response()
   }
 }
 

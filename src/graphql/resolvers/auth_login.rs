@@ -3,7 +3,6 @@ use crate::services::{AuthService, SessionError};
 use crate::DpsAuthApiConfig;
 use async_graphql::{Context, Object, Result, SimpleObject};
 use sqlx::SqlitePool;
-use std::sync::Arc;
 use tracing::instrument;
 
 /// GraphQL output type for authentication response
@@ -36,7 +35,7 @@ impl AuthLoginResolver {
     #[graphql(name = "password")] password: String,
   ) -> Result<AuthLoginResponse> {
     let pool = ctx.data::<SqlitePool>()?;
-    let config = ctx.data::<Arc<DpsAuthApiConfig>>()?;
+    let config = ctx.data::<DpsAuthApiConfig>()?;
     let session_secret = config.session_secret.clone();
     let cookie_domain = config.cookie_domain.clone();
     let insecure_cookie = config.insecure_cookie;
@@ -132,7 +131,7 @@ mod tests {
       EmptySubscription,
     )
     .data(pool)
-    .data(Arc::new(test_config))
+    .data(test_config)
     .finish();
 
     // Test: Call the mutation
@@ -189,7 +188,7 @@ mod tests {
       EmptySubscription,
     )
     .data(pool)
-    .data(Arc::new(test_config))
+    .data(test_config)
     .finish();
 
     // Test: Call with non-existent user
@@ -230,7 +229,7 @@ mod tests {
       AuthLoginResolver,
       EmptySubscription,
     )
-    .data(Arc::new(test_config))
+    .data(test_config)
     .finish();
 
     let query = r#"

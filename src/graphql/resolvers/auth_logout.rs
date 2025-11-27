@@ -1,7 +1,6 @@
 use crate::middleware::session::SESSION_COOKIE_NAME;
 use crate::DpsAuthApiConfig;
 use async_graphql::{Context, Object, Result, SimpleObject};
-use std::sync::Arc;
 use tracing::instrument;
 
 /// GraphQL output type for logout response
@@ -21,7 +20,7 @@ impl AuthLogoutResolver {
   #[instrument(skip(self, ctx))]
   #[graphql(name = "authLogout")]
   async fn auth_logout(&self, ctx: &Context<'_>) -> Result<AuthLogoutResponse> {
-    let config = ctx.data::<Arc<DpsAuthApiConfig>>()?;
+    let config = ctx.data::<DpsAuthApiConfig>()?;
     let cookie_domain = config.cookie_domain.clone();
     let insecure_cookie = config.insecure_cookie;
 

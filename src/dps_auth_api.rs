@@ -134,6 +134,8 @@ impl DpsAuthApi {
     let database = self.initialize_database().await?;
     let schema = crate::graphql::schema::build_schema()
       .data(database.pool)
+      .data(self.config.as_ref().clone()) // Inject config directly into schema data
+      .extension(async_graphql::extensions::Tracing) // Built-in tracing for GraphQL operations
       .finish();
     Ok(self.build_router(schema))
   }
@@ -187,20 +189,21 @@ impl DpsAuthApi {
       .route("/", get(crate::handlers::rest::root_handler))
       .route("/health", get(crate::handlers::rest::health_handler))
       .route(
-        &format!("{}/graphql", self.config.api_path),
+        &format!("{}/playground", self.config.api_path),
         get({
           let development_mode = self.config.development_mode;
-          move || crate::handlers::graphql::graphql_get_handler(development_mode)
-        })
-        .post({
-          let config = self.config.clone();
-          move |state, request| {
-            crate::handlers::graphql::graphql_post_handler(state, request, config.clone())
-          }
-        })
-        .layer(from_fn(
-          crate::middleware::session::create_session_middleware(self.config.session_secret.clone()),
-        )),
+          move || crate::handlers::graphql::playground_handler(development_mode)
+        }),
+      )
+      .route(
+        &format!("{}/graphql", self.config.api_path),
+        get(crate::handlers::graphql::graphql_get_handler)
+          .post(crate::handlers::graphql::graphql_post_handler)
+          .layer(from_fn(
+            crate::middleware::session::create_session_middleware(
+              self.config.session_secret.clone(),
+            ),
+          )),
       )
       .fallback(crate::handlers::rest::not_found_handler)
       .layer(
