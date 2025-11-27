@@ -3,7 +3,11 @@ use axum::{middleware::from_fn, routing::get, Router};
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
-use tower_http::cors::CorsLayer;
+use tower_http::{
+  cors::CorsLayer,
+  trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
+};
+use tracing::Level;
 
 #[derive(Debug)]
 pub struct DpsAuthApi {
@@ -211,7 +215,13 @@ impl DpsAuthApi {
           .layer(from_fn(
             crate::middleware::request_id::request_id_middleware,
           ))
-          .layer(from_fn(crate::middleware::logging::rest_logging_middleware))
+          .layer(
+            TraceLayer::new_for_http()
+              // Log all HTTP requests at INFO level (instead of default DEBUG for non-POST)
+              .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
+              .on_request(DefaultOnRequest::new().level(Level::INFO))
+              .on_response(DefaultOnResponse::new().level(Level::INFO)),
+          )
           .layer(CorsLayer::very_permissive()),
       )
       .with_state(schema)
