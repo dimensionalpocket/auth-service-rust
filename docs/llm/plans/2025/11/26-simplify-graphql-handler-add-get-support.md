@@ -36,42 +36,36 @@ Replace the overly complex custom GraphQL handler (224 lines) with standard asyn
 
 ## Implementation Details
 
-### Custom GraphQL Extractor (Leverages Existing Session Middleware)
+### Simplified GraphQL Handler (Uses GraphQLRequest Extractor)
 ```rust
 // src/handlers/graphql.rs
-pub struct GraphQLRequestWithContext(pub async_graphql::Request);
+use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
+use axum::extract::Extension;
 
-impl<S> FromRequest<S> for GraphQLRequestWithContext
-where
-    S: Send + Sync,
-{
-    type Rejection = GraphQLRejection;
-
-    async fn from_request(req: Request, _state: &S) -> Result<Self, Self::Rejection> {
-        // Extract GraphQL request using existing library functionality
-        let mut gql_req = GraphQLBatchRequest::<GraphQLRejection>::from_request(req, &())?
-            .0
-            .into_single()?;
-        
-        // Add session from existing request extensions (set by current session middleware)
-        if let Some(session) = req.extensions().get::<SessionContext>() {
-            gql_req = gql_req.data(session.clone());
-        }
-        
-        Ok(GraphQLRequestWithContext(gql_req))
-    }
+async fn graphql_handler(
+    // 1. Extract the schema (injected at startup)
+    Extension(schema): Extension<Schema>,
+    // 2. Extract session from existing middleware
+    Extension(session): Extension<SessionContext>,
+    // 3. Extractor automatically handles GET (query params) and POST (body)
+    req: GraphQLRequest,
+) -> GraphQLResponse {
+    // Inject session into GraphQL request context (3 lines of logic!)
+    let request = req.into_inner().data(session);
+    
+    // Execute and return response
+    schema.execute(request).await.into()
 }
 ```
 
-### Service-Based Router Configuration
+### Updated Router Configuration
 ```rust
 // In build_router()
-let graphql_service = GraphQL::new(schema);  // Single service instance for both GET and POST
-
 .route(
     &format!("{}/graphql", self.config.api_path),
-    get(graphql_service)  // Same service instance handles GET
-    .post(graphql_service) // Same service instance handles POST
+    // Same handler handles both GET and POST automatically
+    get(graphql_handler)
+    .post(graphql_handler)
     // Existing session middleware already adds SessionContext to request extensions
     .layer(from_fn(
         crate::middleware::session::create_session_middleware(self.config.session_secret.clone()),
@@ -100,25 +94,26 @@ let schema_with_config = schema;  // Config is now part of schema data
 ```
 
 ### GET Support Implementation
-- `async-graphql-axum::GraphQL` automatically handles GET requests via `GraphQLBatchRequest::from_request()`
+- `async_graphql_axum::GraphQLRequest` extractor automatically handles GET requests
 - Uses `async_graphql::http::parse_query_string()` internally for URL parameter parsing
 - Supports standard GraphQL GET format: `?query={...}&operationName={...}&variables={...}`
 - Library enforces GraphQL spec (mutations via GET not allowed)
 
 ### POST Support Implementation  
-- Use `async_graphql-axum::GraphQL::new(schema.data(config))` directly
-- Library handles JSON parsing, validation, and response formatting internally
-- Config data is pre-injected into service, no per-request injection needed
+- Same `GraphQLRequest` extractor automatically handles POST requests
+- Supports JSON body and `application/graphql` content-type
+- No manual parsing needed - extractor handles both GET and POST transparently
 - Remove custom `parse_graphql_request` function (~50 lines of code)
-- No manual method routing needed - library handles GET/POST automatically
+- Single handler processes both HTTP methods automatically
 
 ### Session Context Handling
 - Existing session middleware already extracts session and adds to request extensions
-- Custom GraphQL extractor retrieves session from extensions and adds to GraphQL request data
-- Config data is injected at service level since it's static and doesn't change per request
-- Service-based routing uses single `GraphQL::new(schema.data(config))` instance for both GET and POST
+- Simplified handler extracts session via `Extension(session): Extension<SessionContext>`
+- Session injected into GraphQL context using `req.into_inner().data(session)` (3 lines of code)
+- Config data is injected at schema level (static, doesn't change per request)
 - No additional middleware needed - leverages existing session infrastructure
-- Preserves existing authentication and authorization patterns without per-request service creation
+- Preserves existing authentication and authorization patterns
+- `GraphQLRequest` extractor handles all HTTP method parsing automatically
 
 ## Files to Modify
 
@@ -287,9 +282,9 @@ schema.data(self.config.clone())  // Single Arc::clone() at startup
 - **Request Parsing Function**: 50 lines → 0 lines (100% elimination)
 - **Manual Error Handling**: 30 lines → 0 lines (100% elimination)  
 - **Custom Logging Logic**: ~40 lines → 0 lines (100% elimination, replaced by Tracing extension)
-- **Handler Logic**: ~100 lines → ~30 lines (70% reduction)
-- **Custom Extractor**: +20 lines (replaces parsing logic)
-- **Net Reduction**: ~100 lines removed while adding GET support and improving logging
+- **Handler Logic**: ~100 lines → ~10 lines (90% reduction)
+- **GraphQLRequest Extractor**: 0 lines (uses existing library extractor)
+- **Net Reduction**: ~120 lines removed while adding GET support and improving logging
 
 ### Standards Compliance
 - ✅ GraphQL GET support via URL parameters
@@ -297,14 +292,14 @@ schema.data(self.config.clone())  // Single Arc::clone() at startup
 - ✅ Standard async-graphql-axum patterns
 
 ### Maintainability
-- Less custom code to maintain
-- Service-based routing is more efficient (single service instance for both GET and POST)
-- Leverages well-tested library functionality for HTTP method handling
-- Easier to upgrade async-graphql versions
+- Dramatically less custom code to maintain (~10 lines vs 224 lines originally)
+- Single handler processes both GET and POST automatically
+- Leverages well-tested `GraphQLRequest` extractor for HTTP method handling
+- Easier to upgrade async-graphql versions (uses standard patterns)
 - Library handles edge cases and spec compliance automatically
 - Built-in Tracing extension provides professional-grade observability
 - No additional middleware needed - leverages existing session infrastructure
-- Clean separation of concerns (existing session middleware, custom GraphQL extractor, library service, tracing extension)
+- Clean separation of concerns (session middleware → handler → GraphQLRequest extractor → schema execution)
 
 ## Success Criteria
 
@@ -314,7 +309,7 @@ schema.data(self.config.clone())  // Single Arc::clone() at startup
 4. ✅ All existing tests pass
 5. ✅ Session handling unchanged
 
-This plan transforms the GraphQL handler to use a service-based approach that leverages the existing session middleware. The `async-graphql-axum::GraphQL` service handles GET/POST automatically and efficiently, with a single service instance for both HTTP methods, config data injected at service level (since it's static), and session context handled via custom extractor. This provides both performance benefits (single service instance) and maintains existing authentication patterns without additional middleware.
+This plan transforms the GraphQL handler to use a simplified approach that leverages the existing session middleware and the `async-graphql-axum::GraphQLRequest` extractor. The extractor handles GET/POST automatically and efficiently, with a single handler processing both HTTP methods, config data injected at schema level (since it's static), and session context handled via standard Axum extension patterns. This provides both maintainability benefits (90% code reduction) and maintains existing authentication patterns without additional middleware complexity.
 
 ## Phased Implementation Strategy
 
@@ -385,18 +380,18 @@ This plan transforms the GraphQL handler to use a service-based approach that le
 - All 226 existing tests pass + 3 new playground-specific tests pass
 - Code passes linter and formatter checks with existing development mode logic
 
-### Phase 4: Service-Based Routing with Custom Extractor (High Risk)
-**Goal**: Replace custom handler with service-based routing and session context extractor
-**Rationale for merging**: Phases 4 & 5 have strong technical coupling - extractor depends on service and service depends on extractor. Merging reduces integration risk and provides a complete working solution in one change.
+### Phase 4: Simplified Handler with GraphQLRequest Extractor (Medium Risk)
+**Goal**: Replace complex custom handler with simplified handler using `GraphQLRequest` extractor
+**Rationale**: Use `async-graphql-axum::GraphQLRequest` extractor which automatically handles GET (query params) and POST (body) parsing, eliminating need for custom parsing logic.
 **Changes**:
-1. Create `GraphQLRequestWithContext` extractor in `src/handlers/graphql.rs`
-2. Replace `graphql_post_handler` with `GraphQL::new(schema)` service
-3. Update router to use single service instance for GET/POST on /graphql
-4. Remove `parse_graphql_request` function
+1. Replace `graphql_post_handler` with simplified `graphql_handler` using `GraphQLRequest` extractor
+2. Update router to use same handler for both GET and POST on /graphql
+3. Remove `parse_graphql_request` function (~50 lines eliminated)
+4. Inject session context using `req.into_inner().data(session)` pattern
 5. Playground already handled separately from Phase 3
 **Files**: `src/dps_auth_api.rs`, `src/handlers/graphql.rs`
 **Testing**: Full integration test suite, manual testing of GET/POST operations
-**Risk**: High - core request handling changes, but single rollback point to Phase 3
+**Risk**: Medium - handler replacement but uses proven extractor pattern
 
 ### Phase 5: Cleanup & Validation (Low Risk)
 **Goal**: Remove unused code and validate complete functionality

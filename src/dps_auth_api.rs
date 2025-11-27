@@ -197,8 +197,8 @@ impl DpsAuthApi {
       )
       .route(
         &format!("{}/graphql", self.config.api_path),
-        get(crate::handlers::graphql::graphql_get_handler)
-          .post(crate::handlers::graphql::graphql_post_handler)
+        get(crate::handlers::graphql::graphql_handler)
+          .post(crate::handlers::graphql::graphql_handler)
           .layer(from_fn(
             crate::middleware::session::create_session_middleware(
               self.config.session_secret.clone(),

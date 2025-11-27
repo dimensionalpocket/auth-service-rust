@@ -37,6 +37,7 @@ test-utils = []
 
 [dev-dependencies]
 tracing-test = "0.2"
+urlencoding = "2.1"
 
 # Local development script
 [[bin]]
