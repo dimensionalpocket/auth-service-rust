@@ -6,6 +6,7 @@ pub mod auth_me;
 pub mod auth_register;
 pub mod get_server_timestamp;
 pub mod remove_site;
+pub mod site;
 pub mod sites;
 pub mod update_site;
 
@@ -17,5 +18,6 @@ pub use auth_me::AuthMeResolver;
 pub use auth_register::AuthRegisterResolver;
 pub use get_server_timestamp::GetServerTimestampResolver;
 pub use remove_site::RemoveSiteResolver;
+pub use site::SiteResolver;
 pub use sites::SitesResolver;
 pub use update_site::UpdateSiteResolver;

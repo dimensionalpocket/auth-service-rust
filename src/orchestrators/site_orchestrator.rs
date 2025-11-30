@@ -1,5 +1,5 @@
 use crate::middleware::session::SessionContext;
-use crate::queries::sites::{CreateSiteData, UpdateSiteData};
+use crate::queries::sites::{CreateSiteData, GetSiteByIdQuery, UpdateSiteData};
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::{SiteError, SiteService, UserRoleService};
 use sqlx::SqlitePool;
@@ -96,5 +96,38 @@ impl SiteOrchestrator {
 
     // Business logic: Update site
     SiteService::update_site(pool, site_id, update_data).await
+  }
+
+  pub async fn get_site_details_with_permission_check(
+    pool: &SqlitePool,
+    session_context: SessionContext,
+    site_id: i64,
+  ) -> Result<crate::models::Site, SiteError> {
+    // Authentication: Check if user is authenticated
+    let user_id = session_context
+      .user_id()
+      .ok_or(SiteError::AuthenticationError(
+        "Authentication required".to_string(),
+      ))?;
+
+    // Authorization: Get user and check permissions
+    let user = GetUserByIdQuery::run(pool, user_id)
+      .await
+      .map_err(SiteError::DatabaseError)?
+      .ok_or(SiteError::ValidationError("User not found".to_string()))?;
+
+    let allowed = UserRoleService::check_user_permission(pool, &user, "can_view_site_details")
+      .await
+      .map_err(SiteError::DatabaseError)?;
+
+    if !allowed {
+      return Err(SiteError::AuthorizationError("Forbidden".to_string()));
+    }
+
+    // Business logic: Get site details
+    GetSiteByIdQuery::run(pool, site_id)
+      .await
+      .map_err(SiteError::DatabaseError)?
+      .ok_or(SiteError::SiteNotFound(site_id))
   }
 }

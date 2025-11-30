@@ -30,6 +30,7 @@ It is intended to be deployed as a microservice with a volume to house the SQLit
 |-----------|-------------|-----------------|---------------|
 | `getServerTimestamp` | Get current server timestamp | timestamp (String) | None |
 | `authMe` | Get current authenticated user profile | userId (Int), uuid (String), username (String), roleId (Int), createdTs (Int), updatedTs (Int), sessionIat (Int), sessionExp (Int) | Valid session cookie |
+| `site` | Get complete site details by ID (admin only) | id (Int!), slug (String), subdomain (String), port (Int), protocol (String), metadataJson (String), createdTs (Int), updatedTs (Int) | can_view_site_details |
 | `sites` | List all sites in database | sites: [id (Int), slug (String), subdomain (String), port (Int), protocol (String)] | None |
 
 #### Mutations

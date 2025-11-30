@@ -1,7 +1,7 @@
 use crate::graphql::resolvers::{
   AddSiteResolver, AuthChangePasswordResolver, AuthLoginResolver, AuthLogoutResolver,
   AuthMeResolver, AuthRegisterResolver, GetServerTimestampResolver, RemoveSiteResolver,
-  SitesResolver, UpdateSiteResolver,
+  SiteResolver, SitesResolver, UpdateSiteResolver,
 };
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 
@@ -14,11 +14,17 @@ use async_graphql::{EmptySubscription, MergedObject, Schema};
 /// - getServerTimestamp: Get current server time for synchronization
 /// - authMe: Get current authenticated user profile
 /// - sites: List all sites in the database (no authentication required)
+/// - site: Get complete site details by ID (admin only, requires can_view_site_details permission)
 ///
 /// Future queries will be added here as the service expands to include
 /// user authentication, profile management, and other auth-related operations.
 #[derive(MergedObject, Default)]
-pub struct Query(GetServerTimestampResolver, AuthMeResolver, SitesResolver);
+pub struct Query(
+  GetServerTimestampResolver,
+  AuthMeResolver,
+  SitesResolver,
+  SiteResolver,
+);
 
 impl Query {
   pub fn new() -> Self {
