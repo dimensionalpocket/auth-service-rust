@@ -108,7 +108,7 @@ pub async fn update_password(
   // Get current user with password hash
   let user = GetUserByIdQuery::run(pool, user_id)
     .await?
-    .ok_or_else(|| UserError::ValidationError("User not found".to_string()))?;
+    .ok_or(UserError::UserNotFound(user_id))?;
 
   // Verify current password using PasswordService
   PasswordService::verify(&user.password_hash, current_password)

@@ -423,7 +423,7 @@ impl SiteOrchestrator {
         let user = GetUserByIdQuery::run(pool, user_id)
             .await
             .map_err(SiteError::DatabaseError)?
-            .ok_or(SiteError::ValidationError("User not found".to_string()))?;
+            .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
         let allowed = UserRoleService::check_user_permission(pool, &user, "can_view_site_details")
             .await

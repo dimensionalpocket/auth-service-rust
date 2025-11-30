@@ -25,7 +25,13 @@
 - Never include git operations, changelogs, PR descriptions, version bumps, or release notes in plans
 - Never worry about backwards compatibility if the version is pre-1.0.0
 - If plan involves creating or updating GraphQL resolvers, add a TODO to update the `README.md` mutations/queries table
+- When writing plans that involve creating resolvers, queries, services, and/or orchestrators in the same plan, split into sub-tasks in this order, where each subtask is fully tested before moving to the next:
+  - Queries first (if any)
+  - Services second (if any)
+  - Orchestrators third (if any)
+  - GraphQL resolvers last
 - Do not code immediately after writing plans - wait for user review/approval
+
 
 ### Implementing Plans
 - Only start implementation after explicit user command
@@ -55,6 +61,15 @@
 - Resolvers handle GraphQL-specific concerns (input validation, response formatting)
   - They do NOT contain business logic, database access, or session management
 - Any objects that are part of the GraphQL context should be retrieved from the context object passed into the resolver method then passed to the orchestration/service layer as needed
+- **GraphQL Types**: All GraphQL response types should be defined inline within their respective resolver files, not in separate types modules
+  - This follows the established pattern where types live alongside the code that uses them
+  - Do NOT create separate `types` modules for GraphQL types
+  - Examples: `UserListing` in `users.rs`, `SiteListing` in `sites.rs`, `AddSiteResponse` in `add_site.rs`
+- Naming conventions:
+  - **Query/Mutation names**: camelCase with `#[graphql(name = "camelCase")]` (e.g., `updateUser`, `deleteUser`, `authLogin`)
+  - **Field names**: snake_case in Rust with `#[graphql(name = "camelCase")]` for GraphQL output (e.g., `role_id` → `roleId`, `created_ts` → `createdTs`)
+  - **Input types**: camelCase field names with `#[graphql(name = "camelCase")]` annotations
+  - **Response types**: Follow same pattern as existing `AddSiteResponse`, `UpdateSiteResponse`, `AuthLoginResponse`
 
 ### Orchestration Layer
 - Service orchestrators live in `src/orchestrators/`

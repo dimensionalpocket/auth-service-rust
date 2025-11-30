@@ -20,6 +20,12 @@ pub enum UserError {
   ValidationError(String),
   /// Authentication failed
   AuthenticationError(String),
+  /// Authorization failed
+  AuthorizationError(String),
+  /// User not found
+  UserNotFound(i64),
+  /// Self-deletion attempted
+  SelfDeletion,
 }
 
 impl std::fmt::Display for UserError {
@@ -32,6 +38,9 @@ impl std::fmt::Display for UserError {
       UserError::DatabaseError(err) => write!(f, "Database error: {err}"),
       UserError::ValidationError(msg) => write!(f, "Validation error: {msg}"),
       UserError::AuthenticationError(msg) => write!(f, "Authentication error: {msg}"),
+      UserError::AuthorizationError(msg) => write!(f, "Authorization error: {msg}"),
+      UserError::UserNotFound(user_id) => write!(f, "User with ID {user_id} not found"),
+      UserError::SelfDeletion => write!(f, "Cannot delete your own account"),
     }
   }
 }
@@ -206,7 +215,7 @@ impl UserService {
     let user = GetUserByIdQuery::run(pool, user_id)
       .await
       .map_err(UserError::DatabaseError)?
-      .ok_or_else(|| UserError::ValidationError("User not found".to_string()))?;
+      .ok_or(UserError::UserNotFound(user_id))?;
 
     // Verify current password
     let is_current_password_valid = PasswordService::verify(current_password, &user.password_hash)
@@ -686,10 +695,10 @@ mod tests {
     // Verify: Should return error
     assert!(result.is_err());
     match result.unwrap_err() {
-      UserError::ValidationError(msg) => {
-        assert!(msg.contains("User not found"));
+      UserError::UserNotFound(user_id) => {
+        assert_eq!(user_id, 999);
       }
-      _ => panic!("Expected ValidationError"),
+      _ => panic!("Expected UserNotFound"),
     }
   }
 }

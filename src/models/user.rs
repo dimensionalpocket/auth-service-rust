@@ -1,6 +1,7 @@
+use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
-#[derive(Debug, FromRow)]
+#[derive(Debug, FromRow, Serialize, Deserialize)]
 pub struct User {
   pub id: i64,
   pub uuid: String,
@@ -10,4 +11,11 @@ pub struct User {
   pub role_id: i64,
   pub password_hash: String,
   pub metadata_json: Option<String>,
+}
+
+#[derive(Debug, FromRow)]
+pub struct UserWithRole {
+  #[sqlx(flatten)]
+  pub user: User,
+  pub role_name: String,
 }
