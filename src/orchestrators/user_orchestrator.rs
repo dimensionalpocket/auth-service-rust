@@ -2,6 +2,7 @@ use crate::middleware::session::SessionContext;
 use crate::models::user::UserWithRole;
 use crate::queries::users::GetAllUsersWithRolesQuery;
 use crate::queries::users::GetUserByIdQuery;
+use crate::queries::users::GetUserByIdWithRoleQuery;
 use crate::services::{UserError, UserRoleService};
 use sqlx::SqlitePool;
 
@@ -37,6 +38,54 @@ impl UserOrchestrator {
     GetAllUsersWithRolesQuery::run(pool)
       .await
       .map_err(UserError::DatabaseError)
+  }
+
+  /// Get a single user's details with permission check
+  ///
+  /// This method:
+  /// - Checks if the user is authenticated
+  /// - Verifies the user has "can_view_user_details" permission
+  /// - Returns the requested user's details with role information
+  ///
+  /// # Arguments
+  /// * `pool` - Database connection pool
+  /// * `session_context` - Session context for authentication/authorization
+  /// * `target_user_id` - ID of the user to retrieve
+  ///
+  /// # Returns
+  /// * `Ok(UserWithRole)` - User details with role information
+  /// * `Err(UserError)` - Authentication, authorization, or database error
+  pub async fn get_user_details_with_permission_check(
+    pool: &SqlitePool,
+    session_context: SessionContext,
+    target_user_id: i64,
+  ) -> Result<UserWithRole, UserError> {
+    // Authentication: Check if user is authenticated
+    let user_id = session_context
+      .user_id()
+      .ok_or(UserError::AuthenticationError(
+        "Authentication required".to_string(),
+      ))?;
+
+    // Authorization: Get user and check permissions
+    let user = GetUserByIdQuery::run(pool, user_id)
+      .await
+      .map_err(UserError::DatabaseError)?
+      .ok_or(UserError::UserNotFound(user_id))?;
+
+    let allowed = UserRoleService::check_user_permission(pool, &user, "can_view_user_details")
+      .await
+      .map_err(UserError::DatabaseError)?;
+
+    if !allowed {
+      return Err(UserError::AuthorizationError("Forbidden".to_string()));
+    }
+
+    // Business logic: Get the target user with role information
+    GetUserByIdWithRoleQuery::run(pool, target_user_id)
+      .await
+      .map_err(UserError::DatabaseError)?
+      .ok_or(UserError::UserNotFound(target_user_id))
   }
 }
 
@@ -215,5 +264,191 @@ mod tests {
     let users = result.unwrap();
     assert_eq!(users.len(), 1); // Only admin user should be returned
     assert_eq!(users[0].user.id, admin_user.id);
+  }
+
+  #[tokio::test]
+  async fn test_get_user_details_with_permission_check_success() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create roles
+    let admin_role_id = create_test_role(&pool, "admin", &["can_view_user_details"]).await;
+    let user_role_id = create_test_role(&pool, "user", &[]).await;
+
+    // Create users
+    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let target_user = create_test_user(&pool, "target_user", user_role_id).await;
+
+    // Create session context for admin user
+    let session_payload = DpsAuthSessionPayload {
+      sub: admin_user.id,
+      iat: 1000,
+      exp: 2000,
+    };
+    let session_context = SessionContext::new(Some(session_payload));
+
+    // Test getting user details
+    let result = UserOrchestrator::get_user_details_with_permission_check(
+      &pool,
+      session_context,
+      target_user.id,
+    ).await;
+
+    assert!(result.is_ok());
+    let user_details = result.unwrap();
+    assert_eq!(user_details.user.id, target_user.id);
+    assert_eq!(user_details.user.name, "target_user");
+    assert_eq!(user_details.role_name, "user");
+    assert_eq!(user_details.user.role_id, user_role_id);
+  }
+
+  #[tokio::test]
+  async fn test_get_user_details_without_authentication() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create session context without user ID (not authenticated)
+    let session_context = SessionContext::new(None);
+
+    // Test getting user details
+    let result = UserOrchestrator::get_user_details_with_permission_check(
+      &pool,
+      session_context,
+      123,
+    ).await;
+
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::AuthenticationError(msg) => {
+        assert!(msg.contains("Authentication required"));
+      }
+      _ => panic!("Expected AuthenticationError"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_get_user_details_without_permission() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create role without can_view_user_details permission
+    let user_role_id = create_test_role(&pool, "user", &[]).await;
+
+    // Create regular user
+    let regular_user = create_test_user(&pool, "user1", user_role_id).await;
+
+    // Create session context for regular user
+    let session_payload = DpsAuthSessionPayload {
+      sub: regular_user.id,
+      iat: 1000,
+      exp: 2000,
+    };
+    let session_context = SessionContext::new(Some(session_payload));
+
+    // Test getting user details
+    let result = UserOrchestrator::get_user_details_with_permission_check(
+      &pool,
+      session_context,
+      regular_user.id,
+    ).await;
+
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::AuthorizationError(msg) => {
+        assert!(msg.contains("Forbidden"));
+      }
+      _ => panic!("Expected AuthorizationError"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_get_user_details_nonexistent_user() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create admin role and user
+    let admin_role_id = create_test_role(&pool, "admin", &["can_view_user_details"]).await;
+    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+
+    // Create session context for admin user
+    let session_payload = DpsAuthSessionPayload {
+      sub: admin_user.id,
+      iat: 1000,
+      exp: 2000,
+    };
+    let session_context = SessionContext::new(Some(session_payload));
+
+    // Test getting non-existent user details
+    let result = UserOrchestrator::get_user_details_with_permission_check(
+      &pool,
+      session_context,
+      999,
+    ).await;
+
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::UserNotFound(user_id) => {
+        assert_eq!(user_id, 999);
+      }
+      _ => panic!("Expected UserNotFound"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_get_user_details_nonexistent_session_user() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create target user
+    let user_role_id = create_test_role(&pool, "user", &[]).await;
+    let target_user = create_test_user(&pool, "target_user", user_role_id).await;
+
+    // Create session context for non-existent user
+    let session_payload = DpsAuthSessionPayload {
+      sub: 999,
+      iat: 1000,
+      exp: 2000,
+    };
+    let session_context = SessionContext::new(Some(session_payload));
+
+    // Test getting user details
+    let result = UserOrchestrator::get_user_details_with_permission_check(
+      &pool,
+      session_context,
+      target_user.id,
+    ).await;
+
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::UserNotFound(user_id) => {
+        assert_eq!(user_id, 999);
+      }
+      _ => panic!("Expected UserNotFound"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_get_user_details_self_access() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create admin role and user
+    let admin_role_id = create_test_role(&pool, "admin", &["can_view_user_details"]).await;
+    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+
+    // Create session context for admin user
+    let session_payload = DpsAuthSessionPayload {
+      sub: admin_user.id,
+      iat: 1000,
+      exp: 2000,
+    };
+    let session_context = SessionContext::new(Some(session_payload));
+
+    // Test getting own user details
+    let result = UserOrchestrator::get_user_details_with_permission_check(
+      &pool,
+      session_context,
+      admin_user.id,
+    ).await;
+
+    assert!(result.is_ok());
+    let user_details = result.unwrap();
+    assert_eq!(user_details.user.id, admin_user.id);
+    assert_eq!(user_details.user.name, "admin");
+    assert_eq!(user_details.role_name, "admin");
   }
 }

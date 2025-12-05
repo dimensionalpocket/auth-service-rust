@@ -24,7 +24,7 @@ Add GraphQL resolvers for user administration with proper permission checks and 
 - `src/services/user_service.rs` - Add `UserError` enum if not exists
 - **Test**: Write unit tests for orchestrator permission checks and business logic
 
-**Step 3: Create Resolver**
+**Step 3: Create Resolver** ✅ **COMPLETE**
 - `src/graphql/resolvers/users.rs` - Create new resolver file (following `site.rs` and `add_site.rs` pattern)
 - `src/graphql/resolvers/mod.rs` - Add `pub use users::UsersResolver;`
 - `src/graphql/schema.rs` - Add `UsersResolver` to Query MergedObject
@@ -107,16 +107,16 @@ impl UsersResolver {
 
 #### Implementation Steps (in order):
 
-**Step 1: Create Query**
+**Step 1: Create Query** ✅ **COMPLETE**
 - `src/queries/users/get_user_by_id_with_role.rs` - Create new query
 - `src/queries/users/mod.rs` - Add new query export
 - **Test**: Write unit tests for the query to verify it returns a single user with role information
 
-**Step 2: Extend Orchestrator**
+**Step 2: Extend Orchestrator** ✅ **COMPLETE**
 - `src/orchestrators/user_orchestrator.rs` - Add get user method
 - **Test**: Write unit tests for orchestrator permission checks and business logic
 
-**Step 3: Create Resolver**
+**Step 3: Create Resolver** ✅ **COMPLETE**
 - `src/graphql/resolvers/user.rs` - Create new single resolver file (following `site.rs` pattern)
 - `src/graphql/resolvers/mod.rs` - Add `pub use user::UserResolver;`
 - `src/graphql/schema.rs` - Add `UserResolver` to Query MergedObject

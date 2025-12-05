@@ -1,7 +1,7 @@
 use crate::graphql::resolvers::{
   AddSiteResolver, AuthChangePasswordResolver, AuthLoginResolver, AuthLogoutResolver,
   AuthMeResolver, AuthRegisterResolver, GetServerTimestampResolver, RemoveSiteResolver,
-  SiteResolver, SitesResolver, UpdateSiteResolver, UsersResolver,
+  SiteResolver, SitesResolver, UpdateSiteResolver, UserResolver, UsersResolver,
 };
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 
@@ -16,6 +16,7 @@ use async_graphql::{EmptySubscription, MergedObject, Schema};
 /// - sites: List all sites in the database (no authentication required)
 /// - site: Get complete site details by ID (admin only, requires can_view_site_details permission)
 /// - users: List all users with role information (requires can_list_users permission)
+/// - user: Get complete user details by ID (requires can_view_user_details permission)
 ///
 /// Future queries will be added here as the service expands to include
 /// user authentication, profile management, and other auth-related operations.
@@ -26,6 +27,7 @@ pub struct Query(
   SitesResolver,
   SiteResolver,
   UsersResolver,
+  UserResolver,
 );
 
 impl Query {

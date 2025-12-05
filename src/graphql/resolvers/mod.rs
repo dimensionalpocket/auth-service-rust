@@ -9,6 +9,7 @@ pub mod remove_site;
 pub mod site;
 pub mod sites;
 pub mod update_site;
+pub mod user;
 pub mod users;
 
 pub use add_site::AddSiteResolver;
@@ -22,4 +23,5 @@ pub use remove_site::RemoveSiteResolver;
 pub use site::SiteResolver;
 pub use sites::SitesResolver;
 pub use update_site::UpdateSiteResolver;
+pub use user::UserResolver;
 pub use users::UsersResolver;
