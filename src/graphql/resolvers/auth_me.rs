@@ -16,6 +16,9 @@ pub struct AuthMeResponse {
   /// The authenticated user's role ID
   #[graphql(name = "roleId")]
   pub role_id: i64,
+  /// The name of the user's role
+  #[graphql(name = "roleName")]
+  pub role_name: String,
   /// Timestamp when the user was created
   #[graphql(name = "createdTs")]
   pub created_ts: i64,
@@ -41,7 +44,7 @@ impl AuthMeResolver {
   /// This query retrieves detailed user information for the authenticated user,
   /// including both user profile data and current session information.
   /// The response contains:
-  /// - User profile: ID, UUID, username, role, timestamps
+  /// - User profile: ID, UUID, username, role ID, role name, timestamps
   /// - Session data: When session was created and when it expires
   ///
   /// Returns `null` if no valid session token was provided in the request.
@@ -62,6 +65,7 @@ impl AuthMeResolver {
   ///     uuid
   ///     username
   ///     roleId
+  ///     roleName
   ///     createdTs
   ///     updatedTs
   ///     sessionIat
@@ -73,18 +77,19 @@ impl AuthMeResolver {
   /// **Response for authenticated user:**
   /// ```json
   /// {
-  ///   "data": {
-  ///     "authMe": {
-  ///       "userId": 123,
-  ///       "uuid": "550e8400-e29b-41d4-a716-446655440000",
-  ///       "username": "johndoe",
-  ///       "roleId": 2,
-  ///       "createdTs": 1706356800,
-  ///       "updatedTs": 1706356800,
-  ///       "sessionIat": 1706356800,
-  ///       "sessionExp": 1706616000
-  ///     }
+  /// "data": {
+  ///   "authMe": {
+  ///     "userId": 123,
+  ///     "uuid": "550e8400-e29b-41d4-a716-446655440000",
+  ///     "username": "johndoe",
+  ///     "roleId": 2,
+  ///     "roleName": "user",
+  ///     "createdTs": 1706356800,
+  ///     "updatedTs": 1706356800,
+  ///     "sessionIat": 1706356800,
+  ///     "sessionExp": 1706616000
   ///   }
+  /// }
   /// }
   /// ```
   ///
@@ -114,6 +119,7 @@ impl AuthMeResolver {
           uuid: auth_me_result.uuid,
           username: auth_me_result.username,
           role_id: auth_me_result.role_id,
+          role_name: auth_me_result.role_name,
           created_ts: auth_me_result.created_ts,
           updated_ts: auth_me_result.updated_ts,
           session_iat: auth_me_result.session_iat,
@@ -183,7 +189,7 @@ mod tests {
 
     let result = schema
       .execute(
-        "{ authMe { userId uuid username roleId createdTs updatedTs sessionIat sessionExp } }",
+        "{ authMe { userId uuid username roleId roleName createdTs updatedTs sessionIat sessionExp } }",
       )
       .await;
 
@@ -191,6 +197,7 @@ mod tests {
     let data = result.data.into_json().unwrap();
     assert_eq!(data["authMe"]["userId"], user_id);
     assert_eq!(data["authMe"]["username"], "testuser");
+    assert_eq!(data["authMe"]["roleName"], "user");
     assert_eq!(data["authMe"]["sessionIat"], 1706356800);
     assert_eq!(data["authMe"]["sessionExp"], 1706616000);
   }

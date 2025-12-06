@@ -1,4 +1,5 @@
 use crate::middleware::session::SessionContext;
+use crate::queries::users::get_user_by_id_with_role::GetUserByIdWithRoleQuery;
 use crate::services::{SessionError, SessionService, UserError, UserService};
 use sqlx::SqlitePool;
 use tracing::instrument;
@@ -29,6 +30,7 @@ pub struct AuthMeResult {
   pub username: String,
   pub uuid: String,
   pub role_id: i64,
+  pub role_name: String,
   pub created_ts: i64,
   pub updated_ts: i64,
   pub session_iat: i64,
@@ -156,19 +158,20 @@ impl AuthService {
       .as_ref()
       .ok_or_else(|| SessionError::AuthenticationError("No valid session".to_string()))?;
 
-    // Get user details from database
-    let user = UserService::get_user_by_id(pool, session_payload.sub)
+    // Get user details from database with role information
+    let user_with_role = GetUserByIdWithRoleQuery::run(pool, session_payload.sub)
       .await
       .map_err(|e| SessionError::DatabaseError(e.to_string()))?
       .ok_or_else(|| SessionError::AuthenticationError("User not found".to_string()))?;
 
     Ok(AuthMeResult {
-      user_id: user.id,
-      username: user.name,
-      uuid: user.uuid,
-      role_id: user.role_id,
-      created_ts: user.created_ts,
-      updated_ts: user.updated_ts,
+      user_id: user_with_role.user.id,
+      username: user_with_role.user.name,
+      uuid: user_with_role.user.uuid,
+      role_id: user_with_role.user.role_id,
+      role_name: user_with_role.role_name,
+      created_ts: user_with_role.user.created_ts,
+      updated_ts: user_with_role.user.updated_ts,
       session_iat: session_payload.iat,
       session_exp: session_payload.exp,
     })
@@ -179,7 +182,9 @@ impl AuthService {
 mod tests {
   use super::*;
   use crate::database::test_utils::create_test_database;
+  use crate::middleware::session::SessionContext;
   use crate::services::UserService;
+  use dps_auth_session::DpsAuthSessionPayload;
 
   // Test secret - 32 bytes for AES-256
   const TEST_SECRET: &[u8] = &[
@@ -240,5 +245,44 @@ mod tests {
     let result = AuthService::login(&pool, "nonexistent", "password123", TEST_SECRET).await;
 
     assert!(result.is_err());
+  }
+
+  #[tokio::test]
+  async fn test_get_current_user_with_role() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create a role and user
+    sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('admin', 1234567890, FALSE)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let user_result = sqlx::query(
+      "INSERT INTO users (uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json) VALUES (?, 1234567890, 1234567890, 'testuser', 1, 'hashed_password', NULL)"
+    )
+    .bind("550e8400-e29b-41d4-a716-446655440000")
+    .execute(&pool)
+    .await
+    .unwrap();
+    let user_id = user_result.last_insert_rowid();
+
+    let payload = DpsAuthSessionPayload {
+      sub: user_id,
+      iat: 1706356800,
+      exp: 1706616000,
+    };
+    let session_context = SessionContext::new(Some(payload));
+
+    let result = AuthService::get_current_user(&pool, &session_context).await;
+
+    assert!(result.is_ok());
+    let auth_me_result = result.unwrap();
+    assert_eq!(auth_me_result.user_id, user_id);
+    assert_eq!(auth_me_result.username, "testuser");
+    assert_eq!(auth_me_result.role_name, "admin");
+    assert_eq!(auth_me_result.session_iat, 1706356800);
+    assert_eq!(auth_me_result.session_exp, 1706616000);
   }
 }
