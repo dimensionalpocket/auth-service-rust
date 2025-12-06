@@ -59,7 +59,9 @@ impl UserResolver {
       pool,
       session_context.clone(),
       id,
-    ).await {
+    )
+    .await
+    {
       Ok(user) => Ok(UserDetailsResponse {
         id: user.user.id,
         uuid: user.user.uuid,
@@ -71,9 +73,9 @@ impl UserResolver {
       }),
       Err(UserError::AuthenticationError(msg)) => Err(Error::new(msg)),
       Err(UserError::AuthorizationError(msg)) => Err(Error::new(msg)),
-      Err(UserError::UserNotFound(user_id)) => Err(Error::new(format!(
-        "User with ID {user_id} not found"
-      ))),
+      Err(UserError::UserNotFound(user_id)) => {
+        Err(Error::new(format!("User with ID {user_id} not found")))
+      }
       Err(err) => {
         tracing::error!("Failed to get user details: {}", err);
         Err(Error::new("Failed to retrieve user details"))
@@ -299,6 +301,8 @@ mod tests {
 
     let result = schema.execute(query).await;
     assert!(!result.errors.is_empty());
-    assert!(result.errors[0].message.contains("User with ID 999 not found"));
+    assert!(result.errors[0]
+      .message
+      .contains("User with ID 999 not found"));
   }
 }

@@ -1,28 +1,12 @@
 use dps_auth_api::{
-  database::Database,
+  database::test_utils::create_test_database,
   queries::{
     user_roles::{GetAllRolesQuery, GetRoleByNameQuery},
     users::{CreateUserData, CreateUserQuery, GetUserByUuidQuery},
   },
   services::PasswordService,
 };
-use sqlx::SqlitePool;
-use tempfile::NamedTempFile;
 use uuid::Uuid;
-
-async fn create_test_database() -> (SqlitePool, NamedTempFile) {
-  let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-  let sqlite_file_path = temp_file.path().display().to_string();
-
-  let database = Database::new(&sqlite_file_path)
-    .await
-    .expect("Failed to create test database");
-
-  // Run migrations
-  database.migrate().await.expect("Failed to run migrations");
-
-  (database.pool, temp_file)
-}
 
 #[tokio::test]
 async fn test_complete_user_creation_flow() {

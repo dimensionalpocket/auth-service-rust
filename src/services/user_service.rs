@@ -1,7 +1,7 @@
 use crate::models::User;
 use crate::queries::users::{
-  CreateUserData, CreateUserQuery, GetUserByIdQuery, GetUserByNameQuery, UpdateUserPasswordData,
-  UpdateUserPasswordQuery,
+  CreateUserData, CreateUserQuery, DeleteUserByIdQuery, GetUserByIdQuery, GetUserByNameQuery,
+  UpdateUserData, UpdateUserPasswordData, UpdateUserPasswordQuery, UpdateUserQuery,
 };
 use crate::services::{PasswordError, PasswordService};
 use sqlx::SqlitePool;
@@ -242,6 +242,21 @@ impl UserService {
     Ok(updated_user)
   }
 
+  /// Delete a user by ID
+  ///
+  /// # Arguments
+  /// * `pool` - Database connection pool
+  /// * `user_id` - The ID of the user to delete
+  ///
+  /// # Returns
+  /// * `Ok(bool)` - True if user was deleted, false if user was not found
+  /// * `Err(UserError)` - Database error occurred
+  pub async fn delete_user(pool: &SqlitePool, user_id: i64) -> Result<bool, UserError> {
+    DeleteUserByIdQuery::run(pool, user_id)
+      .await
+      .map_err(UserError::DatabaseError)
+  }
+
   /// Validate password according to business rules
   fn validate_password(password: &str) -> Result<(), UserError> {
     if password.is_empty() {
@@ -264,13 +279,64 @@ impl UserService {
 
     Ok(())
   }
+
+  /// Update a user's details with validation and partial update support
+  ///
+  /// This method validates input, checks for username uniqueness if name is changing,
+  /// hashes password if provided, and updates only specified fields.
+  ///
+  /// # Arguments
+  /// * `pool` - Database connection pool
+  /// * `user_id` - The ID of user to update
+  /// * `update_data` - Partial user data to update (with Option<Option<T>> for nullable fields)
+  /// * `password` - Optional new password (plain text, will be hashed)
+  ///
+  /// # Returns
+  /// * `Ok(User)` - Successfully updated user
+  /// * `Err(UserError)` - Validation, uniqueness, or database error
+  pub async fn update_user(
+    pool: &SqlitePool,
+    user_id: i64,
+    mut update_data: UpdateUserData,
+    password: Option<String>,
+  ) -> Result<User, UserError> {
+    // Get current user for validation and comparison
+    let current_user = GetUserByIdQuery::run(pool, user_id)
+      .await
+      .map_err(UserError::DatabaseError)?
+      .ok_or(UserError::UserNotFound(user_id))?;
+
+    // Validate username if provided
+    if let Some(ref name) = update_data.name {
+      Self::validate_username(name)?;
+
+      // Check username uniqueness if name is changing
+      if name != &current_user.name {
+        if let Some(_existing_user) = GetUserByNameQuery::run(pool, name).await? {
+          return Err(UserError::UsernameAlreadyExists(name.to_string()));
+        }
+      }
+    }
+
+    // Hash password if provided
+    if let Some(password) = password {
+      Self::validate_password(&password)?;
+      let password_hash = PasswordService::generate(&password)?;
+      update_data.password_hash = Some(password_hash);
+    }
+
+    // Update user in database
+    UpdateUserQuery::run(pool, update_data)
+      .await
+      .map_err(UserError::DatabaseError)
+  }
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::database::test_utils::create_test_database;
-  use crate::queries::users::GetUserByIdQuery;
+  use crate::database::test_utils::{create_test_database, create_test_database_with_pool_size};
+  use crate::queries::users::{CreateUserData, CreateUserQuery, GetUserByIdQuery, UpdateUserData};
 
   #[tokio::test]
   async fn test_create_user_success() {
@@ -700,5 +766,663 @@ mod tests {
       }
       _ => panic!("Expected UserNotFound"),
     }
+  }
+
+  #[tokio::test]
+  async fn test_delete_user_success() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create default role and user
+    sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let user = UserService::create_user(&pool, "testuser", "password123")
+      .await
+      .unwrap();
+
+    // Verify user exists before deletion
+    let user_before = GetUserByIdQuery::run(&pool, user.id).await.unwrap();
+    assert!(user_before.is_some());
+
+    // Test: Delete user
+    let deleted = UserService::delete_user(&pool, user.id).await.unwrap();
+    assert!(deleted);
+
+    // Verify user is deleted
+    let user_after = GetUserByIdQuery::run(&pool, user.id).await.unwrap();
+    assert!(user_after.is_none());
+  }
+
+  #[tokio::test]
+  async fn test_delete_user_not_found() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Test: Try to delete non-existent user
+    let deleted = UserService::delete_user(&pool, 999).await.unwrap();
+    assert!(!deleted);
+  }
+
+  #[tokio::test]
+  async fn test_delete_user_database_error() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Close the pool to simulate database error
+    pool.close().await;
+
+    // Test: Try to delete user with closed database
+    let result = UserService::delete_user(&pool, 1).await;
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::DatabaseError(_) => {
+        // Expected error type
+      }
+      _ => panic!("Expected DatabaseError"),
+    }
+  }
+
+  // Tests for update_user method
+
+  #[tokio::test]
+  async fn test_update_user_success_name_only() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create a user
+    setup_default_role(&pool).await;
+    let create_data = CreateUserData {
+      uuid: "test-uuid".to_string(),
+      name: "testuser".to_string(),
+      role_id: None,
+      password_hash: PasswordService::generate("password123").unwrap(),
+      metadata_json: None,
+    };
+    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+
+    // Test: Update only name
+    let update_data = UpdateUserData {
+      id: user.id,
+      name: Some("newname".to_string()),
+      role_id: None,
+      password_hash: None,
+      metadata_json: None,
+    };
+
+    let result = UserService::update_user(&pool, user.id, update_data, None).await;
+    assert!(result.is_ok());
+
+    let updated_user = result.unwrap();
+    assert_eq!(updated_user.name, "newname");
+    assert_eq!(updated_user.role_id, user.role_id);
+    assert_eq!(updated_user.password_hash, user.password_hash);
+    assert_eq!(updated_user.metadata_json, user.metadata_json);
+    assert!(updated_user.updated_ts >= user.updated_ts);
+  }
+
+  #[tokio::test]
+  async fn test_update_user_success_role_only() {
+    let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
+
+    // Setup: Create a user and admin role
+    setup_default_role(&pool).await;
+    let admin_role_id = create_admin_role(&pool).await;
+
+    let create_data = CreateUserData {
+      uuid: "test-uuid".to_string(),
+      name: "testuser".to_string(),
+      role_id: None,
+      password_hash: PasswordService::generate("password123").unwrap(),
+      metadata_json: None,
+    };
+    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+
+    // Test: Update only role
+    let update_data = UpdateUserData {
+      id: user.id,
+      name: None,
+      role_id: Some(admin_role_id),
+      password_hash: None,
+      metadata_json: None,
+    };
+
+    let result = UserService::update_user(&pool, user.id, update_data, None).await;
+    assert!(result.is_ok());
+
+    let updated_user = result.unwrap();
+    assert_eq!(updated_user.name, user.name);
+    assert_eq!(updated_user.role_id, admin_role_id);
+    assert_eq!(updated_user.password_hash, user.password_hash);
+    assert_eq!(updated_user.metadata_json, user.metadata_json);
+    assert!(updated_user.updated_ts >= user.updated_ts);
+  }
+
+  #[tokio::test]
+  async fn test_update_user_success_password_only() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create a user
+    setup_default_role(&pool).await;
+    let create_data = CreateUserData {
+      uuid: "test-uuid".to_string(),
+      name: "testuser".to_string(),
+      role_id: None,
+      password_hash: PasswordService::generate("password123").unwrap(),
+      metadata_json: None,
+    };
+    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+
+    // Test: Update only password
+    let update_data = UpdateUserData {
+      id: user.id,
+      name: None,
+      role_id: None,
+      password_hash: None, // Will be set by service
+      metadata_json: None,
+    };
+
+    let result = UserService::update_user(
+      &pool,
+      user.id,
+      update_data,
+      Some("newpassword123".to_string()),
+    )
+    .await;
+    assert!(result.is_ok());
+
+    let updated_user = result.unwrap();
+    assert_eq!(updated_user.name, user.name);
+    assert_eq!(updated_user.role_id, user.role_id);
+    assert_ne!(updated_user.password_hash, user.password_hash); // Password should be different
+    assert_eq!(updated_user.metadata_json, user.metadata_json);
+    assert!(updated_user.updated_ts >= user.updated_ts);
+  }
+
+  #[tokio::test]
+  async fn test_update_user_success_metadata_only() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create a user
+    setup_default_role(&pool).await;
+    let create_data = CreateUserData {
+      uuid: "test-uuid".to_string(),
+      name: "testuser".to_string(),
+      role_id: None,
+      password_hash: PasswordService::generate("password123").unwrap(),
+      metadata_json: None,
+    };
+    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+
+    // Test: Update only metadata
+    let update_data = UpdateUserData {
+      id: user.id,
+      name: None,
+      role_id: None,
+      password_hash: None,
+      metadata_json: Some(Some(r#"{"key": "value"}"#.to_string())),
+    };
+
+    let result = UserService::update_user(&pool, user.id, update_data, None).await;
+    assert!(result.is_ok());
+
+    let updated_user = result.unwrap();
+    assert_eq!(updated_user.name, user.name);
+    assert_eq!(updated_user.role_id, user.role_id);
+    assert_eq!(updated_user.password_hash, user.password_hash);
+    assert_eq!(
+      updated_user.metadata_json,
+      Some(r#"{"key": "value"}"#.to_string())
+    );
+    assert!(updated_user.updated_ts >= user.updated_ts);
+  }
+
+  #[tokio::test]
+  async fn test_update_user_success_metadata_to_null() {
+    let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
+
+    // Setup: Create a user with metadata
+    setup_default_role(&pool).await;
+    let admin_role_id = create_admin_role(&pool).await;
+    let create_data = CreateUserData {
+      uuid: "test-uuid".to_string(),
+      name: "testuser".to_string(),
+      role_id: Some(admin_role_id),
+      password_hash: PasswordService::generate("password123").unwrap(),
+      metadata_json: Some(r#"{"old": "data"}"#.to_string()),
+    };
+    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+
+    // Test: Set metadata to NULL
+    let update_data = UpdateUserData {
+      id: user.id,
+      name: None,
+      role_id: None,
+      password_hash: None,
+      metadata_json: Some(None), // Explicitly set to NULL
+    };
+
+    let result = UserService::update_user(&pool, user.id, update_data, None).await;
+    assert!(result.is_ok());
+
+    let updated_user = result.unwrap();
+    assert_eq!(updated_user.name, user.name);
+    assert_eq!(updated_user.role_id, user.role_id);
+    assert_eq!(updated_user.password_hash, user.password_hash);
+    assert_eq!(updated_user.metadata_json, None); // Should be NULL
+    assert!(updated_user.updated_ts >= user.updated_ts);
+  }
+
+  #[tokio::test]
+  async fn test_update_user_success_multiple_fields() {
+    let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
+
+    // Setup: Create a user
+    setup_default_role(&pool).await;
+    let admin_role_id = create_admin_role(&pool).await;
+
+    let create_data = CreateUserData {
+      uuid: "test-uuid".to_string(),
+      name: "testuser".to_string(),
+      role_id: None,
+      password_hash: PasswordService::generate("password123").unwrap(),
+      metadata_json: None,
+    };
+    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+
+    // Test: Update multiple fields
+    let update_data = UpdateUserData {
+      id: user.id,
+      name: Some("newname".to_string()),
+      role_id: Some(admin_role_id),
+      password_hash: None, // Will be set by service
+      metadata_json: Some(Some(r#"{"updated": true}"#.to_string())),
+    };
+
+    let result = UserService::update_user(
+      &pool,
+      user.id,
+      update_data,
+      Some("newpassword123".to_string()),
+    )
+    .await;
+    assert!(result.is_ok());
+
+    let updated_user = result.unwrap();
+    assert_eq!(updated_user.name, "newname");
+    assert_eq!(updated_user.role_id, admin_role_id);
+    assert_ne!(updated_user.password_hash, user.password_hash); // Password should be different
+    assert_eq!(
+      updated_user.metadata_json,
+      Some(r#"{"updated": true}"#.to_string())
+    );
+    assert!(updated_user.updated_ts >= user.updated_ts);
+  }
+
+  #[tokio::test]
+  async fn test_update_user_no_updates() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create a user
+    setup_default_role(&pool).await;
+    let create_data = CreateUserData {
+      uuid: "test-uuid".to_string(),
+      name: "testuser".to_string(),
+      role_id: None,
+      password_hash: PasswordService::generate("password123").unwrap(),
+      metadata_json: None,
+    };
+    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+
+    // Test: No updates provided
+    let update_data = UpdateUserData {
+      id: user.id,
+      name: None,
+      role_id: None,
+      password_hash: None,
+      metadata_json: None,
+    };
+
+    let result = UserService::update_user(&pool, user.id, update_data, None).await;
+    assert!(result.is_ok());
+
+    let updated_user = result.unwrap();
+    // Should be identical to original user (except possibly updated_ts)
+    assert_eq!(updated_user.name, user.name);
+    assert_eq!(updated_user.role_id, user.role_id);
+    assert_eq!(updated_user.password_hash, user.password_hash);
+    assert_eq!(updated_user.metadata_json, user.metadata_json);
+  }
+
+  #[tokio::test]
+  async fn test_update_user_user_not_found() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Test: Try to update non-existent user
+    let update_data = UpdateUserData {
+      id: 999,
+      name: Some("newname".to_string()),
+      role_id: None,
+      password_hash: None,
+      metadata_json: None,
+    };
+
+    let result = UserService::update_user(&pool, 999, update_data, None).await;
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::UserNotFound(user_id) => {
+        assert_eq!(user_id, 999);
+      }
+      _ => panic!("Expected UserNotFound error"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_update_user_username_validation_empty() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create a user
+    setup_default_role(&pool).await;
+    let create_data = CreateUserData {
+      uuid: "test-uuid".to_string(),
+      name: "testuser".to_string(),
+      role_id: None,
+      password_hash: PasswordService::generate("password123").unwrap(),
+      metadata_json: None,
+    };
+    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+
+    // Test: Try to update with empty username
+    let update_data = UpdateUserData {
+      id: user.id,
+      name: Some("".to_string()),
+      role_id: None,
+      password_hash: None,
+      metadata_json: None,
+    };
+
+    let result = UserService::update_user(&pool, user.id, update_data, None).await;
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::ValidationError(msg) => {
+        assert!(msg.contains("Username cannot be empty"));
+      }
+      _ => panic!("Expected ValidationError"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_update_user_username_validation_too_short() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create a user
+    setup_default_role(&pool).await;
+    let create_data = CreateUserData {
+      uuid: "test-uuid".to_string(),
+      name: "testuser".to_string(),
+      role_id: None,
+      password_hash: PasswordService::generate("password123").unwrap(),
+      metadata_json: None,
+    };
+    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+
+    // Test: Try to update with too short username
+    let update_data = UpdateUserData {
+      id: user.id,
+      name: Some("ab".to_string()),
+      role_id: None,
+      password_hash: None,
+      metadata_json: None,
+    };
+
+    let result = UserService::update_user(&pool, user.id, update_data, None).await;
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::ValidationError(msg) => {
+        assert!(msg.contains("Username must be at least 3 characters long"));
+      }
+      _ => panic!("Expected ValidationError"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_update_user_username_validation_too_long() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create a user
+    setup_default_role(&pool).await;
+    let create_data = CreateUserData {
+      uuid: "test-uuid".to_string(),
+      name: "testuser".to_string(),
+      role_id: None,
+      password_hash: PasswordService::generate("password123").unwrap(),
+      metadata_json: None,
+    };
+    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+
+    // Test: Try to update with too long username
+    let long_name = "a".repeat(21);
+    let update_data = UpdateUserData {
+      id: user.id,
+      name: Some(long_name.clone()),
+      role_id: None,
+      password_hash: None,
+      metadata_json: None,
+    };
+
+    let result = UserService::update_user(&pool, user.id, update_data, None).await;
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::ValidationError(msg) => {
+        assert!(msg.contains("Username cannot be longer than 20 characters"));
+      }
+      _ => panic!("Expected ValidationError"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_update_user_username_validation_invalid_chars() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create a user
+    setup_default_role(&pool).await;
+    let create_data = CreateUserData {
+      uuid: "test-uuid".to_string(),
+      name: "testuser".to_string(),
+      role_id: None,
+      password_hash: PasswordService::generate("password123").unwrap(),
+      metadata_json: None,
+    };
+    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+
+    // Test: Try to update with invalid characters
+    let update_data = UpdateUserData {
+      id: user.id,
+      name: Some("test@user".to_string()),
+      role_id: None,
+      password_hash: None,
+      metadata_json: None,
+    };
+
+    let result = UserService::update_user(&pool, user.id, update_data, None).await;
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::ValidationError(msg) => {
+        assert!(
+          msg.contains("Username can only contain letters, numbers, underscores, and hyphens")
+        );
+      }
+      _ => panic!("Expected ValidationError"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_update_user_username_already_exists() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create two users
+    setup_default_role(&pool).await;
+
+    let create_data1 = CreateUserData {
+      uuid: "test-uuid-1".to_string(),
+      name: "testuser1".to_string(),
+      role_id: None,
+      password_hash: PasswordService::generate("password123").unwrap(),
+      metadata_json: None,
+    };
+    let user1 = CreateUserQuery::run(&pool, create_data1).await.unwrap();
+
+    let create_data2 = CreateUserData {
+      uuid: "test-uuid-2".to_string(),
+      name: "testuser2".to_string(),
+      role_id: None,
+      password_hash: PasswordService::generate("password123").unwrap(),
+      metadata_json: None,
+    };
+    let _user2 = CreateUserQuery::run(&pool, create_data2).await.unwrap();
+
+    // Test: Try to update user1 with user2's username
+    let update_data = UpdateUserData {
+      id: user1.id,
+      name: Some("testuser2".to_string()),
+      role_id: None,
+      password_hash: None,
+      metadata_json: None,
+    };
+
+    let result = UserService::update_user(&pool, user1.id, update_data, None).await;
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::UsernameAlreadyExists(username) => {
+        assert_eq!(username, "testuser2");
+      }
+      _ => panic!("Expected UsernameAlreadyExists error"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_update_user_password_validation_too_short() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create a user
+    setup_default_role(&pool).await;
+    let create_data = CreateUserData {
+      uuid: "test-uuid".to_string(),
+      name: "testuser".to_string(),
+      role_id: None,
+      password_hash: PasswordService::generate("password123").unwrap(),
+      metadata_json: None,
+    };
+    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+
+    // Test: Try to update with too short password
+    let update_data = UpdateUserData {
+      id: user.id,
+      name: None,
+      role_id: None,
+      password_hash: None,
+      metadata_json: None,
+    };
+
+    let result =
+      UserService::update_user(&pool, user.id, update_data, Some("123".to_string())).await;
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::ValidationError(msg) => {
+        assert!(msg.contains("Password must be at least 6 characters long"));
+      }
+      _ => panic!("Expected ValidationError"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_update_user_password_validation_too_long() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create a user
+    setup_default_role(&pool).await;
+    let create_data = CreateUserData {
+      uuid: "test-uuid".to_string(),
+      name: "testuser".to_string(),
+      role_id: None,
+      password_hash: PasswordService::generate("password123").unwrap(),
+      metadata_json: None,
+    };
+    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+
+    // Test: Try to update with too long password
+    let long_password = "a".repeat(129);
+    let update_data = UpdateUserData {
+      id: user.id,
+      name: None,
+      role_id: None,
+      password_hash: None,
+      metadata_json: None,
+    };
+
+    let result = UserService::update_user(&pool, user.id, update_data, Some(long_password)).await;
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::ValidationError(msg) => {
+        assert!(msg.contains("Password cannot be longer than 128 characters"));
+      }
+      _ => panic!("Expected ValidationError"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_update_user_same_username_no_conflict() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create a user
+    setup_default_role(&pool).await;
+    let create_data = CreateUserData {
+      uuid: "test-uuid".to_string(),
+      name: "testuser".to_string(),
+      role_id: None,
+      password_hash: PasswordService::generate("password123").unwrap(),
+      metadata_json: None,
+    };
+    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+
+    // Test: Update user with same username (should not conflict)
+    let update_data = UpdateUserData {
+      id: user.id,
+      name: Some("testuser".to_string()), // Same name
+      role_id: None,
+      password_hash: None,
+      metadata_json: None,
+    };
+
+    let result = UserService::update_user(&pool, user.id, update_data, None).await;
+    assert!(result.is_ok());
+
+    let updated_user = result.unwrap();
+    assert_eq!(updated_user.name, "testuser");
+  }
+
+  // Helper functions for tests
+  async fn setup_default_role(pool: &SqlitePool) {
+    sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
+    )
+    .execute(pool)
+    .await
+    .unwrap();
+  }
+
+  async fn create_admin_role(pool: &SqlitePool) -> i64 {
+    sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('admin', 1234567890, FALSE)",
+    )
+    .execute(pool)
+    .await
+    .unwrap();
+
+    // Get the admin role ID
+    let role_id: i64 = sqlx::query_scalar("SELECT last_insert_rowid()")
+      .fetch_one(pool)
+      .await
+      .unwrap();
+    role_id
   }
 }

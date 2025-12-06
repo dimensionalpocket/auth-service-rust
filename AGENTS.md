@@ -93,6 +93,10 @@
   - Each migration has two files: `.sql` (forward) and `.down.sql` (rollback)
   - Migration files contain native SQL code
 
+### Testing
+
+- Unit tests live in the same files as the code they test, within `#[cfg(test)]` modules
+- Integration and other higher-level tests live in the `tests/` directory
 
 ## Code Style Guidelines
 
@@ -129,8 +133,18 @@
 - Verify no sensitive data is logged by running the password logging tests
 
 ### Testing
-- Write unit tests in #[cfg(test)] modules
-- Use tempfile for test databases
 - Test both success and error paths
 - Use `tokio::test` for async tests
 - Use `serial_test` crate for tests that rely on mutable ENV variables, or tests that otherwise cannot run in parallel
+
+Rules for database usage in tests:
+
+- Use tempfile for test databases
+- **Pool Usage**: Exactly one SQLite pool per test - never multiple pools within single tests
+- **Unit Tests**: Use direct pool access via `create_test_database()` from `src/database/mod.rs`
+- **Configurable Tests**: Use `create_test_database_with_config(configure_sqlite: bool)` for optional SQLite configuration
+- **Integration Tests**: Use full app with embedded pool via `create_app()` in test files
+- **Ownership**: Clean ownership with automatic temp file cleanup via `NamedTempFile` dropping
+- **Pool Size**: Unit tests use defaults, integration tests set to 1 connection
+- **No Multiple Pools**: No tests use multiple pools within the same test function
+- **Arc Usage**: Not needed in tests - `SqlitePool` implements `Clone` internally and tests use single-threaded `&pool` references
