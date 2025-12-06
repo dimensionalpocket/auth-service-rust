@@ -21,6 +21,7 @@ pub struct RegisterResult {
   pub role_id: i64,
   pub created_ts: i64,
   pub updated_ts: i64,
+  pub session_token: String,
 }
 
 /// Result type for getting current authenticated user information
@@ -105,12 +106,13 @@ impl AuthService {
   ///
   /// # Errors
   /// * `UserError` - If password confirmation doesn't match or user creation fails due to validation, uniqueness, or database error
-  #[instrument(skip(pool), fields(username = %username))]
+  #[instrument(skip(pool, session_secret), fields(username = %username))]
   pub async fn register(
     pool: &SqlitePool,
     username: &str,
     password: &str,
     password_confirmation: &str,
+    session_secret: &[u8],
   ) -> Result<RegisterResult, UserError> {
     // Validate password confirmation matches
     if password != password_confirmation {
@@ -122,6 +124,10 @@ impl AuthService {
     // Create user which includes validation and password hashing
     let user = UserService::create_user(pool, username, password).await?;
 
+    // Create session for the newly created user
+    let session_token = SessionService::create_session_for_user(&user, session_secret)
+      .map_err(|e| UserError::SessionError(e.to_string()))?;
+
     Ok(RegisterResult {
       user_id: user.id,
       username: user.name,
@@ -129,6 +135,7 @@ impl AuthService {
       role_id: user.role_id,
       created_ts: user.created_ts,
       updated_ts: user.updated_ts,
+      session_token,
     })
   }
 

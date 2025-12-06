@@ -26,6 +26,8 @@ pub enum UserError {
   UserNotFound(i64),
   /// Self-deletion attempted
   SelfDeletion,
+  /// Session creation failed
+  SessionError(String),
 }
 
 impl std::fmt::Display for UserError {
@@ -41,6 +43,7 @@ impl std::fmt::Display for UserError {
       UserError::AuthorizationError(msg) => write!(f, "Authorization error: {msg}"),
       UserError::UserNotFound(user_id) => write!(f, "User with ID {user_id} not found"),
       UserError::SelfDeletion => write!(f, "Cannot delete your own account"),
+      UserError::SessionError(msg) => write!(f, "Session creation failed: {msg}"),
     }
   }
 }

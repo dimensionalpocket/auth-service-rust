@@ -1,3 +1,4 @@
+use crate::models::user::User;
 use crate::services::{PasswordService, UserService};
 use dps_auth_session::{DpsAuthSession, DpsAuthSessionError};
 use sqlx::SqlitePool;
@@ -148,15 +149,40 @@ impl SessionService {
       return Err(SessionError::AuthenticationError(error_msg.to_string()));
     }
 
-    // Create session payload and encode token
-    let payload = DpsAuthSession::create_payload(user.id, None);
-    let token = DpsAuthSession::encode_token(&payload, secret)?;
+    // Create session token for the authenticated user
+    let token = Self::create_session_for_user(&user, secret)?;
 
     tracing::info!(
       username = username,
       user_id = user.id,
       "Authentication successful"
     );
+
+    Ok(token)
+  }
+
+  /// Create a session token for an existing user (no password verification)
+  ///
+  /// This method creates a session token for a user that has already been authenticated
+  /// or created. It does not perform any password verification.
+  ///
+  /// # Arguments
+  ///
+  /// * `user` - The user object for which to create a session
+  /// * `secret` - The 32-byte secret key for token encryption
+  ///
+  /// # Returns
+  ///
+  /// Returns a session token string on success, or a `SessionError` on failure.
+  ///
+  /// # Errors
+  ///
+  /// This function will return an error if:
+  /// - Token encoding fails (`AuthSessionError`)
+  pub fn create_session_for_user(user: &User, secret: &[u8]) -> Result<String, SessionError> {
+    // Create session payload and encode token
+    let payload = DpsAuthSession::create_payload(user.id, None);
+    let token = DpsAuthSession::encode_token(&payload, secret)?;
 
     Ok(token)
   }
@@ -286,5 +312,52 @@ mod tests {
     // Verify: Token contains correct user ID
     let payload = DpsAuthSession::decode_token(&token, TEST_SECRET).unwrap();
     assert_eq!(payload.sub, user.id);
+  }
+
+  #[tokio::test]
+  async fn test_create_session_for_user_success() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create a user
+    setup_default_role(&pool).await;
+    let user = UserService::create_user(&pool, "testuser", "password123")
+      .await
+      .unwrap();
+
+    // Test: Create session for existing user (no password needed)
+    let token = SessionService::create_session_for_user(&user, TEST_SECRET).unwrap();
+
+    // Verify: Token is not empty and contains correct user ID
+    assert!(!token.is_empty());
+
+    let payload = DpsAuthSession::decode_token(&token, TEST_SECRET).unwrap();
+    assert_eq!(payload.sub, user.id);
+  }
+
+  #[tokio::test]
+  async fn test_create_session_for_user_different_users() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Setup: Create two users
+    setup_default_role(&pool).await;
+    let user1 = UserService::create_user(&pool, "user1", "password123")
+      .await
+      .unwrap();
+    let user2 = UserService::create_user(&pool, "user2", "password123")
+      .await
+      .unwrap();
+
+    // Test: Create sessions for both users
+    let token1 = SessionService::create_session_for_user(&user1, TEST_SECRET).unwrap();
+    let token2 = SessionService::create_session_for_user(&user2, TEST_SECRET).unwrap();
+
+    // Verify: Tokens are different and contain correct user IDs
+    assert_ne!(token1, token2);
+
+    let payload1 = DpsAuthSession::decode_token(&token1, TEST_SECRET).unwrap();
+    let payload2 = DpsAuthSession::decode_token(&token2, TEST_SECRET).unwrap();
+
+    assert_eq!(payload1.sub, user1.id);
+    assert_eq!(payload2.sub, user2.id);
   }
 }

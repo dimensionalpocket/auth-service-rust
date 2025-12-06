@@ -1,4 +1,6 @@
+use crate::middleware::session::SESSION_COOKIE_NAME;
 use crate::services::{AuthService, UserError};
+use crate::DpsAuthApiConfig;
 use async_graphql::{Context, Object, Result};
 use sqlx::SqlitePool;
 use tracing::instrument;
@@ -66,22 +68,53 @@ impl AuthRegisterResolver {
     #[graphql(name = "passwordConfirmation")] password_confirmation: String,
   ) -> Result<AuthRegisterResponse> {
     let pool = ctx.data::<SqlitePool>()?;
+    let config = ctx.data::<DpsAuthApiConfig>()?;
+    let session_secret = config.session_secret.clone();
+    let cookie_domain = config.cookie_domain.clone();
+    let insecure_cookie = config.insecure_cookie;
 
-    match AuthService::register(pool, &username, &password, &password_confirmation).await {
-      Ok(register_result) => Ok(AuthRegisterResponse {
-        user_id: register_result.user_id,
-        uuid: register_result.uuid,
-        username: register_result.username,
-        role_id: register_result.role_id,
-        created_ts: register_result.created_ts,
-        updated_ts: register_result.updated_ts,
-        message: "User registration successful".to_string(),
-      }),
+    match AuthService::register(
+      pool,
+      &username,
+      &password,
+      &password_confirmation,
+      &session_secret,
+    )
+    .await
+    {
+      Ok(register_result) => {
+        // Set session cookie
+        let cookie_value = format!(
+          "{}={}; Domain={}; Path={}; HttpOnly; SameSite=Lax{}; Max-Age={}",
+          SESSION_COOKIE_NAME,
+          register_result.session_token,
+          cookie_domain,
+          config.api_path,
+          if insecure_cookie { "" } else { "; Secure" },
+          config.session_ttl_seconds
+        );
+
+        // Use append to allow multiple cookies; ignore the return value
+        let _ = ctx.append_http_header("set-cookie", cookie_value);
+
+        Ok(AuthRegisterResponse {
+          user_id: register_result.user_id,
+          uuid: register_result.uuid,
+          username: register_result.username,
+          role_id: register_result.role_id,
+          created_ts: register_result.created_ts,
+          updated_ts: register_result.updated_ts,
+          message: "User registration successful".to_string(),
+        })
+      }
       Err(UserError::UsernameAlreadyExists(username)) => Err(async_graphql::Error::new(format!(
         "Username '{username}' is already in use"
       ))),
       Err(UserError::ValidationError(msg)) => Err(async_graphql::Error::new(format!(
         "Validation error: {msg}"
+      ))),
+      Err(UserError::SessionError(msg)) => Err(async_graphql::Error::new(format!(
+        "Session creation failed: {msg}"
       ))),
       Err(err) => {
         tracing::error!("Failed to register user: {}", err);
@@ -120,9 +153,29 @@ mod tests {
     .await
     .unwrap();
 
+    // Test secret - 32 bytes for AES-256
+    let test_secret = vec![
+      0x42, 0xf4, 0x25, 0xc2, 0x93, 0x2e, 0x8c, 0xaf, 0xaa, 0xcd, 0xd4, 0x5b, 0x50, 0x28, 0xa4,
+      0x8d, 0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74,
+      0x4d, 0xb8,
+    ];
+
+    let test_config = DpsAuthApiConfig {
+      port: 0,
+      sqlite_main_file_path: "test.db".to_string(),
+      session_secret: test_secret,
+      cookie_domain: ".dps.localhost".to_string(),
+      api_path: "/api".to_string(),
+      insecure_cookie: false,
+      development_mode: true,
+      sqlite_main_pool_size: 1,
+      session_ttl_seconds: 3600,
+    };
+
     let mutation = AuthRegisterResolver;
     let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
       .data(pool)
+      .data(test_config)
       .finish();
 
     let query = r#"
@@ -169,9 +222,29 @@ mod tests {
     .await
     .unwrap();
 
+    // Test secret - 32 bytes for AES-256
+    let test_secret = vec![
+      0x42, 0xf4, 0x25, 0xc2, 0x93, 0x2e, 0x8c, 0xaf, 0xaa, 0xcd, 0xd4, 0x5b, 0x50, 0x28, 0xa4,
+      0x8d, 0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74,
+      0x4d, 0xb8,
+    ];
+
+    let test_config = DpsAuthApiConfig {
+      port: 0,
+      sqlite_main_file_path: "test.db".to_string(),
+      session_secret: test_secret,
+      cookie_domain: ".dps.localhost".to_string(),
+      api_path: "/api".to_string(),
+      insecure_cookie: false,
+      development_mode: true,
+      sqlite_main_pool_size: 1,
+      session_ttl_seconds: 3600,
+    };
+
     let mutation = AuthRegisterResolver;
     let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
       .data(pool)
+      .data(test_config)
       .finish();
 
     let query = r#"
@@ -197,9 +270,29 @@ mod tests {
   async fn test_auth_register_validates_input() {
     let (pool, _temp_file) = create_test_database().await;
 
+    // Test secret - 32 bytes for AES-256
+    let test_secret = vec![
+      0x42, 0xf4, 0x25, 0xc2, 0x93, 0x2e, 0x8c, 0xaf, 0xaa, 0xcd, 0xd4, 0x5b, 0x50, 0x28, 0xa4,
+      0x8d, 0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74,
+      0x4d, 0xb8,
+    ];
+
+    let test_config = DpsAuthApiConfig {
+      port: 0,
+      sqlite_main_file_path: "test.db".to_string(),
+      session_secret: test_secret,
+      cookie_domain: ".dps.localhost".to_string(),
+      api_path: "/api".to_string(),
+      insecure_cookie: false,
+      development_mode: true,
+      sqlite_main_pool_size: 1,
+      session_ttl_seconds: 3600,
+    };
+
     let mutation = AuthRegisterResolver;
     let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
       .data(pool)
+      .data(test_config)
       .finish();
 
     // Test empty username
@@ -220,9 +313,29 @@ mod tests {
   async fn test_auth_register_password_confirmation_mismatch() {
     let (pool, _temp_file) = create_test_database().await;
 
+    // Test secret - 32 bytes for AES-256
+    let test_secret = vec![
+      0x42, 0xf4, 0x25, 0xc2, 0x93, 0x2e, 0x8c, 0xaf, 0xaa, 0xcd, 0xd4, 0x5b, 0x50, 0x28, 0xa4,
+      0x8d, 0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74,
+      0x4d, 0xb8,
+    ];
+
+    let test_config = DpsAuthApiConfig {
+      port: 0,
+      sqlite_main_file_path: "test.db".to_string(),
+      session_secret: test_secret,
+      cookie_domain: ".dps.localhost".to_string(),
+      api_path: "/api".to_string(),
+      insecure_cookie: false,
+      development_mode: true,
+      sqlite_main_pool_size: 1,
+      session_ttl_seconds: 3600,
+    };
+
     let mutation = AuthRegisterResolver;
     let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
       .data(pool)
+      .data(test_config)
       .finish();
 
     // Test password confirmation mismatch
@@ -238,5 +351,96 @@ mod tests {
     let result = schema.execute(query).await;
     assert!(!result.errors.is_empty());
     assert!(result.errors[0].message.contains("Passwords do not match"));
+  }
+
+  #[tokio::test]
+  async fn test_auth_register_sets_cookie() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Insert default role first
+    sqlx::query(
+      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    // Test secret - 32 bytes for AES-256
+    let test_secret = vec![
+      0x42, 0xf4, 0x25, 0xc2, 0x93, 0x2e, 0x8c, 0xaf, 0xaa, 0xcd, 0xd4, 0x5b, 0x50, 0x28, 0xa4,
+      0x8d, 0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74,
+      0x4d, 0xb8,
+    ];
+
+    let test_config = DpsAuthApiConfig {
+      port: 0,
+      sqlite_main_file_path: "test.db".to_string(),
+      session_secret: test_secret,
+      cookie_domain: ".dps.localhost".to_string(),
+      api_path: "/api".to_string(),
+      insecure_cookie: false,
+      development_mode: true,
+      sqlite_main_pool_size: 1,
+      session_ttl_seconds: 3600,
+    };
+
+    let mutation = AuthRegisterResolver;
+    let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
+      .data(pool)
+      .data(test_config)
+      .finish();
+
+    let query = r#"
+      mutation {
+        authRegister(username: "testuser", password: "testpass123", passwordConfirmation: "testpass123") {
+          userId
+          username
+          message
+        }
+      }
+    "#;
+
+    let result = schema.execute(query).await;
+    assert!(result.errors.is_empty());
+
+    // Check that set-cookie header is present
+    let headers = result.http_headers;
+    let set_cookie_headers: Vec<_> = headers
+      .get_all("set-cookie")
+      .iter()
+      .map(|h| h.to_str().unwrap())
+      .collect();
+
+    assert!(!set_cookie_headers.is_empty(), "No set-cookie header found");
+
+    let cookie_header = &set_cookie_headers[0];
+    assert!(
+      cookie_header.contains("DpsAuthSession="),
+      "Cookie header should contain session token"
+    );
+    assert!(
+      cookie_header.contains("Domain=.dps.localhost"),
+      "Cookie header should contain domain"
+    );
+    assert!(
+      cookie_header.contains("Path=/api"),
+      "Cookie header should contain path"
+    );
+    assert!(
+      cookie_header.contains("HttpOnly"),
+      "Cookie header should contain HttpOnly"
+    );
+    assert!(
+      cookie_header.contains("SameSite=Lax"),
+      "Cookie header should contain SameSite"
+    );
+    assert!(
+      cookie_header.contains("Secure"),
+      "Cookie header should contain Secure flag"
+    );
+    assert!(
+      cookie_header.contains("Max-Age=3600"),
+      "Cookie header should contain max-age"
+    );
   }
 }
