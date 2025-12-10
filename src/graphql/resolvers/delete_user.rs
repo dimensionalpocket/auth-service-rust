@@ -102,11 +102,12 @@ mod tests {
     let permissions_json = serde_json::json!(permissions);
     let result = sqlx::query(
       r#"
-            INSERT INTO user_roles (name, created_ts, permissions_json, is_default)
-            VALUES (?, ?, ?, FALSE)
+            INSERT INTO user_roles (name, created_ts, updated_ts, permissions_json, is_default)
+            VALUES (?, ?, ?, ?, FALSE)
             "#,
     )
     .bind(name)
+    .bind(1234567890i64)
     .bind(1234567890i64)
     .bind(permissions_json)
     .execute(pool)

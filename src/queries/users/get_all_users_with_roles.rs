@@ -38,12 +38,12 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test roles
-    sqlx::query("INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('admin', 1234567890, FALSE, '[]')")
+    sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[]')")
       .execute(&pool)
       .await
       .unwrap();
 
-    sqlx::query("INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('user', 1234567890, TRUE, '[]')")
+    sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567890, 1234567890, TRUE, '[]')")
       .execute(&pool)
       .await
       .unwrap();
@@ -74,7 +74,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test role
-    sqlx::query("INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('test_role', 1234567890, FALSE, '[]')")
+    sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('test_role', 1234567890, 1234567890, FALSE, '[]')")
       .execute(&pool)
       .await
       .unwrap();

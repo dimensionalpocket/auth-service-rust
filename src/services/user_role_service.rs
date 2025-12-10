@@ -1,12 +1,17 @@
 use crate::models::user::User;
 use crate::models::user_role::UserRole;
-use crate::queries::user_roles::{GetRoleByIdQuery, GetRoleByNameQuery};
+use crate::queries::user_roles::{GetAllRolesQuery, GetRoleByIdQuery, GetRoleByNameQuery};
 use sqlx::SqlitePool;
 use tracing::warn;
 
 pub struct UserRoleService;
 
 impl UserRoleService {
+  /// Get all roles
+  pub async fn get_all_roles(pool: &SqlitePool) -> Result<Vec<UserRole>, sqlx::Error> {
+    GetAllRolesQuery::run(pool).await
+  }
+
   /// Get a role by ID
   pub async fn get_role_by_id(
     pool: &SqlitePool,
@@ -77,7 +82,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test role with permissions
-    let result = sqlx::query("INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('admin', 1234567890, FALSE, '[\"is_admin\"]')")
+    let result = sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\"]')")
       .execute(&pool)
       .await
       .unwrap();
@@ -98,7 +103,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test role with permissions
-    sqlx::query("INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('user', 1234567890, TRUE, '[\"can_view_user_self\"]')")
+    sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567890, 1234567890, TRUE, '[\"can_view_user_self\"]')")
       .execute(&pool)
       .await
       .unwrap();
@@ -114,11 +119,45 @@ mod tests {
   }
 
   #[tokio::test]
+  async fn test_get_all_roles_delegates_to_query() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Insert test roles with different permissions
+    sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\", \"can_manage_roles\"]'), ('user', 1234567891, 1234567891, TRUE, '[\"can_view_user_self\"]')")
+      .execute(&pool)
+      .await
+      .unwrap();
+
+    let roles = UserRoleService::get_all_roles(&pool).await.unwrap();
+
+    assert_eq!(roles.len(), 2);
+
+    // Roles should be ordered by name
+    assert_eq!(roles[0].name, "admin");
+    assert!(!roles[0].is_default);
+    assert!(roles[0].has_permission("is_admin"));
+    assert!(roles[0].has_permission("can_manage_roles"));
+
+    assert_eq!(roles[1].name, "user");
+    assert!(roles[1].is_default);
+    assert!(roles[1].has_permission("can_view_user_self"));
+  }
+
+  #[tokio::test]
+  async fn test_get_all_roles_empty_table() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    let roles = UserRoleService::get_all_roles(&pool).await.unwrap();
+
+    assert_eq!(roles.len(), 0);
+  }
+
+  #[tokio::test]
   async fn test_check_user_permission_admin_has_all_permissions() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role
-    let admin_role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('admin', 1234567890, FALSE, '[\"is_admin\"]')")
+    let admin_role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\"]')")
       .execute(&pool)
       .await
       .unwrap();
@@ -159,7 +198,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create user role
-    let user_role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('user', 1234567890, TRUE, '[\"can_view_user_self\"]')")
+    let user_role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567890, 1234567890, TRUE, '[\"can_view_user_self\"]')")
       .execute(&pool)
       .await
       .unwrap();
@@ -226,7 +265,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role
-    let admin_role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('admin', 1234567890, FALSE, '[\"is_admin\"]')")
+    let admin_role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\"]')")
       .execute(&pool)
       .await
       .unwrap();
@@ -269,7 +308,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create role with new permissions
-    let role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('role_manager', 1234567890, FALSE, '[\"can_edit_user_role\", \"can_manage_roles\"]')")
+    let role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('role_manager', 1234567890, 1234567890, FALSE, '[\"can_edit_user_role\", \"can_manage_roles\"]')")
       .execute(&pool)
       .await
       .unwrap();
@@ -316,7 +355,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role
-    let admin_role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('admin', 1234567890, FALSE, '[\"is_admin\"]')")
+    let admin_role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\"]')")
       .execute(&pool)
       .await
       .unwrap();

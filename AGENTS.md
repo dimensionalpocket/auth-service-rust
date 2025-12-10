@@ -69,6 +69,7 @@
   - **Field names**: snake_case in Rust with `#[graphql(name = "camelCase")]` for GraphQL output (e.g., `role_id` → `roleId`, `created_ts` → `createdTs`)
   - **Input types**: camelCase field names with `#[graphql(name = "camelCase")]` annotations
   - **Response types**: Follow same pattern as existing `AddSiteResponse`, `UpdateSiteResponse`, `AuthLoginResponse`
+  - Note: async-graphql automatically converts snake_case field names to camelCase in the GraphQL schema, but explicit `#[graphql(name = "...")]` annotations are preferred for clarity and consistency
 - Maintaining the schema:
   - The schema lives in `src/graphql/schema.rs`
   - Add new queries to the `Query` struct and new mutations to the `Mutation` struct
@@ -77,15 +78,16 @@
 
 ### Orchestration Layer
 - Service orchestrators live in `src/orchestrators/`
-- Orchestrators call multiple services to implement complete business operations
-- They handle the common pattern of: authentication → authorization → business logic
-- Orchestrators are used when a resolver needs to call two or more services, or when the resolver requires authentication/authorization checks
+- Orchestrators are called by GraphQL resolvers only
+- Orchestrators handle the common pattern of: authentication → authorization → business logic (calling other services)
+- Orchestrator inputs are typically the database pool, session context (extracted by the resolver), and any resolver inputs
 
 ### Service Layer
 - Services live in `src/services/`
 - Services contain core business logic and interact with the database layer via Query objects
   - Services should not contain SQL queries directly; if a query doesn't exist, create a new Query object in `src/queries/`
 - Services can also call other services as needed
+- Service inputs are typically the database pool and any parameters needed for the business logic
 
 ### Database
 - Query objects live in `src/queries/`

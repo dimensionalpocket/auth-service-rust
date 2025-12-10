@@ -6,7 +6,7 @@ pub struct GetAllRolesQuery;
 impl GetAllRolesQuery {
   pub async fn run(pool: &SqlitePool) -> Result<Vec<UserRole>, sqlx::Error> {
     sqlx::query_as::<_, UserRole>(
-      "SELECT id, name, created_ts, is_default, permissions_json FROM user_roles ORDER BY name",
+      "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM user_roles ORDER BY name",
     )
     .fetch_all(pool)
     .await
@@ -23,7 +23,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test roles
-    sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('admin', 1234567890, FALSE), ('user', 1234567891, TRUE)")
+    sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE), ('user', 1234567891, 1234567891, TRUE)")
       .execute(&pool)
       .await
       .unwrap();

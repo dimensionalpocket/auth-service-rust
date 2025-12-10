@@ -201,7 +201,7 @@ mod tests {
 
   async fn setup_default_role(pool: &SqlitePool) {
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
+      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
     )
     .execute(pool)
     .await
@@ -260,7 +260,7 @@ mod tests {
 
     // Setup: Create a role and user
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('admin', 1234567890, FALSE)",
+      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE)",
     )
     .execute(&pool)
     .await

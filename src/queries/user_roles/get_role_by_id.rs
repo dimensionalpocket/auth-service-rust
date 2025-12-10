@@ -6,7 +6,7 @@ pub struct GetRoleByIdQuery;
 impl GetRoleByIdQuery {
   pub async fn run(pool: &SqlitePool, role_id: i64) -> Result<Option<UserRole>, sqlx::Error> {
     sqlx::query_as::<_, UserRole>(
-      "SELECT id, name, created_ts, is_default, permissions_json FROM user_roles WHERE id = ?",
+      "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM user_roles WHERE id = ?",
     )
     .bind(role_id)
     .fetch_optional(pool)
@@ -25,7 +25,7 @@ mod tests {
 
     // Insert test role
     let result = sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('admin', 1234567890, FALSE)",
+      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE)",
     )
     .execute(&pool)
     .await

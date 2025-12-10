@@ -6,7 +6,7 @@ pub struct GetDefaultUserRoleQuery;
 impl GetDefaultUserRoleQuery {
   pub async fn run(pool: &SqlitePool) -> Result<Option<UserRole>, sqlx::Error> {
     sqlx::query_as::<_, UserRole>(
-      "SELECT id, name, created_ts, is_default, permissions_json FROM user_roles WHERE is_default = TRUE LIMIT 1"
+      "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM user_roles WHERE is_default = TRUE LIMIT 1"
     )
     .fetch_optional(pool)
     .await
@@ -23,7 +23,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test roles with one default
-    sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('admin', 1234567890, FALSE), ('user', 1234567891, TRUE)")
+    sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE), ('user', 1234567891, 1234567891, TRUE)")
       .execute(&pool)
       .await
       .unwrap();
@@ -41,7 +41,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test roles with no default
-    sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('admin', 1234567890, FALSE), ('moderator', 1234567891, FALSE)")
+    sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE), ('moderator', 1234567891, 1234567891, FALSE)")
       .execute(&pool)
       .await
       .unwrap();

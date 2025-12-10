@@ -228,11 +228,12 @@ mod tests {
     let permissions_json = serde_json::json!(permissions);
     let result = sqlx::query(
       r#"
-      INSERT INTO user_roles (name, created_ts, permissions_json, is_default)
-      VALUES (?, ?, ?, FALSE)
+      INSERT INTO user_roles (name, created_ts, updated_ts, permissions_json, is_default)
+      VALUES (?, ?, ?, ?, FALSE)
       "#,
     )
     .bind(name)
+    .bind(1234567890i64)
     .bind(1234567890i64)
     .bind(permissions_json)
     .execute(pool)
@@ -1107,7 +1108,7 @@ mod tests {
   // Helper functions for orchestrator tests
   async fn create_admin_role(pool: &SqlitePool) -> i64 {
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('admin', 1234567890, FALSE, '[\"can_edit_user\"]')"
+      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"can_edit_user\"]')"
     )
     .execute(pool)
     .await
@@ -1122,7 +1123,7 @@ mod tests {
 
   async fn create_user_role(pool: &SqlitePool) -> i64 {
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('user', 1234567890, TRUE, '[]')"
+      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567890, 1234567890, TRUE, '[]')"
     )
     .execute(pool)
     .await

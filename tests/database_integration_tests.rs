@@ -14,7 +14,7 @@ async fn test_complete_user_creation_flow() {
   let (pool, _temp_file) = create_test_database().await;
 
   // Insert test roles manually for this test
-  sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('admin', 1234567890, FALSE), ('user', 1234567891, TRUE)")
+  sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE), ('user', 1234567891, 1234567891, TRUE)")
     .execute(&pool)
     .await
     .unwrap();
@@ -61,7 +61,7 @@ async fn test_default_roles_seeded() {
   let (pool, _temp_file) = create_test_database().await;
 
   // Insert test roles manually to simulate seeding
-  sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('admin', 1234567890, FALSE), ('user', 1234567891, TRUE)")
+  sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE), ('user', 1234567891, 1234567891, TRUE)")
     .execute(&pool)
     .await
     .unwrap();

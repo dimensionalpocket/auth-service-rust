@@ -31,6 +31,7 @@ pub struct UserRole {
   pub id: i64,
   pub name: String,
   pub created_ts: i64,
+  pub updated_ts: i64,
   pub is_default: bool,
   pub permissions_json: Option<String>,
 }
@@ -60,6 +61,7 @@ mod tests {
       id: 1,
       name: "test".to_string(),
       created_ts: 123456789,
+      updated_ts: 123456789,
       is_default: false,
       permissions_json: Some(r#"["can_create_user", "can_delete_user"]"#.to_string()),
     };
@@ -76,6 +78,7 @@ mod tests {
       id: 1,
       name: "test".to_string(),
       created_ts: 123456789,
+      updated_ts: 123456789,
       is_default: false,
       permissions_json: Some("[]".to_string()),
     };
@@ -90,6 +93,7 @@ mod tests {
       id: 1,
       name: "test".to_string(),
       created_ts: 123456789,
+      updated_ts: 123456789,
       is_default: false,
       permissions_json: None,
     };
@@ -104,6 +108,7 @@ mod tests {
       id: 1,
       name: "test".to_string(),
       created_ts: 123456789,
+      updated_ts: 123456789,
       is_default: false,
       permissions_json: Some("invalid json".to_string()),
     };
@@ -118,6 +123,7 @@ mod tests {
       id: 1,
       name: "admin".to_string(),
       created_ts: 123456789,
+      updated_ts: 123456789,
       is_default: false,
       permissions_json: Some(r#"["is_admin", "can_create_user"]"#.to_string()),
     };
@@ -132,6 +138,7 @@ mod tests {
       id: 1,
       name: "user".to_string(),
       created_ts: 123456789,
+      updated_ts: 123456789,
       is_default: true,
       permissions_json: Some(r#"["can_view_user_self"]"#.to_string()),
     };
@@ -147,6 +154,7 @@ mod tests {
       id: 1,
       name: "guest".to_string(),
       created_ts: 123456789,
+      updated_ts: 123456789,
       is_default: false,
       permissions_json: None,
     };

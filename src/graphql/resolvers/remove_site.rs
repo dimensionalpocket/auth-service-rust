@@ -121,7 +121,7 @@ mod tests {
 
     // Insert admin role with can_delete_site permission
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('admin', 1234567890, FALSE, '[\"is_admin\", \"can_delete_site\"]')"
+      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\", \"can_delete_site\"]')"
     )
     .execute(&pool)
     .await
@@ -201,7 +201,7 @@ mod tests {
 
     // Insert user role without can_delete_site permission
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('user', 1234567890, TRUE, '[\"can_view_user_self\"]')"
+      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567890, 1234567890, TRUE, '[\"can_view_user_self\"]')"
     )
     .execute(&pool)
     .await
@@ -277,7 +277,7 @@ mod tests {
 
     // Insert admin role with can_delete_site permission
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('admin', 1234567890, FALSE, '[\"is_admin\", \"can_delete_site\"]')"
+      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\", \"can_delete_site\"]')"
     )
     .execute(&pool)
     .await
