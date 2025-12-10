@@ -1,6 +1,31 @@
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
+/// Static array of all valid role permissions
+pub const ROLE_PERMISSIONS: &[&str] = &[
+  "is_admin",
+  "can_view_user_self",
+  "can_update_user_self",
+  "can_create_email_self",
+  "can_delete_email_self",
+  "can_list_users",
+  "can_view_user_details",
+  "can_delete_user",
+  "can_edit_user",
+  "can_create_site",
+  "can_delete_site",
+  "can_update_site",
+  "can_view_site_details",
+  "can_edit_user_role",
+  "can_manage_roles",
+  "can_manage_admin_role_permission",
+];
+
+/// Check if a permission string is valid
+pub fn is_valid_role_permission(permission: &str) -> bool {
+  ROLE_PERMISSIONS.contains(&permission)
+}
+
 #[derive(Debug, FromRow, Serialize, Deserialize)]
 pub struct UserRole {
   pub id: i64,
@@ -127,5 +152,78 @@ mod tests {
     };
 
     assert!(!role.has_permission("any_permission"));
+  }
+
+  #[test]
+  fn test_is_valid_role_permission_valid_permissions() {
+    // Test all valid permissions
+    assert!(is_valid_role_permission("is_admin"));
+    assert!(is_valid_role_permission("can_view_user_self"));
+    assert!(is_valid_role_permission("can_update_user_self"));
+    assert!(is_valid_role_permission("can_create_email_self"));
+    assert!(is_valid_role_permission("can_delete_email_self"));
+    assert!(is_valid_role_permission("can_list_users"));
+    assert!(is_valid_role_permission("can_view_user_details"));
+    assert!(is_valid_role_permission("can_delete_user"));
+    assert!(is_valid_role_permission("can_edit_user"));
+    assert!(is_valid_role_permission("can_create_site"));
+    assert!(is_valid_role_permission("can_delete_site"));
+    assert!(is_valid_role_permission("can_update_site"));
+    assert!(is_valid_role_permission("can_view_site_details"));
+    assert!(is_valid_role_permission("can_edit_user_role"));
+    assert!(is_valid_role_permission("can_manage_roles"));
+    assert!(is_valid_role_permission("can_manage_admin_role_permission"));
+  }
+
+  #[test]
+  fn test_is_valid_role_permission_invalid_permissions() {
+    // Test invalid permissions
+    assert!(!is_valid_role_permission("invalid_permission"));
+    assert!(!is_valid_role_permission("can_"));
+    assert!(!is_valid_role_permission(""));
+    assert!(!is_valid_role_permission("admin")); // Missing is_ prefix
+    assert!(!is_valid_role_permission("CAN_VIEW_USER_SELF")); // Wrong case
+    assert!(!is_valid_role_permission("can_view_user_self ")); // Trailing space
+    assert!(!is_valid_role_permission(" can_view_user_self")); // Leading space
+  }
+
+  #[test]
+  fn test_role_permissions_array_contains_all_expected() {
+    // Verify the array contains exactly the expected permissions
+    let expected_permissions = vec![
+      "is_admin",
+      "can_view_user_self",
+      "can_update_user_self",
+      "can_create_email_self",
+      "can_delete_email_self",
+      "can_list_users",
+      "can_view_user_details",
+      "can_delete_user",
+      "can_edit_user",
+      "can_create_site",
+      "can_delete_site",
+      "can_update_site",
+      "can_view_site_details",
+      "can_edit_user_role",
+      "can_manage_roles",
+      "can_manage_admin_role_permission",
+    ];
+
+    assert_eq!(ROLE_PERMISSIONS.len(), expected_permissions.len());
+
+    for expected in &expected_permissions {
+      assert!(
+        ROLE_PERMISSIONS.contains(expected),
+        "Missing permission: {expected}"
+      );
+    }
+
+    // Verify no extra permissions
+    for &actual in ROLE_PERMISSIONS {
+      assert!(
+        expected_permissions.contains(&actual),
+        "Extra permission: {actual}"
+      );
+    }
   }
 }

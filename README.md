@@ -34,6 +34,7 @@ It is intended to be deployed as a microservice with a volume to house the SQLit
 | `sites` | List all sites in database. Returns array of [id (Int), slug (String), subdomain (String), port (Int), protocol (String)]. No authentication required. |
 | `user` | Get complete user details by ID (admin only). Returns id (Int!), uuid (String), username (String), roleId (Int), roleName (String), createdTs (Int), updatedTs (Int). Requires can_view_user_details permission. |
 | `users` | List all users with role information (admin only). Returns array of [id (Int), uuid (String), username (String), roleName (String), createdTs (Int), updatedTs (Int)]. Requires can_list_users permission. |
+| `rolePermissions` | List all available role permissions. Returns array of permission strings. Requires can_manage_roles permission. |
 
 #### Mutations
 

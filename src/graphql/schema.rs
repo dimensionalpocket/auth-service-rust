@@ -1,7 +1,8 @@
 use crate::graphql::resolvers::{
   AddSiteResolver, AuthChangePasswordResolver, AuthLoginResolver, AuthLogoutResolver,
   AuthMeResolver, AuthRegisterResolver, DeleteUserResolver, GetServerTimestampResolver,
-  RemoveSiteResolver, SiteResolver, SitesResolver, UpdateSiteResolver, UserResolver, UsersResolver,
+  RemoveSiteResolver, RolePermissionsResolver, SiteResolver, SitesResolver, UpdateSiteResolver,
+  UserResolver, UsersResolver,
 };
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 
@@ -28,6 +29,7 @@ pub struct Query(
   SiteResolver,
   UsersResolver,
   UserResolver,
+  RolePermissionsResolver,
 );
 
 impl Query {
@@ -67,16 +69,7 @@ pub struct Mutation(
 
 impl Mutation {
   pub fn new() -> Self {
-    Self(
-      AuthRegisterResolver,
-      AuthLoginResolver,
-      AuthLogoutResolver,
-      AuthChangePasswordResolver,
-      AddSiteResolver,
-      RemoveSiteResolver,
-      UpdateSiteResolver,
-      DeleteUserResolver,
-    )
+    Self::default()
   }
 }
 

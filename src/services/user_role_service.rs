@@ -2,6 +2,7 @@ use crate::models::user::User;
 use crate::models::user_role::UserRole;
 use crate::queries::user_roles::{GetRoleByIdQuery, GetRoleByNameQuery};
 use sqlx::SqlitePool;
+use tracing::warn;
 
 pub struct UserRoleService;
 
@@ -36,13 +37,19 @@ impl UserRoleService {
   ///
   /// # Returns
   /// * `Ok(true)` - User has the permission (or is admin)
-  /// * `Ok(false)` - User does not have the permission
+  /// * `Ok(false)` - User does not have the permission or permission is invalid
   /// * `Err(sqlx::Error)` - Database error occurred
   pub async fn check_user_permission(
     pool: &SqlitePool,
     user: &User,
     permission: &str,
   ) -> Result<bool, sqlx::Error> {
+    // Validate permission exists
+    if !crate::models::user_role::is_valid_role_permission(permission) {
+      warn!("Invalid permission checked: {}", permission);
+      return Ok(false);
+    }
+
     let role = GetRoleByIdQuery::run(pool, user.role_id).await?;
 
     match role {
@@ -129,14 +136,14 @@ mod tests {
       metadata_json: None,
     };
 
-    // Admin should have any permission
+    // Admin should have any valid permission
     assert!(
-      UserRoleService::check_user_permission(&pool, &admin_user, "any_permission")
+      UserRoleService::check_user_permission(&pool, &admin_user, "can_list_users")
         .await
         .unwrap()
     );
     assert!(
-      UserRoleService::check_user_permission(&pool, &admin_user, "can_create_user")
+      UserRoleService::check_user_permission(&pool, &admin_user, "can_create_site")
         .await
         .unwrap()
     );
@@ -152,7 +159,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create user role
-    let user_role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('user', 1234567890, TRUE, '[\"can_view_user_self\", \"can_update_user_self\"]')")
+    let user_role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('user', 1234567890, TRUE, '[\"can_view_user_self\"]')")
       .execute(&pool)
       .await
       .unwrap();
@@ -176,15 +183,10 @@ mod tests {
         .await
         .unwrap()
     );
-    assert!(
-      UserRoleService::check_user_permission(&pool, &regular_user, "can_update_user_self")
-        .await
-        .unwrap()
-    );
 
     // User should NOT have admin permissions
     assert!(
-      !UserRoleService::check_user_permission(&pool, &regular_user, "can_create_user")
+      !UserRoleService::check_user_permission(&pool, &regular_user, "can_list_users")
         .await
         .unwrap()
     );
@@ -213,9 +215,142 @@ mod tests {
 
     // User with no role should have no permissions
     assert!(
-      !UserRoleService::check_user_permission(&pool, &user_no_role, "any_permission")
+      !UserRoleService::check_user_permission(&pool, &user_no_role, "can_list_users")
         .await
         .unwrap()
     );
+  }
+
+  #[tokio::test]
+  async fn test_check_user_permission_invalid_permission() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create admin role
+    let admin_role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('admin', 1234567890, FALSE, '[\"is_admin\"]')")
+      .execute(&pool)
+      .await
+      .unwrap();
+    let admin_role_id = admin_role_result.last_insert_rowid();
+
+    // Create admin user
+    let admin_user = User {
+      id: 1,
+      uuid: "admin-uuid".to_string(),
+      created_ts: 1234567890,
+      updated_ts: 1234567890,
+      name: "admin".to_string(),
+      role_id: admin_role_id,
+      password_hash: "hash".to_string(),
+      metadata_json: None,
+    };
+
+    // Even admin users should get false for invalid permissions
+    assert!(
+      !UserRoleService::check_user_permission(&pool, &admin_user, "invalid_permission")
+        .await
+        .unwrap()
+    );
+    assert!(
+      !UserRoleService::check_user_permission(&pool, &admin_user, "")
+        .await
+        .unwrap()
+    );
+    assert!(!UserRoleService::check_user_permission(
+      &pool,
+      &admin_user,
+      "nonexistent_can_permission"
+    )
+    .await
+    .unwrap());
+  }
+
+  #[tokio::test]
+  async fn test_check_user_permission_valid_new_permissions() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create role with new permissions
+    let role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('role_manager', 1234567890, FALSE, '[\"can_edit_user_role\", \"can_manage_roles\"]')")
+      .execute(&pool)
+      .await
+      .unwrap();
+    let role_id = role_result.last_insert_rowid();
+
+    // Create user with role management permissions
+    let role_manager_user = User {
+      id: 2,
+      uuid: "role-manager-uuid".to_string(),
+      created_ts: 1234567890,
+      updated_ts: 1234567890,
+      name: "role_manager".to_string(),
+      role_id,
+      password_hash: "hash".to_string(),
+      metadata_json: None,
+    };
+
+    // User should have the new permissions
+    assert!(UserRoleService::check_user_permission(
+      &pool,
+      &role_manager_user,
+      "can_edit_user_role"
+    )
+    .await
+    .unwrap());
+    assert!(
+      UserRoleService::check_user_permission(&pool, &role_manager_user, "can_manage_roles")
+        .await
+        .unwrap()
+    );
+
+    // User should NOT have admin management permission
+    assert!(!UserRoleService::check_user_permission(
+      &pool,
+      &role_manager_user,
+      "can_manage_admin_role_permission"
+    )
+    .await
+    .unwrap());
+  }
+
+  #[tokio::test]
+  async fn test_check_user_permission_admin_bypasses_validation() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create admin role
+    let admin_role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, is_default, permissions_json) VALUES ('admin', 1234567890, FALSE, '[\"is_admin\"]')")
+      .execute(&pool)
+      .await
+      .unwrap();
+    let admin_role_id = admin_role_result.last_insert_rowid();
+
+    // Create admin user
+    let admin_user = User {
+      id: 1,
+      uuid: "admin-uuid".to_string(),
+      created_ts: 1234567890,
+      updated_ts: 1234567890,
+      name: "admin".to_string(),
+      role_id: admin_role_id,
+      password_hash: "hash".to_string(),
+      metadata_json: None,
+    };
+
+    // Admin should have all valid permissions
+    assert!(
+      UserRoleService::check_user_permission(&pool, &admin_user, "can_edit_user_role")
+        .await
+        .unwrap()
+    );
+    assert!(
+      UserRoleService::check_user_permission(&pool, &admin_user, "can_manage_roles")
+        .await
+        .unwrap()
+    );
+    assert!(UserRoleService::check_user_permission(
+      &pool,
+      &admin_user,
+      "can_manage_admin_role_permission"
+    )
+    .await
+    .unwrap());
   }
 }

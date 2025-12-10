@@ -32,7 +32,6 @@
   - GraphQL resolvers last
 - Do not code immediately after writing plans - wait for user review/approval
 
-
 ### Implementing Plans
 - Only start implementation after explicit user command
 - During implementation, STOP and inform user if deviating from the plan in any way
@@ -70,6 +69,11 @@
   - **Field names**: snake_case in Rust with `#[graphql(name = "camelCase")]` for GraphQL output (e.g., `role_id` → `roleId`, `created_ts` → `createdTs`)
   - **Input types**: camelCase field names with `#[graphql(name = "camelCase")]` annotations
   - **Response types**: Follow same pattern as existing `AddSiteResponse`, `UpdateSiteResponse`, `AuthLoginResponse`
+- Maintaining the schema:
+  - The schema lives in `src/graphql/schema.rs`
+  - Add new queries to the `Query` struct and new mutations to the `Mutation` struct
+  - Do not change the implementations of `Query::new()` and `Mutation::new()`
+  - The `QueryRoot` delegation pattern is not used in this project
 
 ### Orchestration Layer
 - Service orchestrators live in `src/orchestrators/`
@@ -93,6 +97,15 @@
   - Each migration has two files: `.sql` (forward) and `.down.sql` (rollback)
   - Migration files contain native SQL code
 
+### Role Permissions
+
+- All valid role permissions are defined in a static array at `src/models/user_role.rs:ROLE_PERMISSIONS`. This array serves as the whitelist of all allowed permissions in the system.
+- When adding new permissions or removing existing ones:
+  1. Update the `ROLE_PERMISSIONS` array in `src/models/user_role.rs`
+  2. The `is_valid_role_permission()` function will automatically validate against the updated array
+  3. All permission checks throughout the codebase use this validation
+- Permission checks are performed through `UserRoleService::check_user_permission()` which validates that the permission exists in the static array before checking the user's role.
+
 ### Testing
 
 - Unit tests live in the same files as the code they test, within `#[cfg(test)]` modules
@@ -109,8 +122,6 @@
 - Follow rustfmt defaults for all other formatting
 
 ### Imports
-- Group imports logically: std, external crates, internal modules
-- Use `crate::` for internal module references
 - Prefer specific imports over `use *;`
 
 ### Types & Naming
@@ -127,8 +138,8 @@
 
 ### Logging Security
 - **NEVER** log passwords, API keys, tokens, or other sensitive data
-- Always add password parameters to the `skip` list in `#[instrument]` macros
-- Use `#[instrument(skip(self, ctx, password, password_confirmation), fields(username = %username))]` pattern for auth functions
+- Always add sensitive parameters to the `skip` list in `#[instrument]` macros
+  - E.g.: `#[instrument(skip(self, ctx, password, password_confirmation), fields(username = %username))]` pattern for auth functions
 - Only log non-sensitive identifiers like usernames for debugging purposes
 - Verify no sensitive data is logged by running the password logging tests
 
