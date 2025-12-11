@@ -118,7 +118,7 @@ This plan implements a phased approach to add comprehensive role management func
 - Call UserRoleService method
 - Add tests following `SiteOrchestrator` patterns for success, forbidden, not found, and unauthenticated cases
 
-#### Step 3.8: Create Resolver
+#### Step 3.8: Create Resolver ✅
 - Create `src/graphql/resolvers/update_role.rs`
 - Define `UpdateRoleResponse` type following `UpdateSiteResponse` pattern
 - Define `UpdateRoleData` input struct with `permissions: Option<Vec<String>>`

@@ -2,7 +2,7 @@ use crate::graphql::resolvers::{
   AddSiteResolver, AuthChangePasswordResolver, AuthLoginResolver, AuthLogoutResolver,
   AuthMeResolver, AuthRegisterResolver, DeleteUserResolver, GetServerTimestampResolver,
   RemoveSiteResolver, RolePermissionsResolver, RoleResolver, RolesResolver, SiteResolver,
-  SitesResolver, UpdateSiteResolver, UserResolver, UsersResolver,
+  SitesResolver, UpdateRoleResolver, UpdateSiteResolver, UserResolver, UsersResolver,
 };
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 
@@ -55,6 +55,7 @@ impl Query {
 /// - addSite: Add a new site to the database (requires can_create_site permission)
 /// - updateSite: Update an existing site (requires can_update_site permission)
 /// - removeSite: Remove an existing site (requires can_delete_site permission)
+/// - updateRole: Update an existing role (requires can_manage_roles permission)
 /// - deleteUser: Delete an existing user (requires can_delete_user permission)
 ///
 /// Future mutations will be added here as the service expands to include
@@ -68,6 +69,7 @@ pub struct Mutation(
   AddSiteResolver,
   RemoveSiteResolver,
   UpdateSiteResolver,
+  UpdateRoleResolver,
   DeleteUserResolver,
 );
 
