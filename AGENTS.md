@@ -113,6 +113,10 @@
 
 - Unit tests live in the same files as the code they test, within `#[cfg(test)]` modules
 - Integration and other higher-level tests live in the `tests/` directory
+- Test both success and error paths
+- Use `tokio::test` for async tests
+- Use `serial_test` crate for tests that rely on mutable ENV variables, or tests that otherwise cannot run in parallel
+- **Timestamp Testing**: Database timestamp columns (`created_ts`, `updated_ts`) store seconds since Unix epoch. Any tests requiring timestamp differences must use delays of at least 1 second (e.g., `tokio::time::sleep(tokio::time::Duration::from_secs(1)).await`)
 
 ## Code Style Guidelines
 
@@ -145,11 +149,6 @@
   - E.g.: `#[instrument(skip(self, ctx, password, password_confirmation), fields(username = %username))]` pattern for auth functions
 - Only log non-sensitive identifiers like usernames for debugging purposes
 - Verify no sensitive data is logged by running the password logging tests
-
-### Testing
-- Test both success and error paths
-- Use `tokio::test` for async tests
-- Use `serial_test` crate for tests that rely on mutable ENV variables, or tests that otherwise cannot run in parallel
 
 ### Test Utilities
 
