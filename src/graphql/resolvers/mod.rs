@@ -1,3 +1,4 @@
+pub mod add_role;
 pub mod add_site;
 pub mod auth_change_password;
 pub mod auth_login;
@@ -17,6 +18,7 @@ pub mod update_site;
 pub mod user;
 pub mod users;
 
+pub use add_role::AddRoleResolver;
 pub use add_site::AddSiteResolver;
 pub use auth_change_password::AuthChangePasswordResolver;
 pub use auth_login::AuthLoginResolver;

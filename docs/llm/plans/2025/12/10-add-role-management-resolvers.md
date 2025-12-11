@@ -130,19 +130,19 @@ This plan implements a phased approach to add comprehensive role management func
 ### Phase 4: addRole Mutation Resolver
 **Permission requirement**: `can_manage_roles`
 
-#### Step 4.1: Create Create Query
+#### Step 4.1: Create Create Query ✅
 - Create `src/queries/user_roles/create_role.rs`
 - Handle permissions array conversion to JSON
 - Validate role name uniqueness
 - Set initial timestamps (both `created_ts` and `updated_ts`)
 
-#### Step 4.2: Add UserRoleService Method
+#### Step 4.2: Add UserRoleService Method ✅
 - Add `create_role(create_data: CreateRoleData)` method to existing `src/services/user_role_service.rs`
 - Validate all permissions are valid
 - Validate role name format and uniqueness
 - Return `Result<UserRole, RoleError>`
 
-#### Step 4.3: Add Orchestrator Method
+#### Step 4.3: Add Orchestrator Method ✅
 - Add `create_role_with_permission_check(pool, session_context, create_data: CreateRoleData)` to RoleOrchestrator
 - Follow `SiteOrchestrator` patterns exactly:
   - Authentication: Check `session_context.user_id()` and return `AuthenticationError` if None
@@ -153,10 +153,10 @@ This plan implements a phased approach to add comprehensive role management func
 - Call UserRoleService method
 - Add tests following `SiteOrchestrator` patterns for success, forbidden, validation, and unauthenticated cases
 
-#### Step 4.4: Create Resolver
+#### Step 4.4: Create Resolver ✅
 - Create `src/graphql/resolvers/add_role.rs`
 - Define `AddRoleResponse` type following `AddSiteResponse` pattern
-- Define `CreateRoleData` input struct with `permissions: Vec<String>`
+- Define `AddRoleData` input struct with `permissions: Vec<String>`
 - Follow `addSite` pattern for input structure (no envelope)
 - Implement `AddRoleResolver` with `addRole` mutation
 - Add `AddRoleResolver` to `Mutation` struct in `src/graphql/schema.rs`
