@@ -4,8 +4,22 @@ use crate::queries::users::GetAllUsersWithRolesQuery;
 use crate::queries::users::GetUserByIdQuery;
 use crate::queries::users::GetUserByIdWithRoleQuery;
 use crate::queries::users::UpdateUserData;
+use crate::services::user_role_service::RoleError;
 use crate::services::{UserError, UserRoleService, UserService};
 use sqlx::SqlitePool;
+
+impl From<RoleError> for UserError {
+  fn from(err: RoleError) -> Self {
+    match err {
+      RoleError::DatabaseError(db_err) => UserError::DatabaseError(db_err),
+      RoleError::AuthenticationError(msg) => UserError::AuthenticationError(msg),
+      RoleError::AuthorizationError(msg) => UserError::AuthorizationError(msg),
+      // Other RoleError variants shouldn't occur in user operations,
+      // but we'll handle them as database errors for safety
+      _ => UserError::DatabaseError(sqlx::Error::Protocol(format!("Role error: {err}"))),
+    }
+  }
+}
 
 pub struct UserOrchestrator;
 
@@ -27,9 +41,7 @@ impl UserOrchestrator {
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
 
-    let allowed = UserRoleService::check_user_permission(pool, &user, "can_list_users")
-      .await
-      .map_err(UserError::DatabaseError)?;
+    let allowed = UserRoleService::check_user_permission(pool, &user, "can_list_users").await?;
 
     if !allowed {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));
@@ -74,9 +86,8 @@ impl UserOrchestrator {
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
 
-    let allowed = UserRoleService::check_user_permission(pool, &user, "can_view_user_details")
-      .await
-      .map_err(UserError::DatabaseError)?;
+    let allowed =
+      UserRoleService::check_user_permission(pool, &user, "can_view_user_details").await?;
 
     if !allowed {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));
@@ -123,9 +134,7 @@ impl UserOrchestrator {
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
 
-    let allowed = UserRoleService::check_user_permission(pool, &user, "can_delete_user")
-      .await
-      .map_err(UserError::DatabaseError)?;
+    let allowed = UserRoleService::check_user_permission(pool, &user, "can_delete_user").await?;
 
     if !allowed {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));
@@ -186,9 +195,7 @@ impl UserOrchestrator {
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
 
-    let allowed = UserRoleService::check_user_permission(pool, &user, "can_edit_user")
-      .await
-      .map_err(UserError::DatabaseError)?;
+    let allowed = UserRoleService::check_user_permission(pool, &user, "can_edit_user").await?;
 
     if !allowed {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));

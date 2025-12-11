@@ -1,35 +1,8 @@
 use crate::middleware::session::SessionContext;
 use crate::models::user_role::UserRole;
 use crate::queries::users::GetUserByIdQuery;
-use crate::services::user_role_service::UserRoleService;
+use crate::services::user_role_service::{RoleError, UserRoleService};
 use sqlx::SqlitePool;
-
-#[derive(Debug)]
-pub enum RoleError {
-  DatabaseError(sqlx::Error),
-  AuthenticationError(String),
-  AuthorizationError(String),
-  RoleNotFound(i64),
-}
-
-impl std::fmt::Display for RoleError {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    match self {
-      RoleError::DatabaseError(err) => write!(f, "Database error: {err}"),
-      RoleError::AuthenticationError(msg) => write!(f, "Authentication error: {msg}"),
-      RoleError::AuthorizationError(msg) => write!(f, "Authorization error: {msg}"),
-      RoleError::RoleNotFound(id) => write!(f, "Role not found: {id}"),
-    }
-  }
-}
-
-impl std::error::Error for RoleError {}
-
-impl From<sqlx::Error> for RoleError {
-  fn from(err: sqlx::Error) -> Self {
-    RoleError::DatabaseError(err)
-  }
-}
 
 pub struct RoleOrchestrator;
 
@@ -64,9 +37,7 @@ impl RoleOrchestrator {
     }
 
     // Business logic: Get all roles
-    UserRoleService::get_all_roles(pool)
-      .await
-      .map_err(RoleError::DatabaseError)
+    UserRoleService::get_all_roles(pool).await
   }
 
   /// Get a role by ID with permission check

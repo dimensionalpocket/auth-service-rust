@@ -1,8 +1,22 @@
 use crate::middleware::session::SessionContext;
 use crate::queries::sites::{CreateSiteData, GetSiteByIdQuery, UpdateSiteData};
 use crate::queries::users::GetUserByIdQuery;
+use crate::services::user_role_service::RoleError;
 use crate::services::{SiteError, SiteService, UserRoleService};
 use sqlx::SqlitePool;
+
+impl From<RoleError> for SiteError {
+  fn from(err: RoleError) -> Self {
+    match err {
+      RoleError::DatabaseError(db_err) => SiteError::DatabaseError(db_err),
+      RoleError::AuthenticationError(msg) => SiteError::AuthenticationError(msg),
+      RoleError::AuthorizationError(msg) => SiteError::AuthorizationError(msg),
+      // Other RoleError variants shouldn't occur in site operations,
+      // but we'll handle them as database errors for safety
+      _ => SiteError::DatabaseError(sqlx::Error::Protocol(format!("Role error: {err}"))),
+    }
+  }
+}
 
 pub struct SiteOrchestrator;
 
@@ -25,9 +39,7 @@ impl SiteOrchestrator {
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = UserRoleService::check_user_permission(pool, &user, "can_create_site")
-      .await
-      .map_err(SiteError::DatabaseError)?;
+    let allowed = UserRoleService::check_user_permission(pool, &user, "can_create_site").await?;
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
@@ -55,9 +67,7 @@ impl SiteOrchestrator {
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = UserRoleService::check_user_permission(pool, &user, "can_delete_site")
-      .await
-      .map_err(SiteError::DatabaseError)?;
+    let allowed = UserRoleService::check_user_permission(pool, &user, "can_delete_site").await?;
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
@@ -86,9 +96,7 @@ impl SiteOrchestrator {
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = UserRoleService::check_user_permission(pool, &user, "can_update_site")
-      .await
-      .map_err(SiteError::DatabaseError)?;
+    let allowed = UserRoleService::check_user_permission(pool, &user, "can_update_site").await?;
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
@@ -116,9 +124,8 @@ impl SiteOrchestrator {
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = UserRoleService::check_user_permission(pool, &user, "can_view_site_details")
-      .await
-      .map_err(SiteError::DatabaseError)?;
+    let allowed =
+      UserRoleService::check_user_permission(pool, &user, "can_view_site_details").await?;
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));

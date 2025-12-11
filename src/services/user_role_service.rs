@@ -4,28 +4,78 @@ use crate::queries::user_roles::{GetAllRolesQuery, GetRoleByIdQuery, GetRoleByNa
 use sqlx::SqlitePool;
 use tracing::warn;
 
+/// Custom error type for user role operations
+#[derive(Debug)]
+pub enum RoleError {
+  /// Database operation failed
+  DatabaseError(sqlx::Error),
+  /// Authentication failed (used by orchestrators)
+  AuthenticationError(String),
+  /// Authorization failed (used by orchestrators)
+  AuthorizationError(String),
+  /// Role not found
+  RoleNotFound(i64),
+  /// Role name already exists
+  RoleNameAlreadyExists(String),
+  /// Role is in use and cannot be deleted
+  RoleInUse(i64),
+  /// Input validation failed
+  ValidationError(String),
+  /// Invalid permission string
+  InvalidPermission(String),
+}
+
+impl std::fmt::Display for RoleError {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      RoleError::DatabaseError(err) => write!(f, "Database error: {err}"),
+      RoleError::AuthenticationError(msg) => write!(f, "Authentication error: {msg}"),
+      RoleError::AuthorizationError(msg) => write!(f, "Authorization error: {msg}"),
+      RoleError::RoleNotFound(id) => write!(f, "Role not found: {id}"),
+      RoleError::RoleNameAlreadyExists(name) => write!(f, "Role name already exists: {name}"),
+      RoleError::RoleInUse(id) => write!(f, "Role is in use and cannot be deleted: {id}"),
+      RoleError::ValidationError(msg) => write!(f, "Validation error: {msg}"),
+      RoleError::InvalidPermission(permission) => write!(f, "Invalid permission: {permission}"),
+    }
+  }
+}
+
+impl std::error::Error for RoleError {}
+
+impl From<sqlx::Error> for RoleError {
+  fn from(err: sqlx::Error) -> Self {
+    RoleError::DatabaseError(err)
+  }
+}
+
 pub struct UserRoleService;
 
 impl UserRoleService {
   /// Get all roles
-  pub async fn get_all_roles(pool: &SqlitePool) -> Result<Vec<UserRole>, sqlx::Error> {
-    GetAllRolesQuery::run(pool).await
+  pub async fn get_all_roles(pool: &SqlitePool) -> Result<Vec<UserRole>, RoleError> {
+    GetAllRolesQuery::run(pool)
+      .await
+      .map_err(RoleError::DatabaseError)
   }
 
   /// Get a role by ID
   pub async fn get_role_by_id(
     pool: &SqlitePool,
     role_id: i64,
-  ) -> Result<Option<UserRole>, sqlx::Error> {
-    GetRoleByIdQuery::run(pool, role_id).await
+  ) -> Result<Option<UserRole>, RoleError> {
+    GetRoleByIdQuery::run(pool, role_id)
+      .await
+      .map_err(RoleError::DatabaseError)
   }
 
   /// Get a role by name
   pub async fn get_role_by_name(
     pool: &SqlitePool,
     name: &str,
-  ) -> Result<Option<UserRole>, sqlx::Error> {
-    GetRoleByNameQuery::run(pool, name).await
+  ) -> Result<Option<UserRole>, RoleError> {
+    GetRoleByNameQuery::run(pool, name)
+      .await
+      .map_err(RoleError::DatabaseError)
   }
 
   /// Check if a user has a specific permission
@@ -43,19 +93,21 @@ impl UserRoleService {
   /// # Returns
   /// * `Ok(true)` - User has the permission (or is admin)
   /// * `Ok(false)` - User does not have the permission or permission is invalid
-  /// * `Err(sqlx::Error)` - Database error occurred
+  /// * `Err(RoleError)` - Database error occurred
   pub async fn check_user_permission(
     pool: &SqlitePool,
     user: &User,
     permission: &str,
-  ) -> Result<bool, sqlx::Error> {
+  ) -> Result<bool, RoleError> {
     // Validate permission exists
     if !crate::models::user_role::is_valid_role_permission(permission) {
       warn!("Invalid permission checked: {}", permission);
       return Ok(false);
     }
 
-    let role = GetRoleByIdQuery::run(pool, user.role_id).await?;
+    let role = GetRoleByIdQuery::run(pool, user.role_id)
+      .await
+      .map_err(RoleError::DatabaseError)?;
 
     match role {
       Some(role) => {
