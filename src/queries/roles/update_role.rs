@@ -69,7 +69,7 @@ impl UpdateRoleQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::database::test_utils::create_test_database;
+  use crate::test_utils::test_utils::create_test_database;
   use crate::models::ROLE_PERMISSIONS;
 
   async fn create_test_role(pool: &SqlitePool, name: &str, permissions: Vec<&str>) -> Role {

@@ -208,7 +208,7 @@ impl UserOrchestrator {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::database::test_utils::{create_test_database, create_test_database_with_pool_size};
+  use crate::test_utils::test_utils::{create_test_database, create_test_database_with_pool_size};
   use crate::middleware::session::SessionContext;
   use crate::models::User;
   use crate::queries::users::{CreateUserData, CreateUserQuery, UpdateUserData};

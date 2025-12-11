@@ -141,7 +141,7 @@ impl SiteOrchestrator {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::database::test_utils::create_test_database;
+  use crate::test_utils::test_utils::create_test_database;
   use crate::middleware::session::SessionContext;
   use crate::queries::sites::{CreateSiteData, CreateSiteQuery, UpdateSiteData};
   use crate::queries::users::{CreateUserData, CreateUserQuery};

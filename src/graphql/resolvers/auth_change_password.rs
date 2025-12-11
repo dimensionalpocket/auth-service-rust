@@ -88,7 +88,7 @@ impl AuthChangePasswordResolver {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::database::test_utils::create_test_database;
+  use crate::test_utils::test_utils::create_test_database;
   use crate::middleware::session::{SessionContext, SessionPayload};
   use crate::services::{AuthService, UserService};
   use async_graphql::{EmptySubscription, Schema};

@@ -17,7 +17,7 @@ impl GetRoleByNameQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::database::test_utils::create_test_database;
+  use crate::test_utils::test_utils::create_test_database;
 
   #[tokio::test]
   async fn test_get_role_by_name_found() {

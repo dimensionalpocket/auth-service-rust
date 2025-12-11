@@ -1,5 +1,5 @@
 use dps_auth_api::{
-  database::test_utils::create_test_database,
+  test_utils::test_utils::create_test_database,
   queries::{
     roles::{GetAllRolesQuery, GetRoleByNameQuery},
     users::{CreateUserData, CreateUserQuery, GetUserByUuidQuery},
