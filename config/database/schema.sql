@@ -10,6 +10,15 @@ CREATE TABLE _sqlx_migrations (
     execution_time BIGINT NOT NULL
 );
 
+CREATE TABLE roles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    created_ts INTEGER NOT NULL,
+    updated_ts INTEGER NOT NULL,
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    permissions_json TEXT NOT NULL DEFAULT '[]'
+);
+
 CREATE TABLE sites (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     created_ts INTEGER NOT NULL,
@@ -30,21 +39,13 @@ CREATE TABLE sites (
     metadata_json TEXT
 );
 
-CREATE TABLE user_roles (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE,
-    created_ts INTEGER NOT NULL,
-    is_default BOOLEAN NOT NULL DEFAULT FALSE,
-    permissions_json TEXT NOT NULL DEFAULT '[]'
-);
-
 CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     uuid TEXT UNIQUE NOT NULL,
     created_ts INTEGER NOT NULL,
     updated_ts INTEGER NOT NULL,
     name TEXT NOT NULL COLLATE NOCASE,
-    role_id INTEGER NOT NULL REFERENCES user_roles(id) ON DELETE RESTRICT,
+    role_id INTEGER NOT NULL REFERENCES roles(id) ON DELETE RESTRICT,
     password_hash TEXT NOT NULL,
     metadata_json TEXT
 );

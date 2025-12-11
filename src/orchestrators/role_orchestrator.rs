@@ -1,8 +1,8 @@
 use crate::middleware::session::SessionContext;
-use crate::models::user_role::UserRole;
-use crate::queries::user_roles::{CreateRoleData, UpdateRoleData};
+use crate::models::role::Role;
+use crate::queries::roles::{CreateRoleData, UpdateRoleData};
 use crate::queries::users::GetUserByIdQuery;
-use crate::services::user_role_service::{RoleError, UserRoleService};
+use crate::services::role_service::{RoleError, RoleService};
 use sqlx::SqlitePool;
 
 pub struct RoleOrchestrator;
@@ -15,7 +15,7 @@ impl RoleOrchestrator {
   pub async fn get_all_roles_with_permission_check(
     pool: &SqlitePool,
     session_context: SessionContext,
-  ) -> Result<Vec<UserRole>, RoleError> {
+  ) -> Result<Vec<Role>, RoleError> {
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -29,16 +29,16 @@ impl RoleOrchestrator {
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
     let can_manage_roles =
-      UserRoleService::check_user_permission(pool, &user, "can_manage_roles").await?;
+      RoleService::check_user_permission(pool, &user, "can_manage_roles").await?;
     let can_edit_user_role =
-      UserRoleService::check_user_permission(pool, &user, "can_edit_user_role").await?;
+      RoleService::check_user_permission(pool, &user, "can_edit_user_role").await?;
 
     if !can_manage_roles && !can_edit_user_role {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Get all roles
-    UserRoleService::get_all_roles(pool).await
+    RoleService::get_all_roles(pool).await
   }
 
   /// Get a role by ID with permission check
@@ -49,7 +49,7 @@ impl RoleOrchestrator {
     pool: &SqlitePool,
     session_context: SessionContext,
     role_id: i64,
-  ) -> Result<UserRole, RoleError> {
+  ) -> Result<Role, RoleError> {
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -63,14 +63,14 @@ impl RoleOrchestrator {
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
     let can_manage_roles =
-      UserRoleService::check_user_permission(pool, &user, "can_manage_roles").await?;
+      RoleService::check_user_permission(pool, &user, "can_manage_roles").await?;
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Get role by ID
-    let role = UserRoleService::get_role_by_id(pool, role_id).await?;
+    let role = RoleService::get_role_by_id(pool, role_id).await?;
     match role {
       Some(role) => Ok(role),
       None => Err(RoleError::RoleNotFound(role_id)),
@@ -86,7 +86,7 @@ impl RoleOrchestrator {
     session_context: SessionContext,
     role_id: i64,
     update_data: UpdateRoleData,
-  ) -> Result<UserRole, RoleError> {
+  ) -> Result<Role, RoleError> {
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -100,14 +100,14 @@ impl RoleOrchestrator {
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
     let can_manage_roles =
-      UserRoleService::check_user_permission(pool, &user, "can_manage_roles").await?;
+      RoleService::check_user_permission(pool, &user, "can_manage_roles").await?;
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Update role
-    UserRoleService::update_role(pool, role_id, update_data).await
+    RoleService::update_role(pool, role_id, update_data).await
   }
 
   /// Create a role with permission check
@@ -118,7 +118,7 @@ impl RoleOrchestrator {
     pool: &SqlitePool,
     session_context: SessionContext,
     create_data: CreateRoleData,
-  ) -> Result<UserRole, RoleError> {
+  ) -> Result<Role, RoleError> {
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -132,7 +132,7 @@ impl RoleOrchestrator {
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
     let can_manage_roles =
-      UserRoleService::check_user_permission(pool, &user, "can_manage_roles").await?;
+      RoleService::check_user_permission(pool, &user, "can_manage_roles").await?;
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
@@ -143,7 +143,7 @@ impl RoleOrchestrator {
       permissions: create_data.permissions,
       is_default: false,
     };
-    UserRoleService::create_role(pool, create_data_with_default_false).await
+    RoleService::create_role(pool, create_data_with_default_false).await
   }
 
   /// Delete a role with permission check
@@ -154,7 +154,7 @@ impl RoleOrchestrator {
     pool: &SqlitePool,
     session_context: SessionContext,
     role_id: i64,
-  ) -> Result<UserRole, RoleError> {
+  ) -> Result<Role, RoleError> {
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -168,14 +168,14 @@ impl RoleOrchestrator {
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
     let can_manage_roles =
-      UserRoleService::check_user_permission(pool, &user, "can_manage_roles").await?;
+      RoleService::check_user_permission(pool, &user, "can_manage_roles").await?;
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Delete role
-    UserRoleService::delete_role(pool, role_id).await
+    RoleService::delete_role(pool, role_id).await
   }
 }
 
@@ -210,7 +210,7 @@ mod tests {
     let permissions_json = serde_json::json!(permissions);
     let result = sqlx::query(
       r#"
-      INSERT INTO user_roles (name, created_ts, updated_ts, permissions_json, is_default)
+      INSERT INTO roles (name, created_ts, updated_ts, permissions_json, is_default)
       VALUES (?, ?, ?, ?, FALSE)
       "#,
     )
@@ -545,7 +545,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     // Update the role
-    let update_data = crate::queries::user_roles::UpdateRoleData {
+    let update_data = crate::queries::roles::UpdateRoleData {
       id: test_role_id,
       name: Some("updated-user".to_string()),
       permissions: Some(vec![
@@ -593,7 +593,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     // Update only the name
-    let update_data = crate::queries::user_roles::UpdateRoleData {
+    let update_data = crate::queries::roles::UpdateRoleData {
       id: test_role_id,
       name: Some("senior-editor".to_string()),
       permissions: None,
@@ -627,7 +627,7 @@ mod tests {
     // Create session context without user (not authenticated)
     let session_context = SessionContext::new(None);
 
-    let update_data = crate::queries::user_roles::UpdateRoleData {
+    let update_data = crate::queries::roles::UpdateRoleData {
       id: test_role_id,
       name: Some("updated".to_string()),
       permissions: None,
@@ -665,7 +665,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let update_data = crate::queries::user_roles::UpdateRoleData {
+    let update_data = crate::queries::roles::UpdateRoleData {
       id: test_role_id,
       name: Some("updated".to_string()),
       permissions: None,
@@ -707,7 +707,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let update_data = crate::queries::user_roles::UpdateRoleData {
+    let update_data = crate::queries::roles::UpdateRoleData {
       id: test_role_id,
       name: Some("updated".to_string()),
       permissions: None,
@@ -746,7 +746,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let update_data = crate::queries::user_roles::UpdateRoleData {
+    let update_data = crate::queries::roles::UpdateRoleData {
       id: 999, // Non-existent role ID
       name: Some("updated".to_string()),
       permissions: None,
@@ -785,7 +785,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     // Update with invalid permission
-    let update_data = crate::queries::user_roles::UpdateRoleData {
+    let update_data = crate::queries::roles::UpdateRoleData {
       id: test_role_id,
       name: None,
       permissions: Some(vec!["invalid_permission".to_string()]),
@@ -828,7 +828,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     // Update permissions to empty array
-    let update_data = crate::queries::user_roles::UpdateRoleData {
+    let update_data = crate::queries::roles::UpdateRoleData {
       id: test_role_id,
       name: None,
       permissions: Some(vec![]), // Set to empty array
@@ -1208,7 +1208,7 @@ mod tests {
     assert_eq!(deleted_role.name, "test_role");
 
     // Verify role is actually deleted
-    let check_result = UserRoleService::get_role_by_id(&pool, test_role_id).await;
+    let check_result = RoleService::get_role_by_id(&pool, test_role_id).await;
     assert!(check_result.is_ok());
     assert!(check_result.unwrap().is_none());
   }
@@ -1364,7 +1364,7 @@ mod tests {
     assert!(check_user.unwrap().is_some());
 
     // Verify the role still exists
-    let check_role = UserRoleService::get_role_by_id(&pool, test_role_id).await;
+    let check_role = RoleService::get_role_by_id(&pool, test_role_id).await;
     assert!(check_role.is_ok());
     assert!(check_role.unwrap().is_some());
   }
@@ -1386,7 +1386,7 @@ mod tests {
     .await;
 
     // Get the role data before deletion for comparison
-    let role_before = UserRoleService::get_role_by_id(&pool, test_role_id)
+    let role_before = RoleService::get_role_by_id(&pool, test_role_id)
       .await
       .unwrap()
       .unwrap();

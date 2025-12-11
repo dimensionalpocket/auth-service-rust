@@ -347,7 +347,7 @@ mod tests {
 
     // Insert default role first
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
     )
     .execute(&pool)
     .await
@@ -372,7 +372,7 @@ mod tests {
 
     // Insert default role first
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
     )
     .execute(&pool)
     .await
@@ -399,7 +399,7 @@ mod tests {
 
     // Insert default role first
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
     )
     .execute(&pool)
     .await
@@ -510,7 +510,7 @@ mod tests {
 
     // Insert default role first
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
     )
     .execute(&pool)
     .await
@@ -544,7 +544,7 @@ mod tests {
 
     // Insert default role first
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
     )
     .execute(&pool)
     .await
@@ -572,7 +572,7 @@ mod tests {
 
     // Insert default role first
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
     )
     .execute(&pool)
     .await
@@ -611,7 +611,7 @@ mod tests {
 
     // Setup: Create default role and user
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
     )
     .execute(&pool)
     .await
@@ -654,7 +654,7 @@ mod tests {
 
     // Setup: Create default role and user
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
     )
     .execute(&pool)
     .await
@@ -689,7 +689,7 @@ mod tests {
 
     // Setup: Create default role and user
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
     )
     .execute(&pool)
     .await
@@ -724,7 +724,7 @@ mod tests {
 
     // Setup: Create default role and user
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
     )
     .execute(&pool)
     .await
@@ -777,7 +777,7 @@ mod tests {
 
     // Setup: Create default role and user
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
     )
     .execute(&pool)
     .await
@@ -1406,7 +1406,7 @@ mod tests {
   // Helper functions for tests
   async fn setup_default_role(pool: &SqlitePool) {
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
     )
     .execute(pool)
     .await
@@ -1415,7 +1415,7 @@ mod tests {
 
   async fn create_admin_role(pool: &SqlitePool) -> i64 {
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE)",
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE)",
     )
     .execute(pool)
     .await

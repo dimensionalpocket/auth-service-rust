@@ -102,7 +102,7 @@ mod tests {
     let permissions_json = serde_json::json!(permissions);
     let result = sqlx::query(
       r#"
-            INSERT INTO user_roles (name, created_ts, updated_ts, permissions_json, is_default)
+            INSERT INTO roles (name, created_ts, updated_ts, permissions_json, is_default)
             VALUES (?, ?, ?, ?, FALSE)
             "#,
     )

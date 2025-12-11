@@ -1,8 +1,8 @@
 use crate::middleware::session::SessionContext;
 use crate::queries::sites::{CreateSiteData, GetSiteByIdQuery, UpdateSiteData};
 use crate::queries::users::GetUserByIdQuery;
-use crate::services::user_role_service::RoleError;
-use crate::services::{SiteError, SiteService, UserRoleService};
+use crate::services::role_service::RoleError;
+use crate::services::{RoleService, SiteError, SiteService};
 use sqlx::SqlitePool;
 
 impl From<RoleError> for SiteError {
@@ -39,7 +39,7 @@ impl SiteOrchestrator {
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = UserRoleService::check_user_permission(pool, &user, "can_create_site").await?;
+    let allowed = RoleService::check_user_permission(pool, &user, "can_create_site").await?;
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
@@ -67,7 +67,7 @@ impl SiteOrchestrator {
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = UserRoleService::check_user_permission(pool, &user, "can_delete_site").await?;
+    let allowed = RoleService::check_user_permission(pool, &user, "can_delete_site").await?;
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
@@ -96,7 +96,7 @@ impl SiteOrchestrator {
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = UserRoleService::check_user_permission(pool, &user, "can_update_site").await?;
+    let allowed = RoleService::check_user_permission(pool, &user, "can_update_site").await?;
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
@@ -124,8 +124,7 @@ impl SiteOrchestrator {
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed =
-      UserRoleService::check_user_permission(pool, &user, "can_view_site_details").await?;
+    let allowed = RoleService::check_user_permission(pool, &user, "can_view_site_details").await?;
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
@@ -171,7 +170,7 @@ mod tests {
     let permissions_json = serde_json::json!(permissions);
     let result = sqlx::query(
       r#"
-      INSERT INTO user_roles (name, created_ts, updated_ts, permissions_json, is_default)
+      INSERT INTO roles (name, created_ts, updated_ts, permissions_json, is_default)
       VALUES (?, ?, ?, ?, FALSE)
       "#,
     )

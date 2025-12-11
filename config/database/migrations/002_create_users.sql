@@ -5,7 +5,7 @@ CREATE TABLE users (
     created_ts INTEGER NOT NULL,
     updated_ts INTEGER NOT NULL,
     name TEXT NOT NULL COLLATE NOCASE,
-    role_id INTEGER NOT NULL REFERENCES user_roles(id) ON DELETE RESTRICT,
+    role_id INTEGER NOT NULL REFERENCES roles(id) ON DELETE RESTRICT,
     password_hash TEXT NOT NULL,
     metadata_json TEXT
 );

@@ -26,7 +26,7 @@ mod tests {
 
     // Insert test role first
     let role_result = sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
     )
     .execute(&pool)
     .await

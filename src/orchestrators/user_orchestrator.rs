@@ -4,8 +4,8 @@ use crate::queries::users::GetAllUsersWithRolesQuery;
 use crate::queries::users::GetUserByIdQuery;
 use crate::queries::users::GetUserByIdWithRoleQuery;
 use crate::queries::users::UpdateUserData;
-use crate::services::user_role_service::RoleError;
-use crate::services::{UserError, UserRoleService, UserService};
+use crate::services::role_service::RoleError;
+use crate::services::{RoleService, UserError, UserService};
 use sqlx::SqlitePool;
 
 impl From<RoleError> for UserError {
@@ -41,7 +41,7 @@ impl UserOrchestrator {
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
 
-    let allowed = UserRoleService::check_user_permission(pool, &user, "can_list_users").await?;
+    let allowed = RoleService::check_user_permission(pool, &user, "can_list_users").await?;
 
     if !allowed {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));
@@ -86,8 +86,7 @@ impl UserOrchestrator {
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
 
-    let allowed =
-      UserRoleService::check_user_permission(pool, &user, "can_view_user_details").await?;
+    let allowed = RoleService::check_user_permission(pool, &user, "can_view_user_details").await?;
 
     if !allowed {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));
@@ -134,7 +133,7 @@ impl UserOrchestrator {
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
 
-    let allowed = UserRoleService::check_user_permission(pool, &user, "can_delete_user").await?;
+    let allowed = RoleService::check_user_permission(pool, &user, "can_delete_user").await?;
 
     if !allowed {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));
@@ -195,7 +194,7 @@ impl UserOrchestrator {
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
 
-    let allowed = UserRoleService::check_user_permission(pool, &user, "can_edit_user").await?;
+    let allowed = RoleService::check_user_permission(pool, &user, "can_edit_user").await?;
 
     if !allowed {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));
@@ -235,7 +234,7 @@ mod tests {
     let permissions_json = serde_json::json!(permissions);
     let result = sqlx::query(
       r#"
-      INSERT INTO user_roles (name, created_ts, updated_ts, permissions_json, is_default)
+      INSERT INTO roles (name, created_ts, updated_ts, permissions_json, is_default)
       VALUES (?, ?, ?, ?, FALSE)
       "#,
     )
@@ -1115,7 +1114,7 @@ mod tests {
   // Helper functions for orchestrator tests
   async fn create_admin_role(pool: &SqlitePool) -> i64 {
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"can_edit_user\"]')"
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"can_edit_user\"]')"
     )
     .execute(pool)
     .await
@@ -1130,7 +1129,7 @@ mod tests {
 
   async fn create_user_role(pool: &SqlitePool) -> i64 {
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567890, 1234567890, TRUE, '[]')"
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567890, 1234567890, TRUE, '[]')"
     )
     .execute(pool)
     .await

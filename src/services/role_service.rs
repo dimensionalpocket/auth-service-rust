@@ -1,6 +1,6 @@
+use crate::models::role::Role;
 use crate::models::user::User;
-use crate::models::user_role::UserRole;
-use crate::queries::user_roles::{
+use crate::queries::roles::{
   CreateRoleData, CreateRoleQuery, DeleteRoleQuery, GetAllRolesQuery, GetRoleByIdQuery,
   GetRoleByNameQuery, UpdateRoleData, UpdateRoleQuery,
 };
@@ -51,31 +51,25 @@ impl From<sqlx::Error> for RoleError {
   }
 }
 
-pub struct UserRoleService;
+pub struct RoleService;
 
-impl UserRoleService {
+impl RoleService {
   /// Get all roles
-  pub async fn get_all_roles(pool: &SqlitePool) -> Result<Vec<UserRole>, RoleError> {
+  pub async fn get_all_roles(pool: &SqlitePool) -> Result<Vec<Role>, RoleError> {
     GetAllRolesQuery::run(pool)
       .await
       .map_err(RoleError::DatabaseError)
   }
 
   /// Get a role by ID
-  pub async fn get_role_by_id(
-    pool: &SqlitePool,
-    role_id: i64,
-  ) -> Result<Option<UserRole>, RoleError> {
+  pub async fn get_role_by_id(pool: &SqlitePool, role_id: i64) -> Result<Option<Role>, RoleError> {
     GetRoleByIdQuery::run(pool, role_id)
       .await
       .map_err(RoleError::DatabaseError)
   }
 
   /// Get a role by name
-  pub async fn get_role_by_name(
-    pool: &SqlitePool,
-    name: &str,
-  ) -> Result<Option<UserRole>, RoleError> {
+  pub async fn get_role_by_name(pool: &SqlitePool, name: &str) -> Result<Option<Role>, RoleError> {
     GetRoleByNameQuery::run(pool, name)
       .await
       .map_err(RoleError::DatabaseError)
@@ -92,12 +86,12 @@ impl UserRoleService {
   /// * `create_data` - Data for creating the new role
   ///
   /// # Returns
-  /// * `Ok(UserRole)` - Created role
+  /// * `Ok(Role)` - Created role
   /// * `Err(RoleError)` - Database error, validation error, or role name already exists
   pub async fn create_role(
     pool: &SqlitePool,
     create_data: CreateRoleData,
-  ) -> Result<UserRole, RoleError> {
+  ) -> Result<Role, RoleError> {
     // Validate role name format
     if create_data.name.trim().is_empty() {
       return Err(RoleError::ValidationError(
@@ -107,7 +101,7 @@ impl UserRoleService {
 
     // Validate all permissions are valid
     for permission in &create_data.permissions {
-      if !crate::models::user_role::is_valid_role_permission(permission) {
+      if !crate::models::role::is_valid_role_permission(permission) {
         return Err(RoleError::InvalidPermission(permission.clone()));
       }
     }
@@ -141,9 +135,9 @@ impl UserRoleService {
   /// * `role_id` - ID of the role to delete
   ///
   /// # Returns
-  /// * `Ok(UserRole)` - The deleted role data
+  /// * `Ok(Role)` - The deleted role data
   /// * `Err(RoleError)` - Database error, role not found, or role in use
-  pub async fn delete_role(pool: &SqlitePool, role_id: i64) -> Result<UserRole, RoleError> {
+  pub async fn delete_role(pool: &SqlitePool, role_id: i64) -> Result<Role, RoleError> {
     use sqlx::Row;
 
     // First check if any users are using this role
@@ -178,17 +172,17 @@ impl UserRoleService {
   /// * `update_data` - Data to update (partial update supported)
   ///
   /// # Returns
-  /// * `Ok(UserRole)` - Updated role
+  /// * `Ok(Role)` - Updated role
   /// * `Err(RoleError)` - Database error, role not found, or validation error
   pub async fn update_role(
     pool: &SqlitePool,
     role_id: i64,
     update_data: UpdateRoleData,
-  ) -> Result<UserRole, RoleError> {
+  ) -> Result<Role, RoleError> {
     // Validate permissions if provided
     if let Some(ref permissions) = update_data.permissions {
       for permission in permissions {
-        if !crate::models::user_role::is_valid_role_permission(permission) {
+        if !crate::models::role::is_valid_role_permission(permission) {
           return Err(RoleError::InvalidPermission(permission.clone()));
         }
       }
@@ -234,7 +228,7 @@ impl UserRoleService {
     permission: &str,
   ) -> Result<bool, RoleError> {
     // Validate permission exists
-    if !crate::models::user_role::is_valid_role_permission(permission) {
+    if !crate::models::role::is_valid_role_permission(permission) {
       warn!("Invalid permission checked: {}", permission);
       return Ok(false);
     }
@@ -268,15 +262,13 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test role with permissions
-    let result = sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\"]')")
+    let result = sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\"]')")
       .execute(&pool)
       .await
       .unwrap();
 
     let role_id = result.last_insert_rowid();
-    let role = UserRoleService::get_role_by_id(&pool, role_id)
-      .await
-      .unwrap();
+    let role = RoleService::get_role_by_id(&pool, role_id).await.unwrap();
 
     assert!(role.is_some());
     let role = role.unwrap();
@@ -289,14 +281,12 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test role with permissions
-    sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567890, 1234567890, TRUE, '[\"can_view_user_self\"]')")
+    sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567890, 1234567890, TRUE, '[\"can_view_user_self\"]')")
       .execute(&pool)
       .await
       .unwrap();
 
-    let role = UserRoleService::get_role_by_name(&pool, "user")
-      .await
-      .unwrap();
+    let role = RoleService::get_role_by_name(&pool, "user").await.unwrap();
 
     assert!(role.is_some());
     let role = role.unwrap();
@@ -309,12 +299,12 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test roles with different permissions
-    sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\", \"can_manage_roles\"]'), ('user', 1234567891, 1234567891, TRUE, '[\"can_view_user_self\"]')")
+    sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\", \"can_manage_roles\"]'), ('user', 1234567891, 1234567891, TRUE, '[\"can_view_user_self\"]')")
       .execute(&pool)
       .await
       .unwrap();
 
-    let roles = UserRoleService::get_all_roles(&pool).await.unwrap();
+    let roles = RoleService::get_all_roles(&pool).await.unwrap();
 
     assert_eq!(roles.len(), 2);
 
@@ -333,7 +323,7 @@ mod tests {
   async fn test_get_all_roles_empty_table() {
     let (pool, _temp_file) = create_test_database().await;
 
-    let roles = UserRoleService::get_all_roles(&pool).await.unwrap();
+    let roles = RoleService::get_all_roles(&pool).await.unwrap();
 
     assert_eq!(roles.len(), 0);
   }
@@ -343,7 +333,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role
-    let admin_role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\"]')")
+    let admin_role_result = sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\"]')")
       .execute(&pool)
       .await
       .unwrap();
@@ -363,17 +353,17 @@ mod tests {
 
     // Admin should have any valid permission
     assert!(
-      UserRoleService::check_user_permission(&pool, &admin_user, "can_list_users")
+      RoleService::check_user_permission(&pool, &admin_user, "can_list_users")
         .await
         .unwrap()
     );
     assert!(
-      UserRoleService::check_user_permission(&pool, &admin_user, "can_create_site")
+      RoleService::check_user_permission(&pool, &admin_user, "can_create_site")
         .await
         .unwrap()
     );
     assert!(
-      UserRoleService::check_user_permission(&pool, &admin_user, "can_delete_user")
+      RoleService::check_user_permission(&pool, &admin_user, "can_delete_user")
         .await
         .unwrap()
     );
@@ -384,7 +374,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create user role
-    let user_role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567890, 1234567890, TRUE, '[\"can_view_user_self\"]')")
+    let user_role_result = sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567890, 1234567890, TRUE, '[\"can_view_user_self\"]')")
       .execute(&pool)
       .await
       .unwrap();
@@ -404,19 +394,19 @@ mod tests {
 
     // User should have specific permissions
     assert!(
-      UserRoleService::check_user_permission(&pool, &regular_user, "can_view_user_self")
+      RoleService::check_user_permission(&pool, &regular_user, "can_view_user_self")
         .await
         .unwrap()
     );
 
     // User should NOT have admin permissions
     assert!(
-      !UserRoleService::check_user_permission(&pool, &regular_user, "can_list_users")
+      !RoleService::check_user_permission(&pool, &regular_user, "can_list_users")
         .await
         .unwrap()
     );
     assert!(
-      !UserRoleService::check_user_permission(&pool, &regular_user, "is_admin")
+      !RoleService::check_user_permission(&pool, &regular_user, "is_admin")
         .await
         .unwrap()
     );
@@ -440,7 +430,7 @@ mod tests {
 
     // User with no role should have no permissions
     assert!(
-      !UserRoleService::check_user_permission(&pool, &user_no_role, "can_list_users")
+      !RoleService::check_user_permission(&pool, &user_no_role, "can_list_users")
         .await
         .unwrap()
     );
@@ -451,7 +441,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role
-    let admin_role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\"]')")
+    let admin_role_result = sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\"]')")
       .execute(&pool)
       .await
       .unwrap();
@@ -471,22 +461,18 @@ mod tests {
 
     // Even admin users should get false for invalid permissions
     assert!(
-      !UserRoleService::check_user_permission(&pool, &admin_user, "invalid_permission")
+      !RoleService::check_user_permission(&pool, &admin_user, "invalid_permission")
         .await
         .unwrap()
     );
+    assert!(!RoleService::check_user_permission(&pool, &admin_user, "")
+      .await
+      .unwrap());
     assert!(
-      !UserRoleService::check_user_permission(&pool, &admin_user, "")
+      !RoleService::check_user_permission(&pool, &admin_user, "nonexistent_can_permission")
         .await
         .unwrap()
     );
-    assert!(!UserRoleService::check_user_permission(
-      &pool,
-      &admin_user,
-      "nonexistent_can_permission"
-    )
-    .await
-    .unwrap());
   }
 
   #[tokio::test]
@@ -494,7 +480,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create role with new permissions
-    let role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('role_manager', 1234567890, 1234567890, FALSE, '[\"can_edit_user_role\", \"can_manage_roles\"]')")
+    let role_result = sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('role_manager', 1234567890, 1234567890, FALSE, '[\"can_edit_user_role\", \"can_manage_roles\"]')")
       .execute(&pool)
       .await
       .unwrap();
@@ -513,21 +499,19 @@ mod tests {
     };
 
     // User should have the new permissions
-    assert!(UserRoleService::check_user_permission(
-      &pool,
-      &role_manager_user,
-      "can_edit_user_role"
-    )
-    .await
-    .unwrap());
     assert!(
-      UserRoleService::check_user_permission(&pool, &role_manager_user, "can_manage_roles")
+      RoleService::check_user_permission(&pool, &role_manager_user, "can_edit_user_role")
+        .await
+        .unwrap()
+    );
+    assert!(
+      RoleService::check_user_permission(&pool, &role_manager_user, "can_manage_roles")
         .await
         .unwrap()
     );
 
     // User should NOT have admin management permission
-    assert!(!UserRoleService::check_user_permission(
+    assert!(!RoleService::check_user_permission(
       &pool,
       &role_manager_user,
       "can_manage_admin_role_permission"
@@ -541,7 +525,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role
-    let admin_role_result = sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\"]')")
+    let admin_role_result = sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\"]')")
       .execute(&pool)
       .await
       .unwrap();
@@ -561,16 +545,16 @@ mod tests {
 
     // Admin should have all valid permissions
     assert!(
-      UserRoleService::check_user_permission(&pool, &admin_user, "can_edit_user_role")
+      RoleService::check_user_permission(&pool, &admin_user, "can_edit_user_role")
         .await
         .unwrap()
     );
     assert!(
-      UserRoleService::check_user_permission(&pool, &admin_user, "can_manage_roles")
+      RoleService::check_user_permission(&pool, &admin_user, "can_manage_roles")
         .await
         .unwrap()
     );
-    assert!(UserRoleService::check_user_permission(
+    assert!(RoleService::check_user_permission(
       &pool,
       &admin_user,
       "can_manage_admin_role_permission"
@@ -584,7 +568,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create a role first
-    let result = sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('test-role', 1234567890, 1234567890, FALSE, '[\"can_view_user_self\"]')")
+    let result = sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('test-role', 1234567890, 1234567890, FALSE, '[\"can_view_user_self\"]')")
       .execute(&pool)
       .await
       .unwrap();
@@ -600,7 +584,7 @@ mod tests {
       ]),
     };
 
-    let updated_role = UserRoleService::update_role(&pool, role_id, update_data)
+    let updated_role = RoleService::update_role(&pool, role_id, update_data)
       .await
       .unwrap();
 
@@ -617,7 +601,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create a role first
-    let result = sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('partial-role', 1234567890, 1234567890, FALSE, '[\"can_view_user_self\", \"can_list_users\"]')")
+    let result = sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('partial-role', 1234567890, 1234567890, FALSE, '[\"can_view_user_self\", \"can_list_users\"]')")
       .execute(&pool)
       .await
       .unwrap();
@@ -630,7 +614,7 @@ mod tests {
       permissions: None,
     };
 
-    let updated_role = UserRoleService::update_role(&pool, role_id, update_data)
+    let updated_role = RoleService::update_role(&pool, role_id, update_data)
       .await
       .unwrap();
 
@@ -652,7 +636,7 @@ mod tests {
       permissions: None,
     };
 
-    let result = UserRoleService::update_role(&pool, 999, update_data).await;
+    let result = RoleService::update_role(&pool, 999, update_data).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::RoleNotFound(id) => assert_eq!(id, 999),
@@ -665,7 +649,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create a role first
-    let result = sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('test-role', 1234567890, 1234567890, FALSE, '[\"can_view_user_self\"]')")
+    let result = sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('test-role', 1234567890, 1234567890, FALSE, '[\"can_view_user_self\"]')")
       .execute(&pool)
       .await
       .unwrap();
@@ -678,7 +662,7 @@ mod tests {
       permissions: Some(vec!["invalid_permission".to_string()]),
     };
 
-    let result = UserRoleService::update_role(&pool, role_id, update_data).await;
+    let result = RoleService::update_role(&pool, role_id, update_data).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::InvalidPermission(permission) => assert_eq!(permission, "invalid_permission"),
@@ -691,7 +675,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create a role first
-    let result = sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('empty-permissions-role', 1234567890, 1234567890, FALSE, '[\"can_view_user_self\"]')")
+    let result = sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('empty-permissions-role', 1234567890, 1234567890, FALSE, '[\"can_view_user_self\"]')")
       .execute(&pool)
       .await
       .unwrap();
@@ -704,7 +688,7 @@ mod tests {
       permissions: Some(vec![]), // Set to empty array
     };
 
-    let updated_role = UserRoleService::update_role(&pool, role_id, update_data)
+    let updated_role = RoleService::update_role(&pool, role_id, update_data)
       .await
       .unwrap();
 
@@ -719,7 +703,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create a role first
-    let result = sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('all-permissions-role', 1234567890, 1234567890, FALSE, '[\"can_view_user_self\"]')")
+    let result = sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('all-permissions-role', 1234567890, 1234567890, FALSE, '[\"can_view_user_self\"]')")
       .execute(&pool)
       .await
       .unwrap();
@@ -737,7 +721,7 @@ mod tests {
       permissions: Some(all_permissions.clone()),
     };
 
-    let updated_role = UserRoleService::update_role(&pool, role_id, update_data)
+    let updated_role = RoleService::update_role(&pool, role_id, update_data)
       .await
       .unwrap();
 
@@ -767,9 +751,7 @@ mod tests {
       is_default: false,
     };
 
-    let role = UserRoleService::create_role(&pool, create_data)
-      .await
-      .unwrap();
+    let role = RoleService::create_role(&pool, create_data).await.unwrap();
 
     assert_eq!(role.name, "test_role");
     assert!(!role.is_default);
@@ -792,9 +774,7 @@ mod tests {
       is_default: true,
     };
 
-    let role = UserRoleService::create_role(&pool, create_data)
-      .await
-      .unwrap();
+    let role = RoleService::create_role(&pool, create_data).await.unwrap();
 
     assert_eq!(role.name, "empty_permissions_role");
     assert!(!role.is_default); // Always false for now
@@ -812,9 +792,7 @@ mod tests {
       is_default: false,
     };
 
-    UserRoleService::create_role(&pool, create_data1)
-      .await
-      .unwrap();
+    RoleService::create_role(&pool, create_data1).await.unwrap();
 
     // Try to create second role with same name
     let create_data2 = CreateRoleData {
@@ -823,7 +801,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = UserRoleService::create_role(&pool, create_data2).await;
+    let result = RoleService::create_role(&pool, create_data2).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::RoleNameAlreadyExists(name) => assert_eq!(name, "duplicate"),
@@ -841,7 +819,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = UserRoleService::create_role(&pool, create_data).await;
+    let result = RoleService::create_role(&pool, create_data).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::ValidationError(msg) => assert_eq!(msg, "Role name cannot be empty"),
@@ -859,7 +837,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = UserRoleService::create_role(&pool, create_data).await;
+    let result = RoleService::create_role(&pool, create_data).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::ValidationError(msg) => assert_eq!(msg, "Role name cannot be empty"),
@@ -877,7 +855,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = UserRoleService::create_role(&pool, create_data).await;
+    let result = RoleService::create_role(&pool, create_data).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::InvalidPermission(permission) => assert_eq!(permission, "invalid_permission"),
@@ -899,7 +877,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = UserRoleService::create_role(&pool, create_data).await;
+    let result = RoleService::create_role(&pool, create_data).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::InvalidPermission(permission) => assert_eq!(permission, "invalid_permission1"),
@@ -922,9 +900,7 @@ mod tests {
       is_default: false,
     };
 
-    let role = UserRoleService::create_role(&pool, create_data)
-      .await
-      .unwrap();
+    let role = RoleService::create_role(&pool, create_data).await.unwrap();
 
     assert_eq!(role.name, "all_permissions_role");
     assert!(!role.is_default);
@@ -951,9 +927,7 @@ mod tests {
       is_default: true,
     };
 
-    let role = UserRoleService::create_role(&pool, create_data)
-      .await
-      .unwrap();
+    let role = RoleService::create_role(&pool, create_data).await.unwrap();
 
     assert_eq!(role.name, "default_test_role");
     assert!(!role.is_default); // Always false for now
@@ -973,12 +947,10 @@ mod tests {
       permissions: vec!["can_manage_roles".to_string()],
       is_default: false,
     };
-    let role = UserRoleService::create_role(&pool, create_data)
-      .await
-      .unwrap();
+    let role = RoleService::create_role(&pool, create_data).await.unwrap();
 
     // Delete the role
-    let deleted_role = UserRoleService::delete_role(&pool, role.id).await.unwrap();
+    let deleted_role = RoleService::delete_role(&pool, role.id).await.unwrap();
 
     // Verify returned data matches original
     assert_eq!(deleted_role.id, role.id);
@@ -988,9 +960,7 @@ mod tests {
     assert_eq!(deleted_role.is_default, role.is_default);
 
     // Verify role is deleted from database
-    let result = UserRoleService::get_role_by_id(&pool, role.id)
-      .await
-      .unwrap();
+    let result = RoleService::get_role_by_id(&pool, role.id).await.unwrap();
     assert!(result.is_none());
   }
 
@@ -999,7 +969,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Try to delete non-existent role
-    let result = UserRoleService::delete_role(&pool, 999).await;
+    let result = RoleService::delete_role(&pool, 999).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::RoleNotFound(id) => assert_eq!(id, 999),
@@ -1017,9 +987,7 @@ mod tests {
       permissions: vec!["can_manage_roles".to_string()],
       is_default: false,
     };
-    let role = UserRoleService::create_role(&pool, role_data)
-      .await
-      .unwrap();
+    let role = RoleService::create_role(&pool, role_data).await.unwrap();
 
     // Create a user with this role
     let user_data = crate::queries::users::CreateUserData {
@@ -1034,7 +1002,7 @@ mod tests {
       .unwrap();
 
     // Try to delete the role while it's in use
-    let result = UserRoleService::delete_role(&pool, role.id).await;
+    let result = RoleService::delete_role(&pool, role.id).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::RoleInUse(id) => assert_eq!(id, role.id),

@@ -1,5 +1,5 @@
--- Create user_roles table
-CREATE TABLE user_roles (
+-- Create roles table
+CREATE TABLE roles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
     created_ts INTEGER NOT NULL,

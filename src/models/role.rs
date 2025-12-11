@@ -27,7 +27,7 @@ pub fn is_valid_role_permission(permission: &str) -> bool {
 }
 
 #[derive(Debug, FromRow, Serialize, Deserialize)]
-pub struct UserRole {
+pub struct Role {
   pub id: i64,
   pub name: String,
   pub created_ts: i64,
@@ -36,7 +36,7 @@ pub struct UserRole {
   pub permissions_json: Option<String>,
 }
 
-impl UserRole {
+impl Role {
   /// Get the permissions for this role, deserializing from JSON
   pub fn permissions(&self) -> Vec<String> {
     match &self.permissions_json {
@@ -57,7 +57,7 @@ mod tests {
 
   #[test]
   fn test_permissions_with_valid_json() {
-    let role = UserRole {
+    let role = Role {
       id: 1,
       name: "test".to_string(),
       created_ts: 123456789,
@@ -74,7 +74,7 @@ mod tests {
 
   #[test]
   fn test_permissions_with_empty_json() {
-    let role = UserRole {
+    let role = Role {
       id: 1,
       name: "test".to_string(),
       created_ts: 123456789,
@@ -89,7 +89,7 @@ mod tests {
 
   #[test]
   fn test_permissions_with_none() {
-    let role = UserRole {
+    let role = Role {
       id: 1,
       name: "test".to_string(),
       created_ts: 123456789,
@@ -104,7 +104,7 @@ mod tests {
 
   #[test]
   fn test_permissions_with_invalid_json() {
-    let role = UserRole {
+    let role = Role {
       id: 1,
       name: "test".to_string(),
       created_ts: 123456789,
@@ -119,7 +119,7 @@ mod tests {
 
   #[test]
   fn test_has_permission_true() {
-    let role = UserRole {
+    let role = Role {
       id: 1,
       name: "admin".to_string(),
       created_ts: 123456789,
@@ -134,7 +134,7 @@ mod tests {
 
   #[test]
   fn test_has_permission_false() {
-    let role = UserRole {
+    let role = Role {
       id: 1,
       name: "user".to_string(),
       created_ts: 123456789,
@@ -150,7 +150,7 @@ mod tests {
 
   #[test]
   fn test_has_permission_empty_permissions() {
-    let role = UserRole {
+    let role = Role {
       id: 1,
       name: "guest".to_string(),
       created_ts: 123456789,

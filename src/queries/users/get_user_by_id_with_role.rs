@@ -22,7 +22,7 @@ impl GetUserByIdWithRoleQuery {
         u.id, u.uuid, u.created_ts, u.updated_ts, u.name, u.role_id, u.password_hash, u.metadata_json,
         r.name as role_name
       FROM users u
-      JOIN user_roles r ON u.role_id = r.id
+      JOIN roles r ON u.role_id = r.id
       WHERE u.id = ?
       "#,
     )
@@ -63,7 +63,7 @@ mod tests {
     let permissions_json = serde_json::json!(permissions);
     let result = sqlx::query(
       r#"
-      INSERT INTO user_roles (name, created_ts, updated_ts, permissions_json, is_default)
+      INSERT INTO roles (name, created_ts, updated_ts, permissions_json, is_default)
       VALUES (?, ?, ?, ?, FALSE)
       "#,
     )

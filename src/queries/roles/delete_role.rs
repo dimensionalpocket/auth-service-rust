@@ -1,20 +1,20 @@
-use crate::models::UserRole;
+use crate::models::Role;
 use sqlx::SqlitePool;
 
 pub struct DeleteRoleQuery;
 
 impl DeleteRoleQuery {
-  pub async fn run(pool: &SqlitePool, role_id: i64) -> Result<UserRole, sqlx::Error> {
+  pub async fn run(pool: &SqlitePool, role_id: i64) -> Result<Role, sqlx::Error> {
     // First fetch the role to return its data
-    let role = sqlx::query_as::<_, UserRole>(
-      "SELECT id, created_ts, updated_ts, name, permissions_json, is_default FROM user_roles WHERE id = ?"
+    let role = sqlx::query_as::<_, Role>(
+      "SELECT id, created_ts, updated_ts, name, permissions_json, is_default FROM roles WHERE id = ?"
     )
     .bind(role_id)
     .fetch_one(pool)
     .await?;
 
     // Then delete the role
-    let result = sqlx::query("DELETE FROM user_roles WHERE id = ?")
+    let result = sqlx::query("DELETE FROM roles WHERE id = ?")
       .bind(role_id)
       .execute(pool)
       .await?;
@@ -31,7 +31,7 @@ impl DeleteRoleQuery {
 mod tests {
   use super::*;
   use crate::database::test_utils::create_test_database;
-  use crate::queries::user_roles::{CreateRoleData, CreateRoleQuery};
+  use crate::queries::roles::{CreateRoleData, CreateRoleQuery};
   use crate::queries::users::{CreateUserData, CreateUserQuery};
   use sqlx::Row;
 
@@ -58,7 +58,7 @@ mod tests {
     assert_eq!(deleted_role.is_default, role.is_default);
 
     // Verify role is deleted from database
-    let result = sqlx::query("SELECT COUNT(*) FROM user_roles WHERE id = ?")
+    let result = sqlx::query("SELECT COUNT(*) FROM roles WHERE id = ?")
       .bind(role.id)
       .fetch_one(&pool)
       .await

@@ -1,4 +1,4 @@
-use crate::models::UserRole;
+use crate::models::Role;
 use serde_json;
 use sqlx::SqlitePool;
 
@@ -12,7 +12,7 @@ pub struct CreateRoleData {
 pub struct CreateRoleQuery;
 
 impl CreateRoleQuery {
-  pub async fn run(pool: &SqlitePool, data: CreateRoleData) -> Result<UserRole, sqlx::Error> {
+  pub async fn run(pool: &SqlitePool, data: CreateRoleData) -> Result<Role, sqlx::Error> {
     let now = chrono::Utc::now().timestamp();
     let permissions_json = if data.permissions.is_empty() {
       "[]".to_string()
@@ -27,7 +27,7 @@ impl CreateRoleQuery {
 
     let result = sqlx::query(
       r#"
-      INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json)
+      INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json)
       VALUES (?, ?, ?, ?, ?)
       "#,
     )
@@ -41,8 +41,8 @@ impl CreateRoleQuery {
 
     let role_id = result.last_insert_rowid();
 
-    sqlx::query_as::<_, UserRole>(
-      "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM user_roles WHERE id = ?"
+    sqlx::query_as::<_, Role>(
+      "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?"
     )
     .bind(role_id)
     .fetch_one(pool)

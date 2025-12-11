@@ -1,4 +1,4 @@
-use crate::models::UserRole;
+use crate::models::Role;
 use sqlx::SqlitePool;
 
 #[derive(Debug)]
@@ -11,10 +11,7 @@ pub struct UpdateRoleData {
 pub struct UpdateRoleQuery;
 
 impl UpdateRoleQuery {
-  pub async fn run(
-    pool: &SqlitePool,
-    data: UpdateRoleData,
-  ) -> Result<Option<UserRole>, sqlx::Error> {
+  pub async fn run(pool: &SqlitePool, data: UpdateRoleData) -> Result<Option<Role>, sqlx::Error> {
     let now = chrono::Utc::now().timestamp();
 
     // Build the UPDATE query dynamically based on provided fields
@@ -30,10 +27,7 @@ impl UpdateRoleQuery {
     }
 
     // Construct the SQL
-    let sql = format!(
-      "UPDATE user_roles SET {} WHERE id = ?",
-      set_clauses.join(", ")
-    );
+    let sql = format!("UPDATE roles SET {} WHERE id = ?", set_clauses.join(", "));
 
     // Execute the query with proper binding
     let mut query = sqlx::query(&sql).bind(now);
@@ -62,8 +56,8 @@ impl UpdateRoleQuery {
     }
 
     // Return updated role
-    sqlx::query_as::<_, UserRole>(
-            "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM user_roles WHERE id = ?"
+    sqlx::query_as::<_, Role>(
+            "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?"
         )
         .bind(data.id)
         .fetch_one(pool)
@@ -78,13 +72,13 @@ mod tests {
   use crate::database::test_utils::create_test_database;
   use crate::models::ROLE_PERMISSIONS;
 
-  async fn create_test_role(pool: &SqlitePool, name: &str, permissions: Vec<&str>) -> UserRole {
+  async fn create_test_role(pool: &SqlitePool, name: &str, permissions: Vec<&str>) -> Role {
     let now = chrono::Utc::now().timestamp();
     let permissions_json = serde_json::to_string(&permissions).unwrap();
 
     let result = sqlx::query(
       r#"
-      INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json)
+      INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json)
       VALUES (?, ?, ?, ?, ?)
       "#,
     )
@@ -99,8 +93,8 @@ mod tests {
 
     let role_id = result.last_insert_rowid();
 
-    sqlx::query_as::<_, UserRole>(
-      "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM user_roles WHERE id = ?"
+    sqlx::query_as::<_, Role>(
+      "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?"
     )
     .bind(role_id)
     .fetch_one(pool)

@@ -1,5 +1,5 @@
 use crate::models::User;
-use crate::queries::user_roles::GetDefaultUserRoleQuery;
+use crate::queries::roles::GetDefaultRoleQuery;
 use sqlx::SqlitePool;
 
 #[derive(Debug)]
@@ -22,7 +22,7 @@ impl CreateUserQuery {
       Some(id) => id,
       None => {
         // Get the default role
-        let default_role = GetDefaultUserRoleQuery::run(pool).await?;
+        let default_role = GetDefaultRoleQuery::run(pool).await?;
         match default_role {
           Some(role) => role.id,
           None => {
@@ -73,7 +73,7 @@ mod tests {
 
     // Insert test role first
     let role_result = sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
     )
     .execute(&pool)
     .await
@@ -106,7 +106,7 @@ mod tests {
 
     // Insert test role first
     let role_result = sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
     )
     .execute(&pool)
     .await
@@ -160,7 +160,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test roles with one default
-    sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE), ('user', 1234567891, 1234567891, TRUE)")
+    sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE), ('user', 1234567891, 1234567891, TRUE)")
       .execute(&pool)
       .await
       .unwrap();
@@ -179,7 +179,7 @@ mod tests {
     assert_eq!(user.uuid, user_uuid);
     assert_eq!(user.name, "Test User");
     // Should have the default role (user role)
-    let default_role = GetDefaultUserRoleQuery::run(&pool).await.unwrap().unwrap();
+    let default_role = GetDefaultRoleQuery::run(&pool).await.unwrap().unwrap();
     assert_eq!(user.role_id, default_role.id);
   }
 
@@ -189,7 +189,7 @@ mod tests {
 
     // Insert test roles with one default
     let admin_result = sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE)",
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE)",
     )
     .execute(&pool)
     .await
@@ -197,7 +197,7 @@ mod tests {
     let admin_role_id = admin_result.last_insert_rowid();
 
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567891, 1234567891, TRUE)",
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567891, 1234567891, TRUE)",
     )
     .execute(&pool)
     .await
@@ -224,7 +224,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test roles with no default
-    sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE), ('moderator', 1234567891, 1234567891, FALSE)")
+    sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE), ('moderator', 1234567891, 1234567891, FALSE)")
       .execute(&pool)
       .await
       .unwrap();

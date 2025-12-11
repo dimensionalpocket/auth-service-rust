@@ -1,7 +1,7 @@
 use crate::middleware::session::SessionContext;
-use crate::models::user_role::ROLE_PERMISSIONS;
+use crate::models::role::ROLE_PERMISSIONS;
 use crate::queries::users::GetUserByIdQuery;
-use crate::services::user_role_service::UserRoleService;
+use crate::services::role_service::RoleService;
 use async_graphql::{Context, Object, Result};
 use sqlx::SqlitePool;
 use tracing::instrument;
@@ -31,7 +31,7 @@ impl RolePermissionsResolver {
       .ok_or_else(|| async_graphql::Error::new("User not found"))?;
 
     // Check base permission
-    let allowed = UserRoleService::check_user_permission(pool, &user, "can_manage_roles")
+    let allowed = RoleService::check_user_permission(pool, &user, "can_manage_roles")
       .await
       .map_err(|e| async_graphql::Error::new(format!("Permission check failed: {e}")))?;
 
@@ -43,7 +43,7 @@ impl RolePermissionsResolver {
 
     // Check if user can manage admin role permissions
     let can_manage_admin =
-      UserRoleService::check_user_permission(pool, &user, "can_manage_admin_role_permission")
+      RoleService::check_user_permission(pool, &user, "can_manage_admin_role_permission")
         .await
         .map_err(|e| async_graphql::Error::new(format!("Permission check failed: {e}")))?;
 
@@ -101,7 +101,7 @@ mod tests {
     let permissions_json = serde_json::json!(permissions);
     let result = sqlx::query(
       r#"
-            INSERT INTO user_roles (name, created_ts, updated_ts, permissions_json, is_default)
+            INSERT INTO roles (name, created_ts, updated_ts, permissions_json, is_default)
             VALUES (?, ?, ?, ?, FALSE)
             "#,
     )

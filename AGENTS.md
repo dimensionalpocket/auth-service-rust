@@ -102,12 +102,12 @@
 
 ### Role Permissions
 
-- All valid role permissions are defined in a static array at `src/models/user_role.rs:ROLE_PERMISSIONS`. This array serves as the whitelist of all allowed permissions in the system.
+- All valid role permissions are defined in a static array at `src/models/role.rs:ROLE_PERMISSIONS`. This array serves as the whitelist of all allowed permissions in the system.
 - When adding new permissions or removing existing ones:
-  1. Update the `ROLE_PERMISSIONS` array in `src/models/user_role.rs`
+  1. Update the `ROLE_PERMISSIONS` array in `src/models/role.rs`
   2. The `is_valid_role_permission()` function will automatically validate against the updated array
   3. All permission checks throughout the codebase use this validation
-- Permission checks are performed through `UserRoleService::check_user_permission()` which validates that the permission exists in the static array before checking the user's role.
+- Permission checks are performed through `RoleService::check_user_permission()` which validates that the permission exists in the static array before checking the user's role.
 
 ### Testing
 

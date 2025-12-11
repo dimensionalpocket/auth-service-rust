@@ -1,7 +1,7 @@
 use dps_auth_api::{
   database::test_utils::create_test_database,
   queries::{
-    user_roles::{GetAllRolesQuery, GetRoleByNameQuery},
+    roles::{GetAllRolesQuery, GetRoleByNameQuery},
     users::{CreateUserData, CreateUserQuery, GetUserByUuidQuery},
   },
   services::PasswordService,
@@ -14,16 +14,16 @@ async fn test_complete_user_creation_flow() {
   let (pool, _temp_file) = create_test_database().await;
 
   // Insert test roles manually for this test
-  sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE), ('user', 1234567891, 1234567891, TRUE)")
+  sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE), ('user', 1234567891, 1234567891, TRUE)")
     .execute(&pool)
     .await
     .unwrap();
 
   // Get user role
-  let user_role = GetRoleByNameQuery::run(&pool, "user")
+  let role = GetRoleByNameQuery::run(&pool, "user")
     .await
     .unwrap()
-    .expect("User role should exist");
+    .expect("Role should exist");
 
   // Create password hash
   let password_hash = PasswordService::generate("test_password").unwrap();
@@ -33,7 +33,7 @@ async fn test_complete_user_creation_flow() {
   let create_data = CreateUserData {
     uuid: user_uuid.clone(),
     name: "Test User".to_string(),
-    role_id: Some(user_role.id),
+    role_id: Some(role.id),
     password_hash,
     metadata_json: Some(r#"{"test": true}"#.to_string()),
   };
@@ -43,7 +43,7 @@ async fn test_complete_user_creation_flow() {
   // Verify user was created correctly
   assert_eq!(created_user.uuid, user_uuid);
   assert_eq!(created_user.name, "Test User");
-  assert_eq!(created_user.role_id, user_role.id);
+  assert_eq!(created_user.role_id, role.id);
 
   // Verify user can be retrieved by UUID
   let retrieved_user = GetUserByUuidQuery::run(&pool, &user_uuid)
@@ -61,7 +61,7 @@ async fn test_default_roles_seeded() {
   let (pool, _temp_file) = create_test_database().await;
 
   // Insert test roles manually to simulate seeding
-  sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE), ('user', 1234567891, 1234567891, TRUE)")
+  sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE), ('user', 1234567891, 1234567891, TRUE)")
     .execute(&pool)
     .await
     .unwrap();

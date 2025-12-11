@@ -1,7 +1,7 @@
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::role_orchestrator::RoleOrchestrator;
-use crate::queries::user_roles::UpdateRoleData;
-use crate::services::user_role_service::RoleError;
+use crate::queries::roles::UpdateRoleData;
+use crate::services::role_service::RoleError;
 use async_graphql::{Context, InputObject, Object, Result};
 use sqlx::SqlitePool;
 use tracing::instrument;
@@ -148,7 +148,7 @@ mod tests {
     let permissions_json = serde_json::json!(permissions);
     let result = sqlx::query(
       r#"
-      INSERT INTO user_roles (name, created_ts, updated_ts, permissions_json, is_default)
+      INSERT INTO roles (name, created_ts, updated_ts, permissions_json, is_default)
       VALUES (?, ?, ?, ?, FALSE)
       "#,
     )
@@ -169,7 +169,7 @@ mod tests {
 
     // Insert admin role with can_manage_roles permission
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\", \"can_manage_roles\"]')"
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\", \"can_manage_roles\"]')"
     )
     .execute(&pool)
     .await
@@ -251,7 +251,7 @@ mod tests {
 
     // Insert admin role with can_manage_roles permission
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\", \"can_manage_roles\"]')"
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\", \"can_manage_roles\"]')"
     )
     .execute(&pool)
     .await
@@ -326,7 +326,7 @@ mod tests {
 
     // Insert user role without can_manage_roles permission
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567890, 1234567890, TRUE, '[\"can_view_user_self\"]')"
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567890, 1234567890, TRUE, '[\"can_view_user_self\"]')"
     )
     .execute(&pool)
     .await
@@ -406,7 +406,7 @@ mod tests {
 
     // Insert admin role with can_manage_roles permission
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\", \"can_manage_roles\"]')"
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\", \"can_manage_roles\"]')"
     )
     .execute(&pool)
     .await
@@ -455,7 +455,7 @@ mod tests {
 
     // Insert admin role with can_manage_roles permission
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\", \"can_manage_roles\"]')"
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\", \"can_manage_roles\"]')"
     )
     .execute(&pool)
     .await
@@ -511,7 +511,7 @@ mod tests {
 
     // Insert admin role with can_manage_roles permission
     sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\", \"can_manage_roles\"]')"
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\", \"can_manage_roles\"]')"
     )
     .execute(&pool)
     .await
