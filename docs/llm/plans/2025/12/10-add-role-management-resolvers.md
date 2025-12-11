@@ -102,7 +102,7 @@ This plan implements a phased approach to add comprehensive role management func
 - Handle permissions array conversion to JSON
 - Update `updated_ts` timestamp (following `UpdateSiteQuery` pattern exactly)
 
-#### Step 3.6: Add UserRoleService Method
+#### Step 3.6: Add UserRoleService Method ✅
 - Add `update_role(role_id: i64, update_data: UpdateRoleData)` method to existing `src/services/user_role_service.rs`
 - Validate all permissions in the input array are valid
 - Return `Result<UserRole, RoleError>`

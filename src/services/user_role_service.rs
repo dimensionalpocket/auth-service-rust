@@ -1,6 +1,8 @@
 use crate::models::user::User;
 use crate::models::user_role::UserRole;
-use crate::queries::user_roles::{GetAllRolesQuery, GetRoleByIdQuery, GetRoleByNameQuery};
+use crate::queries::user_roles::{
+  GetAllRolesQuery, GetRoleByIdQuery, GetRoleByNameQuery, UpdateRoleData, UpdateRoleQuery,
+};
 use sqlx::SqlitePool;
 use tracing::warn;
 
@@ -76,6 +78,52 @@ impl UserRoleService {
     GetRoleByNameQuery::run(pool, name)
       .await
       .map_err(RoleError::DatabaseError)
+  }
+
+  /// Update a role
+  ///
+  /// This method updates an existing role with the provided data.
+  /// Only the fields provided in the update_data will be modified (PATCH semantics).
+  /// All permissions in the input array are validated against the whitelist.
+  ///
+  /// # Arguments
+  /// * `pool` - Database connection pool
+  /// * `role_id` - ID of the role to update
+  /// * `update_data` - Data to update (partial update supported)
+  ///
+  /// # Returns
+  /// * `Ok(UserRole)` - Updated role
+  /// * `Err(RoleError)` - Database error, role not found, or validation error
+  pub async fn update_role(
+    pool: &SqlitePool,
+    role_id: i64,
+    update_data: UpdateRoleData,
+  ) -> Result<UserRole, RoleError> {
+    // Validate permissions if provided
+    if let Some(ref permissions) = update_data.permissions {
+      for permission in permissions {
+        if !crate::models::user_role::is_valid_role_permission(permission) {
+          return Err(RoleError::InvalidPermission(permission.clone()));
+        }
+      }
+    }
+
+    // Create update data with the correct ID
+    let update_data_with_id = UpdateRoleData {
+      id: role_id,
+      name: update_data.name,
+      permissions: update_data.permissions,
+    };
+
+    // Run the update query
+    let updated_role = UpdateRoleQuery::run(pool, update_data_with_id)
+      .await
+      .map_err(RoleError::DatabaseError)?;
+
+    match updated_role {
+      Some(role) => Ok(role),
+      None => Err(RoleError::RoleNotFound(role_id)),
+    }
   }
 
   /// Check if a user has a specific permission
@@ -443,5 +491,180 @@ mod tests {
     )
     .await
     .unwrap());
+  }
+
+  #[tokio::test]
+  async fn test_update_role_success() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create a role first
+    let result = sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('test-role', 1234567890, 1234567890, FALSE, '[\"can_view_user_self\"]')")
+      .execute(&pool)
+      .await
+      .unwrap();
+    let role_id = result.last_insert_rowid();
+
+    // Update the role
+    let update_data = UpdateRoleData {
+      id: role_id,
+      name: Some("updated-role".to_string()),
+      permissions: Some(vec![
+        "can_edit_user".to_string(),
+        "can_delete_user".to_string(),
+      ]),
+    };
+
+    let updated_role = UserRoleService::update_role(&pool, role_id, update_data)
+      .await
+      .unwrap();
+
+    assert_eq!(updated_role.id, role_id);
+    assert_eq!(updated_role.name, "updated-role");
+    let permissions = updated_role.permissions();
+    assert_eq!(permissions.len(), 2);
+    assert!(permissions.contains(&"can_edit_user".to_string()));
+    assert!(permissions.contains(&"can_delete_user".to_string()));
+  }
+
+  #[tokio::test]
+  async fn test_update_role_partial_update() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create a role first
+    let result = sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('partial-role', 1234567890, 1234567890, FALSE, '[\"can_view_user_self\", \"can_list_users\"]')")
+      .execute(&pool)
+      .await
+      .unwrap();
+    let role_id = result.last_insert_rowid();
+
+    // Update only the name
+    let update_data = UpdateRoleData {
+      id: role_id,
+      name: Some("partial-updated".to_string()),
+      permissions: None,
+    };
+
+    let updated_role = UserRoleService::update_role(&pool, role_id, update_data)
+      .await
+      .unwrap();
+
+    assert_eq!(updated_role.id, role_id);
+    assert_eq!(updated_role.name, "partial-updated");
+    let permissions = updated_role.permissions();
+    assert_eq!(permissions.len(), 2); // unchanged
+    assert!(permissions.contains(&"can_view_user_self".to_string()));
+    assert!(permissions.contains(&"can_list_users".to_string()));
+  }
+
+  #[tokio::test]
+  async fn test_update_role_not_found() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    let update_data = UpdateRoleData {
+      id: 999,
+      name: Some("nonexistent".to_string()),
+      permissions: None,
+    };
+
+    let result = UserRoleService::update_role(&pool, 999, update_data).await;
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      RoleError::RoleNotFound(id) => assert_eq!(id, 999),
+      _ => panic!("Expected RoleNotFound error"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_update_role_invalid_permission() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create a role first
+    let result = sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('test-role', 1234567890, 1234567890, FALSE, '[\"can_view_user_self\"]')")
+      .execute(&pool)
+      .await
+      .unwrap();
+    let role_id = result.last_insert_rowid();
+
+    // Update with invalid permission
+    let update_data = UpdateRoleData {
+      id: role_id,
+      name: None,
+      permissions: Some(vec!["invalid_permission".to_string()]),
+    };
+
+    let result = UserRoleService::update_role(&pool, role_id, update_data).await;
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      RoleError::InvalidPermission(permission) => assert_eq!(permission, "invalid_permission"),
+      _ => panic!("Expected InvalidPermission error"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_update_role_empty_permissions() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create a role first
+    let result = sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('empty-permissions-role', 1234567890, 1234567890, FALSE, '[\"can_view_user_self\"]')")
+      .execute(&pool)
+      .await
+      .unwrap();
+    let role_id = result.last_insert_rowid();
+
+    // Update permissions to empty array
+    let update_data = UpdateRoleData {
+      id: role_id,
+      name: None,
+      permissions: Some(vec![]), // Set to empty array
+    };
+
+    let updated_role = UserRoleService::update_role(&pool, role_id, update_data)
+      .await
+      .unwrap();
+
+    assert_eq!(updated_role.id, role_id);
+    assert_eq!(updated_role.name, "empty-permissions-role"); // unchanged
+    let permissions = updated_role.permissions();
+    assert_eq!(permissions.len(), 0); // should be empty now
+  }
+
+  #[tokio::test]
+  async fn test_update_role_all_valid_permissions() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create a role first
+    let result = sqlx::query("INSERT INTO user_roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('all-permissions-role', 1234567890, 1234567890, FALSE, '[\"can_view_user_self\"]')")
+      .execute(&pool)
+      .await
+      .unwrap();
+    let role_id = result.last_insert_rowid();
+
+    // Update with all valid permissions
+    let all_permissions: Vec<String> = crate::models::ROLE_PERMISSIONS
+      .iter()
+      .map(|&perm| perm.to_string())
+      .collect();
+
+    let update_data = UpdateRoleData {
+      id: role_id,
+      name: Some("all-permissions-updated".to_string()),
+      permissions: Some(all_permissions.clone()),
+    };
+
+    let updated_role = UserRoleService::update_role(&pool, role_id, update_data)
+      .await
+      .unwrap();
+
+    assert_eq!(updated_role.name, "all-permissions-updated");
+    let permissions = updated_role.permissions();
+    assert_eq!(permissions.len(), all_permissions.len());
+
+    // Verify all permissions are present
+    for permission in &all_permissions {
+      assert!(
+        permissions.contains(permission),
+        "Missing permission: {permission}"
+      );
+    }
   }
 }
