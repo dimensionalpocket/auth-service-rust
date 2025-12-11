@@ -84,8 +84,8 @@ fn map_session_error_to_user_message(error: &SessionError) -> &'static str {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::test_utils::create_test_database;
   use crate::services::UserService;
+  use crate::test_utils::create_test_database;
   use async_graphql::{EmptySubscription, Schema};
 
   // Test secret - 32 bytes for AES-256 (base64-decoded from QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=)

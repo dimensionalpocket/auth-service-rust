@@ -188,9 +188,9 @@ impl AuthService {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::test_utils::create_test_database;
   use crate::middleware::session::SessionContext;
   use crate::services::UserService;
+  use crate::test_utils::create_test_database;
   use dps_auth_session::DpsAuthSessionPayload;
 
   // Test secret - 32 bytes for AES-256

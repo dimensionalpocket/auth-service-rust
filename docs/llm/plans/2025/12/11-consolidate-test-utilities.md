@@ -160,7 +160,7 @@ pub async fn create_test_user_via_mutation(
 - ✅ Create `src/test_utils/mod.rs` with ONLY the existing database test utils from `src/database/mod.rs:354-398`
 - ✅ Add the module documentation block explaining the purpose
 - ✅ Wrap the entire module with `#[cfg(any(test, feature = "test-utils"))]` at the module level, not individual methods
-- ✅ Update all imports from `crate::database::test_utils::*` to `crate::test_utils::*` (48 files updated)
+- ✅ Update all imports from `crate::database::test_utils::*` to `crate::test_utils::test_utils::*` (48 files updated)
 - ✅ Remove the `test_utils` module from `src/database/mod.rs`
 - ✅ **MANDATORY REQUIREMENT:** All tests must pass after this phase before proceeding (412 tests passed)
 
@@ -197,7 +197,7 @@ pub async fn create_test_user_via_mutation(
 - `src/queries/users/get_user_by_id_with_role.rs`
 - `tests/integration_tests.rs`
 - `tests/logging_tests.rs`
-- **All files using `crate::database::test_utils::*`** - update imports to `crate::test_utils::*`
+- **All files using `crate::database::test_utils::*`** - update imports to `crate::test_utils::test_utils::*`
 
 ### 6. AGENTS.md Update
 

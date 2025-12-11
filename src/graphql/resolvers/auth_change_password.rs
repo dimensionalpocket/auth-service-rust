@@ -88,9 +88,9 @@ impl AuthChangePasswordResolver {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::test_utils::create_test_database;
   use crate::middleware::session::{SessionContext, SessionPayload};
   use crate::services::{AuthService, UserService};
+  use crate::test_utils::create_test_database;
   use async_graphql::{EmptySubscription, Schema};
 
   // Test secret - 32 bytes for AES-256

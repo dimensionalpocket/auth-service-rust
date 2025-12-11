@@ -16,7 +16,7 @@ impl GetAllRolesQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::test_utils::create_test_database;
+  use crate::test_utils::create_test_database;
 
   #[tokio::test]
   async fn test_get_all_roles_returns_default_roles() {

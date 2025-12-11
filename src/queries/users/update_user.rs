@@ -100,9 +100,9 @@ impl UpdateUserQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::test_utils::create_test_database;
   use crate::queries::users::{CreateUserData, CreateUserQuery};
   use crate::services::PasswordService;
+  use crate::test_utils::create_test_database;
 
   async fn setup_default_role(pool: &SqlitePool) {
     sqlx::query(

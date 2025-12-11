@@ -1,10 +1,10 @@
 use dps_auth_api::{
-  test_utils::test_utils::create_test_database,
   queries::{
     roles::{GetAllRolesQuery, GetRoleByNameQuery},
     users::{CreateUserData, CreateUserQuery, GetUserByUuidQuery},
   },
   services::PasswordService,
+  test_utils::create_test_database,
 };
 use uuid::Uuid;
 

@@ -141,11 +141,11 @@ impl SiteOrchestrator {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::test_utils::create_test_database;
   use crate::middleware::session::SessionContext;
   use crate::queries::sites::{CreateSiteData, CreateSiteQuery, UpdateSiteData};
   use crate::queries::users::{CreateUserData, CreateUserQuery};
   use crate::services::PasswordService;
+  use crate::test_utils::create_test_database;
   use dps_auth_session::DpsAuthSessionPayload;
   use sqlx::SqlitePool;
   use uuid::Uuid;

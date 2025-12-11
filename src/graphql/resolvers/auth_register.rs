@@ -127,7 +127,7 @@ impl AuthRegisterResolver {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::test_utils::create_test_database;
+  use crate::test_utils::create_test_database;
   use async_graphql::*;
 
   // Minimal query struct for testing mutations in isolation

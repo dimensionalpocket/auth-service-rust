@@ -208,11 +208,11 @@ impl UserOrchestrator {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::test_utils::{create_test_database, create_test_database_with_pool_size};
   use crate::middleware::session::SessionContext;
   use crate::models::User;
   use crate::queries::users::{CreateUserData, CreateUserQuery, UpdateUserData};
   use crate::services::PasswordService;
+  use crate::test_utils::{create_test_database, create_test_database_with_pool_size};
   use dps_auth_session::DpsAuthSessionPayload;
   use sqlx::SqlitePool;
   use uuid::Uuid;

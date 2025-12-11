@@ -79,11 +79,11 @@ impl RolesResolver {
 
 #[cfg(test)]
 mod tests {
-  use crate::test_utils::test_utils::create_test_database;
   use crate::graphql::resolvers::RolesResolver;
   use crate::middleware::session::SessionContext;
   use crate::queries::users::{CreateUserData, CreateUserQuery};
   use crate::services::PasswordService;
+  use crate::test_utils::create_test_database;
   use async_graphql::{EmptyMutation, EmptySubscription, Schema};
   use dps_auth_session::DpsAuthSessionPayload;
   use sqlx::SqlitePool;
