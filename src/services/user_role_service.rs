@@ -1,8 +1,8 @@
 use crate::models::user::User;
 use crate::models::user_role::UserRole;
 use crate::queries::user_roles::{
-  CreateRoleData, CreateRoleQuery, GetAllRolesQuery, GetRoleByIdQuery, GetRoleByNameQuery,
-  UpdateRoleData, UpdateRoleQuery,
+  CreateRoleData, CreateRoleQuery, DeleteRoleQuery, GetAllRolesQuery, GetRoleByIdQuery,
+  GetRoleByNameQuery, UpdateRoleData, UpdateRoleQuery,
 };
 use sqlx::SqlitePool;
 use tracing::warn;
@@ -129,6 +129,41 @@ impl UserRoleService {
     CreateRoleQuery::run(pool, create_data_with_default_false)
       .await
       .map_err(RoleError::DatabaseError)
+  }
+
+  /// Delete a role
+  ///
+  /// This method deletes a role from the database after checking that no users are currently using it.
+  /// The role data is returned before deletion for audit purposes.
+  ///
+  /// # Arguments
+  /// * `pool` - Database connection pool
+  /// * `role_id` - ID of the role to delete
+  ///
+  /// # Returns
+  /// * `Ok(UserRole)` - The deleted role data
+  /// * `Err(RoleError)` - Database error, role not found, or role in use
+  pub async fn delete_role(pool: &SqlitePool, role_id: i64) -> Result<UserRole, RoleError> {
+    use sqlx::Row;
+
+    // First check if any users are using this role
+    let user_count = sqlx::query("SELECT COUNT(*) FROM users WHERE role_id = ?")
+      .bind(role_id)
+      .fetch_one(pool)
+      .await
+      .map_err(RoleError::DatabaseError)?;
+
+    let count: i64 = user_count.get(0);
+    if count > 0 {
+      return Err(RoleError::RoleInUse(role_id));
+    }
+
+    // Delete the role
+    match DeleteRoleQuery::run(pool, role_id).await {
+      Ok(role) => Ok(role),
+      Err(sqlx::Error::RowNotFound) => Err(RoleError::RoleNotFound(role_id)),
+      Err(err) => Err(RoleError::DatabaseError(err)),
+    }
   }
 
   /// Update a role
@@ -926,5 +961,84 @@ mod tests {
     assert!(role
       .permissions()
       .contains(&"can_view_user_self".to_string()));
+  }
+
+  #[tokio::test]
+  async fn test_delete_role_success() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create a role first
+    let create_data = CreateRoleData {
+      name: "test-delete-role".to_string(),
+      permissions: vec!["can_manage_roles".to_string()],
+      is_default: false,
+    };
+    let role = UserRoleService::create_role(&pool, create_data)
+      .await
+      .unwrap();
+
+    // Delete the role
+    let deleted_role = UserRoleService::delete_role(&pool, role.id).await.unwrap();
+
+    // Verify returned data matches original
+    assert_eq!(deleted_role.id, role.id);
+    assert_eq!(deleted_role.name, role.name);
+    assert_eq!(deleted_role.created_ts, role.created_ts);
+    assert_eq!(deleted_role.updated_ts, role.updated_ts);
+    assert_eq!(deleted_role.is_default, role.is_default);
+
+    // Verify role is deleted from database
+    let result = UserRoleService::get_role_by_id(&pool, role.id)
+      .await
+      .unwrap();
+    assert!(result.is_none());
+  }
+
+  #[tokio::test]
+  async fn test_delete_role_not_found() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Try to delete non-existent role
+    let result = UserRoleService::delete_role(&pool, 999).await;
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      RoleError::RoleNotFound(id) => assert_eq!(id, 999),
+      _ => panic!("Expected RoleNotFound error"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_delete_role_in_use() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create a role
+    let role_data = CreateRoleData {
+      name: "test-in-use-role".to_string(),
+      permissions: vec!["can_manage_roles".to_string()],
+      is_default: false,
+    };
+    let role = UserRoleService::create_role(&pool, role_data)
+      .await
+      .unwrap();
+
+    // Create a user with this role
+    let user_data = crate::queries::users::CreateUserData {
+      uuid: uuid::Uuid::new_v4().to_string(),
+      name: "test-user".to_string(),
+      password_hash: "hashed_password".to_string(),
+      role_id: Some(role.id),
+      metadata_json: None,
+    };
+    crate::queries::users::CreateUserQuery::run(&pool, user_data)
+      .await
+      .unwrap();
+
+    // Try to delete the role while it's in use
+    let result = UserRoleService::delete_role(&pool, role.id).await;
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      RoleError::RoleInUse(id) => assert_eq!(id, role.id),
+      _ => panic!("Expected RoleInUse error"),
+    }
   }
 }

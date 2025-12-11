@@ -165,12 +165,12 @@ This plan implements a phased approach to add comprehensive role management func
 ### Phase 5: removeRole Mutation Resolver
 **Permission requirement**: `can_manage_roles`
 
-#### Step 5.1: Create Delete Query
+#### Step 5.1: Create Delete Query ✅
 - Create `src/queries/user_roles/delete_role.rs`
 - Check if any users are using the role before deletion
 - Perform cascade-safe deletion
 
-#### Step 5.2: Add UserRoleService Method
+#### Step 5.2: Add UserRoleService Method ✅
 - Add `delete_role(role_id: i64)` method to existing `src/services/user_role_service.rs`
 - Check for role usage by users
 - Return `Result<(), RoleError>`
