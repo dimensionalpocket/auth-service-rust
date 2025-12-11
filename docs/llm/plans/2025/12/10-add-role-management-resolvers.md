@@ -107,7 +107,7 @@ This plan implements a phased approach to add comprehensive role management func
 - Validate all permissions in the input array are valid
 - Return `Result<UserRole, RoleError>`
 
-#### Step 3.7: Add Orchestrator Method
+#### Step 3.7: Add Orchestrator Method ✅
 - Add `update_role_with_permission_check(pool, session_context, role_id: i64, update_data: UpdateRoleData)` to RoleOrchestrator
 - Follow `SiteOrchestrator` patterns exactly:
   - Authentication: Check `session_context.user_id()` and return `AuthenticationError` if None
