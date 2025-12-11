@@ -15,9 +15,12 @@ pub struct RoleResponse {
   pub permissions: Vec<String>,
   /// Whether this is the default role for new users
   pub is_default: bool,
-  /// Timestamp when the role was created
+  /// Timestamp when role was created
   #[graphql(name = "createdTs")]
   pub created_ts: i64,
+  /// Timestamp when role was last updated
+  #[graphql(name = "updatedTs")]
+  pub updated_ts: i64,
 }
 
 /// Role query resolver - returns role data by ID
@@ -63,6 +66,7 @@ impl RoleResolver {
           permissions,
           is_default: role.is_default,
           created_ts: role.created_ts,
+          updated_ts: role.updated_ts,
         })
       }
       Err(RoleError::AuthenticationError(msg)) => Err(async_graphql::Error::new(msg)),
@@ -139,6 +143,7 @@ mod tests {
                     permissions
                     isDefault
                     createdTs
+                    updatedTs
                 }}
             }}
             "#
@@ -154,6 +159,7 @@ mod tests {
     assert_eq!(role_data["name"].as_str().unwrap(), "user");
     assert!(role_data["isDefault"].as_bool().unwrap());
     assert!(role_data["createdTs"].as_i64().unwrap() > 0);
+    assert!(role_data["updatedTs"].as_i64().unwrap() > 0);
 
     let permissions = role_data["permissions"].as_array().unwrap();
     assert_eq!(permissions.len(), 2);

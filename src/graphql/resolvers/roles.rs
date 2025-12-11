@@ -16,6 +16,9 @@ pub struct RoleListing {
   /// Timestamp when the role was created
   #[graphql(name = "createdTs")]
   pub created_ts: i64,
+  /// Timestamp when the role was last updated
+  #[graphql(name = "updatedTs")]
+  pub updated_ts: i64,
 }
 
 /// Roles query resolver for retrieving role information
@@ -65,6 +68,7 @@ impl RolesResolver {
           permissions,
           is_default: role.is_default,
           created_ts: role.created_ts,
+          updated_ts: role.updated_ts,
         }
       })
       .collect();
@@ -147,7 +151,7 @@ mod tests {
       .finish();
 
     let result = schema
-      .execute("{ roles { id name permissions isDefault createdTs } }")
+      .execute("{ roles { id name permissions isDefault createdTs updatedTs } }")
       .await;
 
     assert!(result.errors.is_empty());
@@ -162,6 +166,7 @@ mod tests {
       assert!(role["permissions"].is_array());
       assert!(role["isDefault"].is_boolean());
       assert!(role["createdTs"].is_number());
+      assert!(role["updatedTs"].is_number());
     }
   }
 
@@ -192,7 +197,7 @@ mod tests {
       .finish();
 
     let result = schema
-      .execute("{ roles { id name permissions isDefault createdTs } }")
+      .execute("{ roles { id name permissions isDefault createdTs updatedTs } }")
       .await;
 
     assert!(result.errors.is_empty());
@@ -207,6 +212,7 @@ mod tests {
       assert!(role["permissions"].is_array());
       assert!(role["isDefault"].is_boolean());
       assert!(role["createdTs"].is_number());
+      assert!(role["updatedTs"].is_number());
     }
   }
 
@@ -224,7 +230,7 @@ mod tests {
       .finish();
 
     let result = schema
-      .execute("{ roles { id name permissions isDefault createdTs } }")
+      .execute("{ roles { id name permissions isDefault createdTs updatedTs } }")
       .await;
 
     assert!(!result.errors.is_empty());
@@ -254,7 +260,7 @@ mod tests {
       .finish();
 
     let result = schema
-      .execute("{ roles { id name permissions isDefault createdTs } }")
+      .execute("{ roles { id name permissions isDefault createdTs updatedTs } }")
       .await;
 
     assert!(!result.errors.is_empty());
@@ -284,7 +290,7 @@ mod tests {
       .finish();
 
     let result = schema
-      .execute("{ roles { id name permissions isDefault createdTs } }")
+      .execute("{ roles { id name permissions isDefault createdTs updatedTs } }")
       .await;
 
     assert!(result.errors.is_empty());

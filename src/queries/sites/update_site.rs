@@ -19,32 +19,26 @@ impl UpdateSiteQuery {
 
     // Build the UPDATE query dynamically based on provided fields
     let mut set_clauses = vec!["updated_ts = ?".to_string()];
-    let mut bind_values: Vec<String> = vec![now.to_string()];
 
     // Add each field if provided
-    if let Some(slug) = &data.slug {
+    if data.slug.is_some() {
       set_clauses.push("slug = ?".to_string());
-      bind_values.push(slug.clone());
     }
 
-    if let Some(subdomain) = &data.subdomain {
+    if data.subdomain.is_some() {
       set_clauses.push("subdomain = ?".to_string());
-      bind_values.push(format!("{subdomain:?}")); // Handle Option<String>
     }
 
-    if let Some(port) = &data.port {
+    if data.port.is_some() {
       set_clauses.push("port = ?".to_string());
-      bind_values.push(format!("{port:?}")); // Handle Option<i64>
     }
 
-    if let Some(protocol) = &data.protocol {
+    if data.protocol.is_some() {
       set_clauses.push("protocol = ?".to_string());
-      bind_values.push(protocol.clone());
     }
 
-    if let Some(metadata_json) = &data.metadata_json {
+    if data.metadata_json.is_some() {
       set_clauses.push("metadata_json = ?".to_string());
-      bind_values.push(format!("{metadata_json:?}")); // Handle Option<String>
     }
 
     // Construct the SQL

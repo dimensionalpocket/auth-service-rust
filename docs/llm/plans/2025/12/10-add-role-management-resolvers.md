@@ -84,19 +84,19 @@ This plan implements a phased approach to add comprehensive role management func
 - Update all existing queries that select from user_roles to include `updated_ts`
 - Verify all existing tests still pass after model change
 
-#### Step 3.3: Update roles Resolver to Expose updatedTs
+#### Step 3.3: Update roles Resolver to Expose updatedTs ✅
 - Update `RoleListing` response type in `src/graphql/resolvers/roles.rs` to include `updated_ts` field
 - Add `#[graphql(name = "updatedTs")]` annotation following existing patterns
 - Update resolver implementation to return the new field
 - Update tests to verify `updatedTs` is included in response
 
-#### Step 3.4: Update role Resolver to Expose updatedTs
+#### Step 3.4: Update role Resolver to Expose updatedTs ✅
 - Update `RoleResponse` type in `src/graphql/resolvers/role.rs` to include `updated_ts` field
 - Add `#[graphql(name = "updatedTs")]` annotation following existing patterns
 - Update resolver implementation to return the new field
 - Update tests to verify `updatedTs` is included in response
 
-#### Step 3.5: Create Update Query
+#### Step 3.5: Create Update Query ✅
 - Create `src/queries/user_roles/update_role.rs`
 - Support partial updates (PATCH semantics)
 - Handle permissions array conversion to JSON

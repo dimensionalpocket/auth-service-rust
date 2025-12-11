@@ -5,7 +5,8 @@
 - **Build**: `cargo build`
 - **Build release**: `cargo build --release`
 - **Test all**: `cargo test --quiet`
-- **Test single test**: `cargo test <test_name> --verbose`
+- **Test single test**: `RUST_BACKTRACE=1 cargo test <test_name> --quiet`
+  - Note: never use `--verbose` as it clutters output
 - **Linter**: `cargo clippy --allow-dirty --fix && cargo fmt`
 - **Run local server**: `cargo run --bin run_local_server`
 - **Database migrations**: `cargo run --bin dps-auth-api-migrate`
