@@ -175,7 +175,7 @@ This plan implements a phased approach to add comprehensive role management func
 - Check for role usage by users
 - Return `Result<(), RoleError>`
 
-#### Step 5.3: Add Orchestrator Method
+#### Step 5.3: Add Orchestrator Method ✅
 - Add `delete_role_with_permission_check(pool, session_context, role_id: i64)` to RoleOrchestrator
 - Follow `SiteOrchestrator` patterns exactly:
   - Authentication: Check `session_context.user_id()` and return `AuthenticationError` if None
@@ -186,7 +186,7 @@ This plan implements a phased approach to add comprehensive role management func
 - Call UserRoleService method
 - Add tests following `SiteOrchestrator` patterns for success, forbidden, not found, role in use, and unauthenticated cases
 
-#### Step 5.4: Create Resolver
+#### Step 5.4: Create Resolver ✅
 - Create `src/graphql/resolvers/remove_role.rs`
 - Define `RemoveRoleResponse` type with success boolean
 - Implement `RemoveRoleResolver` with `removeRole` mutation
