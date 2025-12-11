@@ -70,47 +70,18 @@ impl UpdateRoleQuery {
 mod tests {
   use super::*;
   use crate::models::ROLE_PERMISSIONS;
-  use crate::test_utils::create_test_database;
-
-  async fn create_test_role(pool: &SqlitePool, name: &str, permissions: Vec<&str>) -> Role {
-    let now = chrono::Utc::now().timestamp();
-    let permissions_json = serde_json::to_string(&permissions).unwrap();
-
-    let result = sqlx::query(
-      r#"
-      INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json)
-      VALUES (?, ?, ?, ?, ?)
-      "#,
-    )
-    .bind(name)
-    .bind(now)
-    .bind(now)
-    .bind(false)
-    .bind(permissions_json)
-    .execute(pool)
-    .await
-    .unwrap();
-
-    let role_id = result.last_insert_rowid();
-
-    sqlx::query_as::<_, Role>(
-      "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?"
-    )
-    .bind(role_id)
-    .fetch_one(pool)
-    .await
-    .unwrap()
-  }
+  use crate::test_utils::{create_test_database, create_test_role_model};
 
   #[tokio::test]
   async fn test_update_role_success() {
     let (pool, _tmp) = create_test_database().await;
 
     // Create a role first
-    let role = create_test_role(
+    let role = create_test_role_model(
       &pool,
       "test-role",
-      vec!["can_view_user_self", "can_list_users"],
+      &["can_view_user_self", "can_list_users"],
+      false,
     )
     .await;
 
@@ -147,10 +118,11 @@ mod tests {
     let (pool, _tmp) = create_test_database().await;
 
     // Create a role first
-    let role = create_test_role(
+    let role = create_test_role_model(
       &pool,
       "partial-role",
-      vec!["can_view_user_self", "can_list_users"],
+      &["can_view_user_self", "can_list_users"],
+      false,
     )
     .await;
 
@@ -183,7 +155,13 @@ mod tests {
     let (pool, _tmp) = create_test_database().await;
 
     // Create a role first
-    let role = create_test_role(&pool, "empty-permissions-role", vec!["can_view_user_self"]).await;
+    let role = create_test_role_model(
+      &pool,
+      "empty-permissions-role",
+      &["can_view_user_self"],
+      false,
+    )
+    .await;
 
     // Add a delay to ensure different timestamps
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -226,7 +204,8 @@ mod tests {
     let (pool, _tmp) = create_test_database().await;
 
     // Create a role first
-    let role = create_test_role(&pool, "no-changes-role", vec!["can_view_user_self"]).await;
+    let role =
+      create_test_role_model(&pool, "no-changes-role", &["can_view_user_self"], false).await;
 
     // Add a delay to ensure different timestamps
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -254,7 +233,13 @@ mod tests {
     let (pool, _tmp) = create_test_database().await;
 
     // Create a role first
-    let role = create_test_role(&pool, "all-permissions-role", vec!["can_view_user_self"]).await;
+    let role = create_test_role_model(
+      &pool,
+      "all-permissions-role",
+      &["can_view_user_self"],
+      false,
+    )
+    .await;
 
     // Update with all valid permissions
     let all_permissions: Vec<String> = ROLE_PERMISSIONS

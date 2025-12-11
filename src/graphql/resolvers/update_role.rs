@@ -129,7 +129,7 @@ impl UpdateRoleResolver {
 mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::create_test_database;
+  use crate::test_utils::{create_test_database, create_test_role};
   use async_graphql::*;
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
@@ -142,25 +142,6 @@ mod tests {
     async fn dummy(&self) -> &str {
       "test"
     }
-  }
-
-  async fn create_test_role(pool: &SqlitePool, name: &str, permissions: Vec<&str>) -> i64 {
-    let permissions_json = serde_json::json!(permissions);
-    let result = sqlx::query(
-      r#"
-      INSERT INTO roles (name, created_ts, updated_ts, permissions_json, is_default)
-      VALUES (?, ?, ?, ?, FALSE)
-      "#,
-    )
-    .bind(name)
-    .bind(1234567890i64)
-    .bind(1234567890i64)
-    .bind(permissions_json)
-    .execute(pool)
-    .await
-    .unwrap();
-
-    result.last_insert_rowid()
   }
 
   #[tokio::test]
@@ -188,7 +169,7 @@ mod tests {
     let role_id = create_test_role(
       &pool,
       "test-role",
-      vec!["can_view_user_self", "can_list_users"],
+      &["can_view_user_self", "can_list_users"],
     )
     .await;
 
@@ -270,7 +251,7 @@ mod tests {
     let role_id = create_test_role(
       &pool,
       "partial-role",
-      vec!["can_view_user_self", "can_list_users"],
+      &["can_view_user_self", "can_list_users"],
     )
     .await;
 
@@ -342,7 +323,7 @@ mod tests {
     let user_id = user_result.last_insert_rowid();
 
     // Create a role first
-    let role_id = create_test_role(&pool, "test-role", vec!["can_view_user_self"]).await;
+    let role_id = create_test_role(&pool, "test-role", &["can_view_user_self"]).await;
 
     // Create session context for regular user
     let session_payload = ServiceSessionPayload {
@@ -471,7 +452,7 @@ mod tests {
     let admin_user_id = admin_user_result.last_insert_rowid();
 
     // Create a role first
-    let role_id = create_test_role(&pool, "test-role", vec!["can_view_user_self"]).await;
+    let role_id = create_test_role(&pool, "test-role", &["can_view_user_self"]).await;
 
     // Create session context for admin user
     let session_payload = ServiceSessionPayload {
@@ -527,7 +508,7 @@ mod tests {
     let admin_user_id = admin_user_result.last_insert_rowid();
 
     // Create a role first
-    let role_id = create_test_role(&pool, "test-role", vec!["can_view_user_self"]).await;
+    let role_id = create_test_role(&pool, "test-role", &["can_view_user_self"]).await;
 
     // Create session context for admin user
     let session_payload = ServiceSessionPayload {

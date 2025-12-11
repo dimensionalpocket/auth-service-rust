@@ -62,59 +62,9 @@ impl RolePermissionsResolver {
 mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::create_test_database;
+  use crate::test_utils::{create_test_database, create_test_role, create_test_user};
   use async_graphql::{EmptyMutation, EmptySubscription, Schema};
   use dps_auth_session::DpsAuthSessionPayload;
-
-  async fn create_test_user(
-    pool: &SqlitePool,
-    name: &str,
-    role_id: i64,
-  ) -> crate::models::user::User {
-    let user = crate::models::user::User {
-      id: rand::random::<i64>().abs(),
-      uuid: uuid::Uuid::new_v4().to_string(),
-      created_ts: 1234567890,
-      updated_ts: 1234567890,
-      name: name.to_string(),
-      role_id,
-      password_hash: "hash".to_string(),
-      metadata_json: None,
-    };
-
-    sqlx::query("INSERT INTO users (id, uuid, created_ts, updated_ts, name, role_id, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?)")
-      .bind(user.id)
-      .bind(&user.uuid)
-      .bind(user.created_ts)
-      .bind(user.updated_ts)
-      .bind(&user.name)
-      .bind(user.role_id)
-      .bind(&user.password_hash)
-      .execute(pool)
-      .await
-      .unwrap();
-
-    user
-  }
-
-  async fn create_test_role(pool: &SqlitePool, name: &str, permissions: &[&str]) -> i64 {
-    let permissions_json = serde_json::json!(permissions);
-    let result = sqlx::query(
-      r#"
-            INSERT INTO roles (name, created_ts, updated_ts, permissions_json, is_default)
-            VALUES (?, ?, ?, ?, FALSE)
-            "#,
-    )
-    .bind(name)
-    .bind(1234567890i64)
-    .bind(1234567890i64)
-    .bind(permissions_json)
-    .execute(pool)
-    .await
-    .unwrap();
-
-    result.last_insert_rowid()
-  }
 
   #[tokio::test]
   async fn test_role_permissions_user_without_manage_roles_permission() {

@@ -209,45 +209,11 @@ impl UserOrchestrator {
 mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::models::User;
-  use crate::queries::users::{CreateUserData, CreateUserQuery, UpdateUserData};
-  use crate::services::PasswordService;
-  use crate::test_utils::{create_test_database, create_test_database_with_pool_size};
+  use crate::queries::users::UpdateUserData;
+  use crate::test_utils::{
+    create_test_database, create_test_database_with_pool_size, create_test_role, create_test_user,
+  };
   use dps_auth_session::DpsAuthSessionPayload;
-  use sqlx::SqlitePool;
-  use uuid::Uuid;
-
-  async fn create_test_user(pool: &SqlitePool, username: &str, role_id: i64) -> User {
-    let password_hash = PasswordService::generate("password123").unwrap();
-    let create_data = CreateUserData {
-      uuid: Uuid::new_v4().to_string(),
-      name: username.to_string(),
-      role_id: Some(role_id),
-      password_hash,
-      metadata_json: None,
-    };
-    eprintln!("Creating user with role_id: {:?}", create_data.role_id);
-    CreateUserQuery::run(pool, create_data).await.unwrap()
-  }
-
-  async fn create_test_role(pool: &SqlitePool, name: &str, permissions: &[&str]) -> i64 {
-    let permissions_json = serde_json::json!(permissions);
-    let result = sqlx::query(
-      r#"
-      INSERT INTO roles (name, created_ts, updated_ts, permissions_json, is_default)
-      VALUES (?, ?, ?, ?, FALSE)
-      "#,
-    )
-    .bind(name)
-    .bind(1234567890i64)
-    .bind(1234567890i64)
-    .bind(permissions_json)
-    .execute(pool)
-    .await
-    .unwrap();
-
-    result.last_insert_rowid()
-  }
 
   #[tokio::test]
   async fn test_list_users_with_permission_check_success() {

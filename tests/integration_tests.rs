@@ -4,6 +4,7 @@ use axum::{
   Router,
 };
 use dps_auth_api::dps_auth_api::DpsAuthApi;
+use dps_auth_api::test_utils::create_test_user_via_mutation;
 use dps_config::DpsConfig;
 use tower::ServiceExt;
 
@@ -87,46 +88,6 @@ async fn parse_graphql_response(response: axum::response::Response<Body>) -> ser
     .unwrap();
   let body_str = String::from_utf8(body.to_vec()).unwrap();
   serde_json::from_str(&body_str).unwrap()
-}
-
-// Helper function to create test users via GraphQL mutation (tests actual AuthRegister mutation)
-// Uses unique usernames to avoid any potential conflicts
-async fn create_test_user_via_mutation(app: &Router, username: &str, password: &str) -> String {
-  let query = format!(
-    r#"{{
-      "query": "mutation {{ authRegister(username: \"{username}\", password: \"{password}\", passwordConfirmation: \"{password}\") {{ uuid username }} }}"
-    }}"#
-  );
-
-  let response = app
-    .clone()
-    .oneshot(
-      Request::builder()
-        .method("POST")
-        .uri("/api/graphql")
-        .header("content-type", "application/json")
-        .body(Body::from(query))
-        .unwrap(),
-    )
-    .await
-    .unwrap();
-
-  assert_eq!(response.status(), StatusCode::OK);
-
-  let body = axum::body::to_bytes(response.into_body(), usize::MAX)
-    .await
-    .unwrap();
-  let body_str = String::from_utf8(body.to_vec()).unwrap();
-  let data: serde_json::Value = serde_json::from_str(&body_str).unwrap();
-
-  // Verify user creation was successful
-  assert!(data["errors"].is_null(), "User creation failed: {body_str}");
-  assert!(!data["data"]["authRegister"]["uuid"].is_null());
-
-  data["data"]["authRegister"]["uuid"]
-    .as_str()
-    .unwrap()
-    .to_string()
 }
 
 #[tokio::test]

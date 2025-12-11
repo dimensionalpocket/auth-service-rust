@@ -1,7 +1,7 @@
 # Consolidate Test Utilities Plan
 
 **Created:** 2025-12-11@13:10  
-**Status:** Planning
+**Status:** Phase 2 Complete, Ready for Phase 3
 
 ## Current State Analysis
 
@@ -164,13 +164,16 @@ pub async fn create_test_user_via_mutation(
 - ✅ Remove the `test_utils` module from `src/database/mod.rs`
 - ✅ **MANDATORY REQUIREMENT:** All tests must pass after this phase before proceeding (412 tests passed)
 
-**Phase 2: Add new consolidated test methods**
-- Add the new `create_test_user`, `create_test_role`, and `create_test_user_via_mutation` methods to `src/test_utils/mod.rs`
-- Add comprehensive unit tests for the new utilities
-- Note: No need for individual method annotations since the entire module is already wrapped
+**Phase 2: Add new consolidated test methods ✅ COMPLETED**
+- ✅ Add the new `create_test_user`, `create_test_role`, and `create_test_user_via_mutation` methods to `src/test_utils/mod.rs`
+- ✅ Add comprehensive unit tests for the new utilities (8 unit tests covering all scenarios)
+- ✅ Smart default role handling: `create_test_user_full()` automatically creates default role when none exists
+- ✅ Module restructuring: Removed nested `pub mod test_utils` to eliminate lint warning and simplify imports
+- ✅ Updated all 48 import statements from `crate::test_utils::test_utils::*` to `crate::test_utils::*`
+- ✅ All 419 tests pass, no regressions introduced
 
 **Phase 3: Replace duplicated implementations**
-- Replace all 17 duplicated method implementations with imports
+- Replace all 17 duplicated method implementations with imports from `crate::test_utils::*`
 - Update method calls to use centralized utilities
 - Ensure all existing tests continue to pass
 
@@ -185,19 +188,19 @@ pub async fn create_test_user_via_mutation(
 - `src/test_utils/mod.rs` - Centralized test utilities
 
 **Files to Update (Import Changes):**
-- `src/orchestrators/site_orchestrator.rs`
-- `src/orchestrators/user_orchestrator.rs`
-- `src/orchestrators/role_orchestrator.rs`
-- `src/orchestrators/auth_orchestrator.rs`
-- `src/graphql/resolvers/role_permissions.rs`
-- `src/graphql/resolvers/update_role.rs`
-- `src/graphql/resolvers/users.rs`
-- `src/graphql/resolvers/delete_user.rs`
-- `src/queries/roles/update_role.rs`
-- `src/queries/users/get_user_by_id_with_role.rs`
-- `tests/integration_tests.rs`
-- `tests/logging_tests.rs`
-- **All files using `crate::database::test_utils::*`** - update imports to `crate::test_utils::test_utils::*`
+- ✅ **COMPLETED:** All 48 files updated from `crate::test_utils::test_utils::*` to `crate::test_utils::*`
+- `src/orchestrators/site_orchestrator.rs` - Replace local `create_test_user` and `create_test_role` functions
+- `src/orchestrators/user_orchestrator.rs` - Replace local `create_test_user` and `create_test_role` functions
+- `src/orchestrators/role_orchestrator.rs` - Replace local `create_test_user` and `create_test_role` functions
+- `src/orchestrators/auth_orchestrator.rs` - Replace local `create_test_user` function
+- `src/graphql/resolvers/role_permissions.rs` - Replace local `create_test_user` and `create_test_role` functions
+- `src/graphql/resolvers/update_role.rs` - Replace local `create_test_role` function
+- `src/graphql/resolvers/users.rs` - Replace local `create_test_user` function
+- `src/graphql/resolvers/delete_user.rs` - Replace local `create_test_user` function
+- `src/queries/roles/update_role.rs` - Replace local `create_test_role` function
+- `src/queries/users/get_user_by_id_with_role.rs` - Replace local `create_test_user` and `create_test_role` functions
+- `tests/integration_tests.rs` - Replace local `create_test_user_via_mutation` function
+- `tests/logging_tests.rs` - Replace local `create_test_user_via_mutation` function
 
 ### 6. AGENTS.md Update
 
@@ -207,8 +210,8 @@ pub async fn create_test_user_via_mutation(
 ### Test Utilities
 
 - Shared test utilities are available in `src/test_utils/mod.rs`
-- Use `create_test_user()`, `create_test_role()`, and `create_test_user_via_mutation()` for creating test data
-- Database setup utilities remain in `src/database/test_utils.rs`
+- Use `create_test_user()`, `create_test_user_with_password()`, `create_test_user_full()`, `create_test_role()`, `create_test_role_model()`, and `create_test_user_via_mutation()` for creating test data
+- Database setup utilities (`create_test_database()`, `create_test_database_with_pool_size()`, etc.) are also in `src/test_utils/mod.rs`
 - Do not create local `create_test_*` functions in test modules - use the shared utilities instead
 ```
 
