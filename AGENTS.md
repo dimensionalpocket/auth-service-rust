@@ -130,6 +130,9 @@
 
 ### Imports
 - Prefer specific imports over `use *;`
+- **Avoid using full paths** (e.g., `crate::module::Type` or `external_crate::module::Type`)
+  - Always use imported forms for local crate types/functions (e.g., `Role` instead of `crate::models::Role`)
+  - Full paths for certain external crate types/functions are acceptable if they improve clarity (e.g., `sqlx::Error`)
 
 ### Types & Naming
 - Use PascalCase for structs, enums, and types

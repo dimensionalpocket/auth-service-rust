@@ -2,7 +2,7 @@ use crate::models::role::Role;
 use crate::models::user::User;
 use crate::queries::roles::{
   CreateRoleData, CreateRoleQuery, DeleteRoleQuery, GetAllRolesQuery, GetRoleByIdQuery,
-  GetRoleByNameQuery, UpdateRoleData, UpdateRoleQuery,
+  GetRoleByNameQuery, SetDefaultRoleQuery, UpdateRoleData, UpdateRoleQuery,
 };
 use sqlx::SqlitePool;
 use tracing::warn;
@@ -206,6 +206,27 @@ impl RoleService {
     }
   }
 
+  /// Set a role as the default role
+  ///
+  /// This method atomically sets the specified role as the default role while
+  /// unsetting any existing default role. The operation is performed in a single
+  /// transaction to ensure atomicity.
+  ///
+  /// # Arguments
+  /// * `pool` - Database connection pool
+  /// * `role_id` - ID of the role to set as default
+  ///
+  /// # Returns
+  /// * `Ok(Role)` - The updated role with is_default set to true
+  /// * `Err(RoleError)` - Database error or role not found
+  pub async fn set_default_role(pool: &SqlitePool, role_id: i64) -> Result<Role, RoleError> {
+    match SetDefaultRoleQuery::run(pool, role_id).await {
+      Ok(Some(role)) => Ok(role),
+      Ok(None) => Err(RoleError::RoleNotFound(role_id)),
+      Err(err) => Err(RoleError::DatabaseError(err)),
+    }
+  }
+
   /// Check if a user has a specific permission
   ///
   /// This method checks if the given user has the specified permission through their role.
@@ -255,6 +276,7 @@ impl RoleService {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::queries::roles::GetDefaultRoleQuery;
   use crate::test_utils::create_test_database;
 
   #[tokio::test]
@@ -1008,5 +1030,130 @@ mod tests {
       RoleError::RoleInUse(id) => assert_eq!(id, role.id),
       _ => panic!("Expected RoleInUse error"),
     }
+  }
+
+  #[tokio::test]
+  async fn test_set_default_role_success() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create two roles
+    let role1_data = CreateRoleData {
+      name: "role1".to_string(),
+      permissions: vec!["can_view_user_self".to_string()],
+      is_default: false,
+    };
+    let role1 = RoleService::create_role(&pool, role1_data).await.unwrap();
+
+    let role2_data = CreateRoleData {
+      name: "role2".to_string(),
+      permissions: vec!["can_list_users".to_string()],
+      is_default: false,
+    };
+    let role2 = RoleService::create_role(&pool, role2_data).await.unwrap();
+
+    // Add delay to ensure timestamp difference
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+    // Set role1 as default
+    let updated_role1 = RoleService::set_default_role(&pool, role1.id)
+      .await
+      .unwrap();
+
+    assert_eq!(updated_role1.id, role1.id);
+    assert_eq!(updated_role1.name, "role1");
+    assert!(updated_role1.is_default);
+    assert!(updated_role1.updated_ts > role1.updated_ts);
+
+    // Verify role1 is now default
+    let default_role = GetDefaultRoleQuery::run(&pool).await.unwrap();
+    assert!(default_role.is_some());
+    assert_eq!(default_role.unwrap().id, role1.id);
+
+    // Add delay to ensure timestamp difference
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
+    // Set role2 as default (should unset role1)
+    let updated_role2 = RoleService::set_default_role(&pool, role2.id)
+      .await
+      .unwrap();
+
+    assert_eq!(updated_role2.id, role2.id);
+    assert_eq!(updated_role2.name, "role2");
+    assert!(updated_role2.is_default);
+
+    // Verify role2 is now default and role1 is not
+    let default_role = GetDefaultRoleQuery::run(&pool).await.unwrap();
+    assert!(default_role.is_some());
+    assert_eq!(default_role.unwrap().id, role2.id);
+
+    let current_role1 = RoleService::get_role_by_id(&pool, role1.id).await.unwrap();
+    assert!(current_role1.is_some());
+    assert!(!current_role1.unwrap().is_default);
+  }
+
+  #[tokio::test]
+  async fn test_set_default_role_not_found() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    let result = RoleService::set_default_role(&pool, 999).await;
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      RoleError::RoleNotFound(id) => assert_eq!(id, 999),
+      _ => panic!("Expected RoleNotFound error"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_set_default_role_atomic_behavior() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Create multiple roles
+    let _role1_data = CreateRoleData {
+      name: "atomic-role1".to_string(),
+      permissions: vec!["can_view_user_self".to_string()],
+      is_default: false,
+    };
+    let _role1 = RoleService::create_role(&pool, _role1_data).await.unwrap();
+
+    let role2_data = CreateRoleData {
+      name: "atomic-role2".to_string(),
+      permissions: vec!["can_list_users".to_string()],
+      is_default: false,
+    };
+    let role2 = RoleService::create_role(&pool, role2_data).await.unwrap();
+
+    let role3_data = CreateRoleData {
+      name: "atomic-role3".to_string(),
+      permissions: vec!["can_manage_roles".to_string()],
+      is_default: false,
+    };
+    let role3 = RoleService::create_role(&pool, role3_data).await.unwrap();
+
+    // Set role2 as default
+    RoleService::set_default_role(&pool, role2.id)
+      .await
+      .unwrap();
+
+    // Verify only role2 is default
+    let all_roles = RoleService::get_all_roles(&pool).await.unwrap();
+    let default_roles: Vec<_> = all_roles.iter().filter(|r| r.is_default).collect();
+    assert_eq!(default_roles.len(), 1);
+    assert_eq!(default_roles[0].id, role2.id);
+
+    // Set role3 as default
+    RoleService::set_default_role(&pool, role3.id)
+      .await
+      .unwrap();
+
+    // Verify only role3 is default now
+    let all_roles = RoleService::get_all_roles(&pool).await.unwrap();
+    let default_roles: Vec<_> = all_roles.iter().filter(|r| r.is_default).collect();
+    assert_eq!(default_roles.len(), 1);
+    assert_eq!(default_roles[0].id, role3.id);
+
+    // Verify role2 is no longer default
+    let current_role2 = RoleService::get_role_by_id(&pool, role2.id).await.unwrap();
+    assert!(current_role2.is_some());
+    assert!(!current_role2.unwrap().is_default);
   }
 }
