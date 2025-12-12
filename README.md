@@ -53,6 +53,7 @@ It is intended to be deployed as a microservice with a volume to house the SQLit
 | `updateUser` | Update existing user. Input: id (Int!), username (String), roleId (Int), password (String), passwordConfirmation (String), metadataJson (String). Returns: id (Int), uuid (String), username (String), roleId (Int), createdTs (Int), updatedTs (Int). Requires can_edit_user permission. |
 | `addRole` | Create new role. Input: name (String!), permissions ([String]!). Returns: id (Int), name (String), permissions ([String]), createdTs (Int), updatedTs (Int). Requires can_manage_roles permission. |
 | `updateRole` | Update existing role. Input: id (Int!), name (String), permissions ([String]). Returns: id (Int), name (String), permissions ([String]), createdTs (Int), updatedTs (Int). Requires can_manage_roles permission. |
+| `setDefaultRole` | Set a role as the default role. Input: roleId (Int!). Returns: id (Int), name (String), isDefault (Boolean), permissions ([String]), createdTs (Int), updatedTs (Int). Requires can_manage_roles permission. |
 | `removeRole` | Delete existing role. Input: id (Int!). Returns: success (Boolean). Requires can_manage_roles permission. |
 
 ## Installation

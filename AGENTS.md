@@ -25,7 +25,7 @@
 - If applicable, suggest existing crates that can help with the implementation during plan creation; if multiple crates exist, list pros/cons and recommend one
 - Never include git operations, changelogs, PR descriptions, version bumps, or release notes in plans
 - Never worry about backwards compatibility if the version is pre-1.0.0
-- If plan involves creating or updating GraphQL resolvers, add a TODO to update the `README.md` mutations/queries table
+- If the plan involves creating, updating, or deleting GraphQL resolvers, add a final phase on the plan to update the `README.md` mutations/queries table after all implementation is done
 - When writing plans that involve creating resolvers, queries, services, and/or orchestrators in the same plan, split into sub-tasks in this order, where each subtask is fully tested before moving to the next:
   - Queries first (if any)
   - Services second (if any)
