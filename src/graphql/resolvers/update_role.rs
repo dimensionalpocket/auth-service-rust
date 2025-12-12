@@ -129,20 +129,8 @@ impl UpdateRoleResolver {
 mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{create_test_database, create_test_role};
-  use async_graphql::*;
+  use crate::test_utils::{create_test_database, create_test_mutation_schema, create_test_role};
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
-
-  // Minimal query struct for testing mutations in isolation
-  #[derive(Default)]
-  struct TestEmptyQuery;
-
-  #[Object]
-  impl TestEmptyQuery {
-    async fn dummy(&self) -> &str {
-      "test"
-    }
-  }
 
   #[tokio::test]
   async fn test_update_role_success() {
@@ -182,10 +170,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateRoleResolver;
-    let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -264,10 +249,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateRoleResolver;
-    let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -334,10 +316,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateRoleResolver;
-    let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -362,10 +341,7 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let mutation = UpdateRoleResolver;
-    let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -411,10 +387,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateRoleResolver;
-    let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -463,10 +436,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateRoleResolver;
-    let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -519,10 +489,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateRoleResolver;
-    let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
 
     let query = r#"
       mutation {

@@ -280,13 +280,48 @@ pub use async_graphql::{EmptyMutation, EmptySubscription};
 
 ## Success Criteria
 
-1. **Phase 1**: Two helper methods created and tested
-2. **Phase 2**: `server_timestamp.rs` successfully migrated
-3. **Phase 3**: `add_site.rs` successfully migrated
-4. **Phase 4**: All 21 resolver files successfully migrated
-5. **Phase 5**: Update AGENTS.md with schema helper documentation
-6. **Final**: All resolver tests pass with new helper methods
-7. **Cleanup**: No duplicate `TestEmptyQuery` definitions remain
-8. **Cleanup**: Standardized EmptyMutation imports across all files
-9. **Cleanup**: Standardized EmptySubscription imports across all files
-10. **Verification**: Full test suite passes: `cargo test --quiet`
+1. **Phase 1**: Two helper methods created and tested ✅
+2. **Phase 2**: `server_timestamp.rs` successfully migrated ✅
+3. **Phase 3**: `add_site.rs` successfully migrated ✅
+4. **Phase 4**: All 21 resolver files successfully migrated (7/21 completed) 🔄
+   - **Completed Files**: `set_default_role.rs`, `users.rs`, `delete_user.rs`, `add_role.rs`, `roles.rs`, `auth_login.rs`, `update_role.rs`
+   - **Remaining Files**: `role_permissions.rs`, `auth_change_password.rs`, `auth_me.rs`, `site.rs`, `user.rs`, `role.rs`, `sites.rs`, `remove_site.rs`, `remove_role.rs`, `auth_register.rs`, `update_site.rs`, `auth_logout.rs`
+5. **Phase 5**: Update AGENTS.md with schema helper documentation (pending)
+6. **Final**: All resolver tests pass with new helper methods (in progress)
+7. **Cleanup**: No duplicate `TestEmptyQuery` definitions remain (in progress)
+8. **Cleanup**: Standardized EmptyMutation imports across all files (in progress)
+9. **Cleanup**: Standardized EmptySubscription imports across all files (in progress)
+10. **Verification**: Full test suite passes: `cargo test --quiet` (pending)
+
+## Phase 4 Status
+
+**Completed Files (7/21)**:
+- ✅ `set_default_role.rs` - Using `create_test_mutation_schema(mutation, Some(pool), Some(session), None)`
+- ✅ `users.rs` - Using `create_test_query_schema(query, Some(pool), Some(session), None)`
+- ✅ `delete_user.rs` - Using `create_test_mutation_schema(mutation, Some(pool), Some(session), None)`
+- ✅ `add_role.rs` - Using `create_test_mutation_schema(mutation, Some(pool), Some(session), None)`
+- ✅ `roles.rs` - Using `create_test_query_schema(query, Some(pool), Some(session), None)`
+- ✅ `auth_login.rs` - Using `create_test_mutation_schema(mutation, Some(pool), Some(session), Some(config))`
+- ✅ `update_role.rs` - Using `create_test_mutation_schema(mutation, Some(pool), Some(session), None)`
+
+**Remaining Files (12/21)**:
+- 🔄 `role_permissions.rs` - Query with database + session
+- 🔄 `auth_change_password.rs` - Mutation with database + session + config
+- 🔄 `auth_me.rs` - Query with database + session
+- 🔄 `site.rs` - Query with database + session
+- 🔄 `user.rs` - Query with database + session
+- 🔄 `role.rs` - Query with database + session
+- 🔄 `sites.rs` - Query with database + session
+- 🔄 `remove_site.rs` - Mutation with database + session
+- 🔄 `remove_role.rs` - Mutation with database + session
+- 🔄 `auth_register.rs` - Mutation with database + session
+- 🔄 `update_site.rs` - Mutation with database + session
+- 🔄 `auth_logout.rs` - Mutation with database + session
+
+## Key Issues Found and Fixed During Implementation
+
+**Helper Method Type Correction**: The original helper was incorrectly designed to use `DpsConfig` from `dps_config` crate, but the actual application uses `DpsAuthApiConfig`. Investigation of production code in `src/dps_auth_api.rs` revealed that schemas are built with `.data(self.config.as_ref().clone())` where `self.config` is of type `DpsAuthApiConfig`. 
+
+**Fix Applied**: Updated both helper methods in `src/test_utils/mod.rs` to accept `DpsAuthApiConfig` instead of `DpsConfig`, and updated all test helper calls to use the correct config type.
+
+**Efficiency Improvement**: Used `replaceAll` parameter for bulk updates to speed up the migration process, especially for files with multiple similar schema creation patterns (e.g., `add_role.rs` had 6 instances to update). This approach significantly reduced the time needed for Phase 4 implementation.

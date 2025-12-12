@@ -19,8 +19,8 @@ use uuid::Uuid;
 
 // GraphQL test utilities
 use crate::middleware::session::SessionContext;
+use crate::DpsAuthApiConfig;
 use async_graphql::{Object, ObjectType, Schema};
-use dps_config::DpsConfig;
 
 // Re-export GraphQL test utilities for consistent usage
 pub use async_graphql::{EmptyMutation, EmptySubscription};
@@ -204,7 +204,7 @@ pub fn create_test_query_schema<Q>(
   query: Q,
   pool: Option<SqlitePool>,
   session: Option<SessionContext>,
-  config: Option<DpsConfig>,
+  config: Option<DpsAuthApiConfig>,
 ) -> Schema<Q, EmptyMutation, EmptySubscription>
 where
   Q: ObjectType + 'static,
@@ -231,7 +231,7 @@ pub fn create_test_mutation_schema<M>(
   mutation: M,
   pool: Option<SqlitePool>,
   session: Option<SessionContext>,
-  config: Option<DpsConfig>,
+  config: Option<DpsAuthApiConfig>,
 ) -> Schema<TestEmptyQuery, M, EmptySubscription>
 where
   M: ObjectType + 'static,
@@ -409,9 +409,19 @@ mod tests {
   #[tokio::test]
   async fn test_create_test_query_schema_with_config() {
     use super::*;
-    use dps_config::DpsConfig;
 
-    let config = DpsConfig::new();
+
+    let config = DpsAuthApiConfig {
+      port: 3000,
+      sqlite_main_file_path: ":memory:".to_string(),
+      session_secret: vec![1, 2, 3, 4], // dummy secret
+      cookie_domain: "localhost".to_string(),
+      api_path: "/graphql".to_string(),
+      insecure_cookie: true,
+      development_mode: true,
+      sqlite_main_pool_size: 1,
+      session_ttl_seconds: 3600,
+    };
     let schema = create_test_query_schema(TestEmptyQuery, None, None, Some(config));
 
     // Verify schema was created successfully
@@ -422,11 +432,21 @@ mod tests {
   async fn test_create_test_query_schema_all_context() {
     use super::*;
     use crate::middleware::session::SessionContext;
-    use dps_config::DpsConfig;
+
 
     let (pool, _tmp) = create_test_database().await;
     let session = SessionContext::new(None);
-    let config = DpsConfig::new();
+    let config = DpsAuthApiConfig {
+      port: 3000,
+      sqlite_main_file_path: ":memory:".to_string(),
+      session_secret: vec![1, 2, 3, 4], // dummy secret
+      cookie_domain: "localhost".to_string(),
+      api_path: "/graphql".to_string(),
+      insecure_cookie: true,
+      development_mode: true,
+      sqlite_main_pool_size: 1,
+      session_ttl_seconds: 3600,
+    };
 
     let schema = create_test_query_schema(TestEmptyQuery, Some(pool), Some(session), Some(config));
 
@@ -470,9 +490,19 @@ mod tests {
   #[tokio::test]
   async fn test_create_test_mutation_schema_with_config() {
     use super::*;
-    use dps_config::DpsConfig;
 
-    let config = DpsConfig::new();
+
+    let config = DpsAuthApiConfig {
+      port: 3000,
+      sqlite_main_file_path: ":memory:".to_string(),
+      session_secret: vec![1, 2, 3, 4], // dummy secret
+      cookie_domain: "localhost".to_string(),
+      api_path: "/graphql".to_string(),
+      insecure_cookie: true,
+      development_mode: true,
+      sqlite_main_pool_size: 1,
+      session_ttl_seconds: 3600,
+    };
     let schema = create_test_mutation_schema(EmptyMutation, None, None, Some(config));
 
     // Verify schema was created successfully
@@ -483,11 +513,21 @@ mod tests {
   async fn test_create_test_mutation_schema_all_context() {
     use super::*;
     use crate::middleware::session::SessionContext;
-    use dps_config::DpsConfig;
+
 
     let (pool, _tmp) = create_test_database().await;
     let session = SessionContext::new(None);
-    let config = DpsConfig::new();
+    let config = DpsAuthApiConfig {
+      port: 3000,
+      sqlite_main_file_path: ":memory:".to_string(),
+      session_secret: vec![1, 2, 3, 4], // dummy secret
+      cookie_domain: "localhost".to_string(),
+      api_path: "/graphql".to_string(),
+      insecure_cookie: true,
+      development_mode: true,
+      sqlite_main_pool_size: 1,
+      session_ttl_seconds: 3600,
+    };
 
     let schema =
       create_test_mutation_schema(EmptyMutation, Some(pool), Some(session), Some(config));

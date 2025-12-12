@@ -85,8 +85,7 @@ fn map_session_error_to_user_message(error: &SessionError) -> &'static str {
 mod tests {
   use super::*;
   use crate::services::UserService;
-  use crate::test_utils::create_test_database;
-  use async_graphql::{EmptySubscription, Schema};
+  use crate::test_utils::{create_test_database, create_test_mutation_schema};
 
   // Test secret - 32 bytes for AES-256 (base64-decoded from QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=)
   const TEST_SECRET: &[u8] = &[
@@ -125,14 +124,7 @@ mod tests {
       sqlite_main_pool_size: 1,
       session_ttl_seconds: 3600,
     };
-    let schema = Schema::build(
-      async_graphql::EmptyMutation,
-      AuthLoginResolver,
-      EmptySubscription,
-    )
-    .data(pool)
-    .data(test_config)
-    .finish();
+    let schema = create_test_mutation_schema(AuthLoginResolver, Some(pool), None, Some(test_config));
 
     // Test: Call the mutation
     let query = r#"
@@ -182,14 +174,7 @@ mod tests {
       sqlite_main_pool_size: 1,
       session_ttl_seconds: 3600,
     };
-    let schema = Schema::build(
-      async_graphql::EmptyMutation,
-      AuthLoginResolver,
-      EmptySubscription,
-    )
-    .data(pool)
-    .data(test_config)
-    .finish();
+    let schema = create_test_mutation_schema(AuthLoginResolver, Some(pool), None, Some(test_config));
 
     // Test: Call with non-existent user
     let query = r#"
@@ -224,13 +209,7 @@ mod tests {
       sqlite_main_pool_size: 1,
       session_ttl_seconds: 3600,
     };
-    let schema = Schema::build(
-      async_graphql::EmptyMutation,
-      AuthLoginResolver,
-      EmptySubscription,
-    )
-    .data(test_config)
-    .finish();
+    let schema = create_test_mutation_schema(AuthLoginResolver, None, None, Some(test_config));
 
     let query = r#"
       mutation {

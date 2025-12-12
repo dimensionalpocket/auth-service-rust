@@ -83,8 +83,7 @@ mod tests {
   use crate::middleware::session::SessionContext;
   use crate::queries::users::{CreateUserData, CreateUserQuery};
   use crate::services::PasswordService;
-  use crate::test_utils::create_test_database;
-  use async_graphql::{EmptyMutation, EmptySubscription, Schema};
+  use crate::test_utils::{create_test_database, create_test_query_schema};
   use dps_auth_session::DpsAuthSessionPayload;
   use sqlx::SqlitePool;
   use uuid::Uuid;
@@ -145,10 +144,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = RolesResolver;
-    let schema = Schema::build(query, EmptyMutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
 
     let result = schema
       .execute("{ roles { id name permissions isDefault createdTs updatedTs } }")
@@ -191,10 +187,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = RolesResolver;
-    let schema = Schema::build(query, EmptyMutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
 
     let result = schema
       .execute("{ roles { id name permissions isDefault createdTs updatedTs } }")
@@ -224,10 +217,7 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let query = RolesResolver;
-    let schema = Schema::build(query, EmptyMutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
 
     let result = schema
       .execute("{ roles { id name permissions isDefault createdTs updatedTs } }")
@@ -254,10 +244,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = RolesResolver;
-    let schema = Schema::build(query, EmptyMutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
 
     let result = schema
       .execute("{ roles { id name permissions isDefault createdTs updatedTs } }")
@@ -284,10 +271,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = RolesResolver;
-    let schema = Schema::build(query, EmptyMutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
 
     let result = schema
       .execute("{ roles { id name permissions isDefault createdTs updatedTs } }")

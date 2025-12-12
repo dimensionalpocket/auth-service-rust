@@ -81,8 +81,7 @@ impl UsersResolver {
 mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{create_test_database, create_test_role, create_test_user};
-  use async_graphql::*;
+  use crate::test_utils::{create_test_database, create_test_query_schema, create_test_role, create_test_user};
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[tokio::test]
@@ -107,10 +106,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = UsersResolver;
-    let schema = Schema::build(query, EmptyMutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
 
     let result = schema
       .execute("{ users { id uuid name roleName createdTs updatedTs } }")
@@ -147,10 +143,7 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let query = UsersResolver;
-    let schema = Schema::build(query, EmptyMutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
 
     let result = schema.execute("{ users { id name } }").await;
 
@@ -177,10 +170,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = UsersResolver;
-    let schema = Schema::build(query, EmptyMutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
 
     let result = schema.execute("{ users { id name } }").await;
 
@@ -205,10 +195,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = UsersResolver;
-    let schema = Schema::build(query, EmptyMutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
 
     let result = schema.execute("{ users { id name roleName } }").await;
 
@@ -233,10 +220,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = UsersResolver;
-    let schema = Schema::build(query, EmptyMutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
 
     let result = schema.execute("{ users { id name } }").await;
 
