@@ -1,9 +1,9 @@
 use crate::graphql::resolvers::{
   AddRoleResolver, AddSiteResolver, AuthChangePasswordResolver, AuthLoginResolver,
-  AuthLogoutResolver, AuthMeResolver, AuthRegisterResolver, DeleteUserResolver,
-  GetServerTimestampResolver, RemoveRoleResolver, RemoveSiteResolver, RolePermissionsResolver,
-  RoleResolver, RolesResolver, SetDefaultRoleResolver, SiteResolver, SitesResolver,
-  UpdateRoleResolver, UpdateSiteResolver, UserResolver, UsersResolver,
+  AuthLogoutResolver, AuthMeResolver, AuthRegisterResolver, DeleteUserResolver, RemoveRoleResolver,
+  RemoveSiteResolver, RolePermissionsResolver, RoleResolver, RolesResolver,
+  ServerTimestampResolver, SetDefaultRoleResolver, SiteResolver, SitesResolver, UpdateRoleResolver,
+  UpdateSiteResolver, UserResolver, UsersResolver,
 };
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 
@@ -13,7 +13,7 @@ use async_graphql::{EmptySubscription, MergedObject, Schema};
 /// individual query resolvers into a single unified interface using MergedObject.
 ///
 /// Available queries:
-/// - getServerTimestamp: Get current server time for synchronization
+/// - serverTimestamp: Get current server time for synchronization
 /// - authMe: Get current authenticated user profile
 /// - sites: List all sites in the database (no authentication required)
 /// - site: Get complete site details by ID (admin only, requires can_view_site_details permission)
@@ -26,7 +26,7 @@ use async_graphql::{EmptySubscription, MergedObject, Schema};
 /// user authentication, profile management, and other auth-related operations.
 #[derive(MergedObject, Default)]
 pub struct Query(
-  GetServerTimestampResolver,
+  ServerTimestampResolver,
   AuthMeResolver,
   SitesResolver,
   SiteResolver,

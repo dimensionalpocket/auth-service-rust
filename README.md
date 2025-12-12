@@ -28,7 +28,7 @@ It is intended to be deployed as a microservice with a volume to house the SQLit
 
 | Operation | Description |
 |-----------|-------------|
-| `getServerTimestamp` | Get current server timestamp. Returns timestamp (String). No authentication required. |
+| `serverTimestamp` | Get current server timestamp in milliseconds since Unix epoch. Returns timestamp (String). No authentication required. |
 | `authMe` | Get current authenticated user profile. Returns userId (Int), uuid (String), username (String), roleId (Int), roleName (String), createdTs (Int), updatedTs (Int), sessionIat (Int), sessionExp (Int). Requires valid session cookie. |
 | `site` | Get complete site details by ID (admin only). Returns id (Int!), slug (String), subdomain (String), port (Int), protocol (String), metadataJson (String), createdTs (Int), updatedTs (Int). Requires can_view_site_details permission. |
 | `sites` | List all sites in database. Returns array of [id (Int), slug (String), subdomain (String), port (Int), protocol (String)]. No authentication required. |
