@@ -124,7 +124,8 @@ mod tests {
       sqlite_main_pool_size: 1,
       session_ttl_seconds: 3600,
     };
-    let schema = create_test_mutation_schema(AuthLoginResolver, Some(pool), None, Some(test_config));
+    let schema =
+      create_test_mutation_schema(AuthLoginResolver, Some(pool), None, Some(test_config));
 
     // Test: Call the mutation
     let query = r#"
@@ -174,7 +175,8 @@ mod tests {
       sqlite_main_pool_size: 1,
       session_ttl_seconds: 3600,
     };
-    let schema = create_test_mutation_schema(AuthLoginResolver, Some(pool), None, Some(test_config));
+    let schema =
+      create_test_mutation_schema(AuthLoginResolver, Some(pool), None, Some(test_config));
 
     // Test: Call with non-existent user
     let query = r#"

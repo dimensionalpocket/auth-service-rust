@@ -410,7 +410,6 @@ mod tests {
   async fn test_create_test_query_schema_with_config() {
     use super::*;
 
-
     let config = DpsAuthApiConfig {
       port: 3000,
       sqlite_main_file_path: ":memory:".to_string(),
@@ -432,7 +431,6 @@ mod tests {
   async fn test_create_test_query_schema_all_context() {
     use super::*;
     use crate::middleware::session::SessionContext;
-
 
     let (pool, _tmp) = create_test_database().await;
     let session = SessionContext::new(None);
@@ -491,7 +489,6 @@ mod tests {
   async fn test_create_test_mutation_schema_with_config() {
     use super::*;
 
-
     let config = DpsAuthApiConfig {
       port: 3000,
       sqlite_main_file_path: ":memory:".to_string(),
@@ -513,7 +510,6 @@ mod tests {
   async fn test_create_test_mutation_schema_all_context() {
     use super::*;
     use crate::middleware::session::SessionContext;
-
 
     let (pool, _tmp) = create_test_database().await;
     let session = SessionContext::new(None);

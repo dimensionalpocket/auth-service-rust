@@ -283,19 +283,17 @@ pub use async_graphql::{EmptyMutation, EmptySubscription};
 1. **Phase 1**: Two helper methods created and tested ✅
 2. **Phase 2**: `server_timestamp.rs` successfully migrated ✅
 3. **Phase 3**: `add_site.rs` successfully migrated ✅
-4. **Phase 4**: All 21 resolver files successfully migrated (7/21 completed) 🔄
-   - **Completed Files**: `set_default_role.rs`, `users.rs`, `delete_user.rs`, `add_role.rs`, `roles.rs`, `auth_login.rs`, `update_role.rs`
-   - **Remaining Files**: `role_permissions.rs`, `auth_change_password.rs`, `auth_me.rs`, `site.rs`, `user.rs`, `role.rs`, `sites.rs`, `remove_site.rs`, `remove_role.rs`, `auth_register.rs`, `update_site.rs`, `auth_logout.rs`
-5. **Phase 5**: Update AGENTS.md with schema helper documentation (pending)
-6. **Final**: All resolver tests pass with new helper methods (in progress)
-7. **Cleanup**: No duplicate `TestEmptyQuery` definitions remain (in progress)
-8. **Cleanup**: Standardized EmptyMutation imports across all files (in progress)
-9. **Cleanup**: Standardized EmptySubscription imports across all files (in progress)
-10. **Verification**: Full test suite passes: `cargo test --quiet` (pending)
+4. **Phase 4**: All 21 resolver files successfully migrated (21/21 completed) ✅
+5. **Phase 5**: Update AGENTS.md with schema helper documentation ✅
+6. **Final**: All resolver tests pass with new helper methods ✅
+7. **Cleanup**: No duplicate `TestEmptyQuery` definitions remain ✅
+8. **Cleanup**: Standardized EmptyMutation imports across all files ✅
+9. **Cleanup**: Standardized EmptySubscription imports across all files ✅
+10. **Verification**: Full test suite passes: `cargo test --quiet` ✅
 
 ## Phase 4 Status
 
-**Completed Files (7/21)**:
+**Completed Files (19/21)**:
 - ✅ `set_default_role.rs` - Using `create_test_mutation_schema(mutation, Some(pool), Some(session), None)`
 - ✅ `users.rs` - Using `create_test_query_schema(query, Some(pool), Some(session), None)`
 - ✅ `delete_user.rs` - Using `create_test_mutation_schema(mutation, Some(pool), Some(session), None)`
@@ -303,20 +301,41 @@ pub use async_graphql::{EmptyMutation, EmptySubscription};
 - ✅ `roles.rs` - Using `create_test_query_schema(query, Some(pool), Some(session), None)`
 - ✅ `auth_login.rs` - Using `create_test_mutation_schema(mutation, Some(pool), Some(session), Some(config))`
 - ✅ `update_role.rs` - Using `create_test_mutation_schema(mutation, Some(pool), Some(session), None)`
+- ✅ `role_permissions.rs` - Using `create_test_query_schema(query, Some(pool), Some(session), None)`
+- ✅ `auth_change_password.rs` - Using `create_test_mutation_schema(mutation, Some(pool), Some(session), None)`
+- ✅ `auth_me.rs` - Using `create_test_query_schema(query, Some(pool), Some(session), None)`
+- ✅ `site.rs` - Using `create_test_query_schema(query, Some(pool), Some(session), None)`
+- ✅ `user.rs` - Using `create_test_query_schema(query, Some(pool), Some(session), None)`
+- ✅ `role.rs` - Using `create_test_query_schema(query, Some(pool), Some(session), None)`
+- ✅ `sites.rs` - Using `create_test_query_schema(query, Some(pool), None, None)`
+- ✅ `remove_site.rs` - Using `create_test_mutation_schema(mutation, Some(pool), Some(session), None)`
+- ✅ `remove_role.rs` - Using `create_test_mutation_schema(mutation, Some(pool), Some(session), None)`
+- ✅ `auth_register.rs` - Using `create_test_mutation_schema(mutation, Some(pool), None, Some(config))`
+- ✅ `update_site.rs` - Using `create_test_mutation_schema(mutation, Some(pool), Some(session), None)`
 
-**Remaining Files (12/21)**:
-- 🔄 `role_permissions.rs` - Query with database + session
-- 🔄 `auth_change_password.rs` - Mutation with database + session + config
-- 🔄 `auth_me.rs` - Query with database + session
-- 🔄 `site.rs` - Query with database + session
-- 🔄 `user.rs` - Query with database + session
-- 🔄 `role.rs` - Query with database + session
-- 🔄 `sites.rs` - Query with database + session
-- 🔄 `remove_site.rs` - Mutation with database + session
-- 🔄 `remove_role.rs` - Mutation with database + session
-- 🔄 `auth_register.rs` - Mutation with database + session
-- 🔄 `update_site.rs` - Mutation with database + session
-- 🔄 `auth_logout.rs` - Mutation with database + session
+**All Files Completed (21/21)**:
+
+**Completed Files (21/21)**:
+- ✅ `set_default_role.rs` - Using `create_test_mutation_schema(mutation, Some(pool), Some(session), None)`
+- ✅ `users.rs` - Using `create_test_query_schema(query, Some(pool), Some(session), None)`
+- ✅ `delete_user.rs` - Using `create_test_mutation_schema(mutation, Some(pool), Some(session), None)`
+- ✅ `add_role.rs` - Using `create_test_mutation_schema(mutation, Some(pool), Some(session), None)`
+- ✅ `roles.rs` - Using `create_test_query_schema(query, Some(pool), Some(session), None)`
+- ✅ `auth_login.rs` - Using `create_test_mutation_schema(mutation, Some(pool), Some(session), Some(config))`
+- ✅ `update_role.rs` - Using `create_test_mutation_schema(mutation, Some(pool), Some(session), None)`
+- ✅ `role_permissions.rs` - Using `create_test_query_schema(query, Some(pool), Some(session), None)`
+- ✅ `auth_change_password.rs` - Using `create_test_mutation_schema(mutation, Some(pool), Some(session), None)`
+- ✅ `auth_me.rs` - Using `create_test_query_schema(query, Some(pool), Some(session), None)`
+- ✅ `site.rs` - Using `create_test_query_schema(query, Some(pool), Some(session), None)`
+- ✅ `user.rs` - Using `create_test_query_schema(query, Some(pool), Some(session), None)`
+- ✅ `role.rs` - Using `create_test_query_schema(query, Some(pool), Some(session), None)`
+- ✅ `sites.rs` - Using `create_test_query_schema(query, Some(pool), None, None)`
+- ✅ `remove_site.rs` - Using `create_test_mutation_schema(mutation, Some(pool), Some(session), None)`
+- ✅ `remove_role.rs` - Using `create_test_mutation_schema(mutation, Some(pool), Some(session), None)`
+- ✅ `auth_register.rs` - Using `create_test_mutation_schema(mutation, Some(pool), None, Some(config))`
+- ✅ `update_site.rs` - Using `create_test_mutation_schema(mutation, Some(pool), Some(session), None)`
+- ✅ `auth_logout.rs` - Using `create_test_mutation_schema(mutation, None, None, Some(config))` - Added comprehensive tests including cookie header validation
+- ✅ `server_timestamp.rs` - Using `create_test_query_schema(query, None, None, None)` - Already migrated in Phase 2
 
 ## Key Issues Found and Fixed During Implementation
 

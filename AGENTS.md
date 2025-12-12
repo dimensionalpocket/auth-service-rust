@@ -160,6 +160,21 @@
 - Database setup utilities (`create_test_database()`, `create_test_database_with_pool_size()`, etc.) are also in `src/test_utils/mod.rs`
 - Do not create local `create_test_*` functions in test modules - use the shared utilities instead
 
+When writing resolver tests, use centralized `create_test_<query|mutation>_schema` helper from `test_utils` instead of direct `Schema::build` calls:
+
+```rust
+use crate::test_utils::{create_test_query_schema, create_test_mutation_schema};
+
+// Query-only test (no context)
+let schema = create_test_query_schema(query, None, None, None);
+
+// Mutation with database and session
+let schema = create_test_mutation_schema(mutation, Some(pool), Some(session), None);
+
+// Mutation with database, session, and config
+let schema = create_test_mutation_schema(mutation, Some(pool), Some(session), Some(config));
+```
+
 Rules for database usage in tests:
 
 - Use tempfile for test databases

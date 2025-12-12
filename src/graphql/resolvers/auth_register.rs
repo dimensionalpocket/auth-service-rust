@@ -127,19 +127,7 @@ impl AuthRegisterResolver {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::create_test_database;
-  use async_graphql::*;
-
-  // Minimal query struct for testing mutations in isolation
-  #[derive(Default)]
-  struct TestEmptyQuery;
-
-  #[Object]
-  impl TestEmptyQuery {
-    async fn dummy(&self) -> &str {
-      "test"
-    }
-  }
+  use crate::test_utils::{create_test_database, create_test_mutation_schema};
 
   #[tokio::test]
   async fn test_auth_register_calls_service_with_correct_parameters() {
@@ -173,10 +161,7 @@ mod tests {
     };
 
     let mutation = AuthRegisterResolver;
-    let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
-      .data(pool)
-      .data(test_config)
-      .finish();
+    let schema = create_test_mutation_schema(mutation, Some(pool), None, Some(test_config));
 
     let query = r#"
       mutation {
@@ -242,10 +227,7 @@ mod tests {
     };
 
     let mutation = AuthRegisterResolver;
-    let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
-      .data(pool)
-      .data(test_config)
-      .finish();
+    let schema = create_test_mutation_schema(mutation, Some(pool), None, Some(test_config));
 
     let query = r#"
       mutation {
@@ -290,10 +272,7 @@ mod tests {
     };
 
     let mutation = AuthRegisterResolver;
-    let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
-      .data(pool)
-      .data(test_config)
-      .finish();
+    let schema = create_test_mutation_schema(mutation, Some(pool), None, Some(test_config));
 
     // Test empty username
     let query = r#"
@@ -333,10 +312,7 @@ mod tests {
     };
 
     let mutation = AuthRegisterResolver;
-    let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
-      .data(pool)
-      .data(test_config)
-      .finish();
+    let schema = create_test_mutation_schema(mutation, Some(pool), None, Some(test_config));
 
     // Test password confirmation mismatch
     let query = r#"
@@ -385,10 +361,7 @@ mod tests {
     };
 
     let mutation = AuthRegisterResolver;
-    let schema = Schema::build(TestEmptyQuery, mutation, EmptySubscription)
-      .data(pool)
-      .data(test_config)
-      .finish();
+    let schema = create_test_mutation_schema(mutation, Some(pool), None, Some(test_config));
 
     let query = r#"
       mutation {

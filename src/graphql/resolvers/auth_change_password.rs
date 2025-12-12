@@ -90,8 +90,7 @@ mod tests {
   use super::*;
   use crate::middleware::session::{SessionContext, SessionPayload};
   use crate::services::{AuthService, UserService};
-  use crate::test_utils::create_test_database;
-  use async_graphql::{EmptySubscription, Schema};
+  use crate::test_utils::{create_test_database, create_test_mutation_schema};
 
   // Test secret - 32 bytes for AES-256
   const TEST_SECRET: &[u8] = &[
@@ -145,10 +144,7 @@ mod tests {
 
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
-    let schema = Schema::build(async_graphql::EmptyMutation, mutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
 
     // Test: Change password
     let query = r#"
@@ -193,10 +189,7 @@ mod tests {
 
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
-    let schema = Schema::build(async_graphql::EmptyMutation, mutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
 
     // Test: Try to change with wrong current password
     let query = r#"
@@ -231,10 +224,7 @@ mod tests {
 
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
-    let schema = Schema::build(async_graphql::EmptyMutation, mutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
 
     // Test: Try to change with mismatched confirmation
     let query = r#"
@@ -266,10 +256,7 @@ mod tests {
 
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
-    let schema = Schema::build(async_graphql::EmptyMutation, mutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
 
     // Test: Try to change password without authentication
     let query = r#"
@@ -302,10 +289,7 @@ mod tests {
 
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
-    let schema = Schema::build(async_graphql::EmptyMutation, mutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
 
     // Test: Try to change with invalid new password (too short)
     let query = r#"

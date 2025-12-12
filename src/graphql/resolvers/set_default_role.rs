@@ -98,7 +98,9 @@ impl SetDefaultRoleResolver {
 mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{create_test_database, create_test_mutation_schema, create_test_role, create_test_user};
+  use crate::test_utils::{
+    create_test_database, create_test_mutation_schema, create_test_role, create_test_user,
+  };
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
   #[tokio::test]
@@ -188,7 +190,8 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = SetDefaultRoleResolver;
-    let schema = create_test_mutation_schema(mutation, Some(pool.clone()), Some(session_context), None);
+    let schema =
+      create_test_mutation_schema(mutation, Some(pool.clone()), Some(session_context), None);
 
     // Set first role as default
     let query1 = r#"

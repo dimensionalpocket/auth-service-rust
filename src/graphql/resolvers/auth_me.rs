@@ -149,8 +149,7 @@ fn map_session_error_to_user_message(error: &SessionError) -> &'static str {
 mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::create_test_database;
-  use async_graphql::*;
+  use crate::test_utils::{create_test_database, create_test_query_schema};
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
   #[tokio::test]
@@ -182,10 +181,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(payload.clone()));
 
-    let schema = Schema::build(query, EmptyMutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
 
     let result = schema
       .execute(
@@ -208,10 +204,7 @@ mod tests {
     let query = AuthMeResolver;
     let session_context = SessionContext::new(None);
 
-    let schema = Schema::build(query, EmptyMutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
 
     let result = schema.execute("{ authMe { userId uuid username } }").await;
 
@@ -226,9 +219,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
     let query = AuthMeResolver;
 
-    let schema = Schema::build(query, EmptyMutation, EmptySubscription)
-      .data(pool)
-      .finish();
+    let schema = create_test_query_schema(query, Some(pool), None, None);
     let result = schema.execute("{ authMe { userId uuid username } }").await;
 
     // Should succeed with null response when no session context

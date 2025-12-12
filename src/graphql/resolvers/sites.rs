@@ -63,16 +63,13 @@ impl SitesResolver {
 mod tests {
   use super::*;
   use crate::queries::sites::{CreateSiteData, CreateSiteQuery};
-  use crate::test_utils::create_test_database;
-  use async_graphql::*;
+  use crate::test_utils::{create_test_database, create_test_query_schema};
 
   #[tokio::test]
   async fn test_sites_empty() {
     let (pool, _tmp) = create_test_database().await;
     let query = SitesResolver;
-    let schema = Schema::build(query, EmptyMutation, EmptySubscription)
-      .data(pool)
-      .finish();
+    let schema = create_test_query_schema(query, Some(pool), None, None);
 
     let result = schema
       .execute("{ sites { id slug subdomain port protocol } }")
@@ -109,9 +106,7 @@ mod tests {
     CreateSiteQuery::run(&pool, site2_data).await.unwrap();
 
     let query = SitesResolver;
-    let schema = Schema::build(query, EmptyMutation, EmptySubscription)
-      .data(pool)
-      .finish();
+    let schema = create_test_query_schema(query, Some(pool), None, None);
 
     let result = schema
       .execute("{ sites { id slug subdomain port protocol } }")

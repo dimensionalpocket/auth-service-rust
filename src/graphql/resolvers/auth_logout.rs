@@ -41,3 +41,201 @@ impl AuthLogoutResolver {
     })
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::test_utils::create_test_mutation_schema;
+
+  #[tokio::test]
+  async fn test_auth_logout_success() {
+    // Test config
+    let test_config = DpsAuthApiConfig {
+      port: 0,
+      sqlite_main_file_path: "test.db".to_string(),
+      session_secret: vec![0x42; 32],
+      cookie_domain: ".dps.localhost".to_string(),
+      api_path: "/api".to_string(),
+      insecure_cookie: false,
+      development_mode: true,
+      sqlite_main_pool_size: 1,
+      session_ttl_seconds: 3600,
+    };
+
+    let mutation = AuthLogoutResolver;
+    let schema = create_test_mutation_schema(mutation, None, None, Some(test_config));
+
+    let query = r#"
+      mutation {
+        authLogout {
+          message
+        }
+      }
+    "#;
+
+    let result = schema.execute(query).await;
+
+    // Verify: Should succeed
+    assert!(
+      result.errors.is_empty(),
+      "GraphQL errors: {:?}",
+      result.errors
+    );
+
+    let data = result.data.into_json().unwrap();
+    let auth_logout = &data["authLogout"];
+
+    assert_eq!(
+      auth_logout["message"].as_str().unwrap(),
+      "Successfully logged out"
+    );
+  }
+
+  #[tokio::test]
+  async fn test_auth_logout_sets_cookie_header() {
+    // Test config with secure cookie
+    let test_config = DpsAuthApiConfig {
+      port: 0,
+      sqlite_main_file_path: "test.db".to_string(),
+      session_secret: vec![0x42; 32],
+      cookie_domain: ".example.com".to_string(),
+      api_path: "/graphql".to_string(),
+      insecure_cookie: false,
+      development_mode: true,
+      sqlite_main_pool_size: 1,
+      session_ttl_seconds: 3600,
+    };
+
+    let mutation = AuthLogoutResolver;
+    let schema = create_test_mutation_schema(mutation, None, None, Some(test_config));
+
+    let query = r#"
+      mutation {
+        authLogout {
+          message
+        }
+      }
+    "#;
+
+    let result = schema.execute(query).await;
+
+    // Verify: Should succeed
+    assert!(result.errors.is_empty());
+
+    // Check that set-cookie header is present
+    let headers = result.http_headers;
+    let set_cookie_headers: Vec<_> = headers
+      .get_all("set-cookie")
+      .iter()
+      .map(|h| h.to_str().unwrap())
+      .collect();
+
+    assert!(!set_cookie_headers.is_empty(), "No set-cookie header found");
+
+    let cookie_header = &set_cookie_headers[0];
+
+    // Verify cookie structure
+    assert!(
+      cookie_header.starts_with("DpsAuthSession="),
+      "Cookie header should start with session name"
+    );
+    assert!(
+      cookie_header.contains("Domain=.example.com"),
+      "Cookie header should contain domain"
+    );
+    assert!(
+      cookie_header.contains("Path=/graphql"),
+      "Cookie header should contain path"
+    );
+    assert!(
+      cookie_header.contains("HttpOnly"),
+      "Cookie header should contain HttpOnly"
+    );
+    assert!(
+      cookie_header.contains("SameSite=Lax"),
+      "Cookie header should contain SameSite"
+    );
+    assert!(
+      cookie_header.contains("; Secure"),
+      "Cookie header should contain Secure flag"
+    );
+    assert!(
+      cookie_header.contains("Expires=Thu, 01 Jan 1970 00:00:00 GMT"),
+      "Cookie header should contain expiration date"
+    );
+  }
+
+  #[tokio::test]
+  async fn test_auth_logout_insecure_cookie() {
+    // Test config with insecure cookie
+    let test_config = DpsAuthApiConfig {
+      port: 0,
+      sqlite_main_file_path: "test.db".to_string(),
+      session_secret: vec![0x42; 32],
+      cookie_domain: ".localhost".to_string(),
+      api_path: "/api".to_string(),
+      insecure_cookie: true,
+      development_mode: true,
+      sqlite_main_pool_size: 1,
+      session_ttl_seconds: 3600,
+    };
+
+    let mutation = AuthLogoutResolver;
+    let schema = create_test_mutation_schema(mutation, None, None, Some(test_config));
+
+    let query = r#"
+      mutation {
+        authLogout {
+          message
+        }
+      }
+    "#;
+
+    let result = schema.execute(query).await;
+
+    // Verify: Should succeed
+    assert!(result.errors.is_empty());
+
+    // Check that set-cookie header is present
+    let headers = result.http_headers;
+    let set_cookie_headers: Vec<_> = headers
+      .get_all("set-cookie")
+      .iter()
+      .map(|h| h.to_str().unwrap())
+      .collect();
+
+    assert!(!set_cookie_headers.is_empty());
+
+    let cookie_header = &set_cookie_headers[0];
+
+    // Verify insecure cookie (no Secure flag)
+    assert!(
+      cookie_header.starts_with("DpsAuthSession="),
+      "Cookie header should start with session name"
+    );
+    assert!(
+      cookie_header.contains("Domain=.localhost"),
+      "Cookie header should contain domain"
+    );
+    assert!(
+      cookie_header.contains("Path=/api"),
+      "Cookie header should contain path"
+    );
+    assert!(
+      cookie_header.contains("HttpOnly"),
+      "Cookie header should contain HttpOnly"
+    );
+    assert!(
+      cookie_header.contains("SameSite=Lax"),
+      "Cookie header should contain SameSite"
+    );
+    assert!(
+      !cookie_header.contains("; Secure"),
+      "Cookie header should NOT contain Secure flag for insecure cookies"
+    );
+    assert!(
+      cookie_header.contains("Expires=Thu, 01 Jan 1970 00:00:00 GMT"),
+      "Cookie header should contain expiration date"
+    );
+  }
+}

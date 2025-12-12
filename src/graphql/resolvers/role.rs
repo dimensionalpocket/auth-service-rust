@@ -87,8 +87,7 @@ impl RoleResolver {
 mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::create_test_database;
-  use async_graphql::*;
+  use crate::test_utils::{create_test_database, create_test_query_schema};
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
   #[tokio::test]
@@ -130,10 +129,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query_resolver = RoleResolver;
-    let schema = Schema::build(query_resolver, EmptyMutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_query_schema(query_resolver, Some(pool), Some(session_context), None);
 
     let query = format!(
       r#"
@@ -210,10 +206,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query_resolver = RoleResolver;
-    let schema = Schema::build(query_resolver, EmptyMutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_query_schema(query_resolver, Some(pool), Some(session_context), None);
 
     let query = r#"
             query {
@@ -237,10 +230,7 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let query_resolver = RoleResolver;
-    let schema = Schema::build(query_resolver, EmptyMutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_query_schema(query_resolver, Some(pool), Some(session_context), None);
 
     let query = r#"
             query {
@@ -286,10 +276,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query_resolver = RoleResolver;
-    let schema = Schema::build(query_resolver, EmptyMutation, EmptySubscription)
-      .data(pool)
-      .data(session_context)
-      .finish();
+    let schema = create_test_query_schema(query_resolver, Some(pool), Some(session_context), None);
 
     let query = r#"
             query {

@@ -81,7 +81,9 @@ impl UsersResolver {
 mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{create_test_database, create_test_query_schema, create_test_role, create_test_user};
+  use crate::test_utils::{
+    create_test_database, create_test_query_schema, create_test_role, create_test_user,
+  };
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[tokio::test]
