@@ -32,12 +32,12 @@ impl ServerTimestampResolver {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use async_graphql::*;
+  use crate::test_utils::create_test_query_schema;
 
   #[tokio::test]
   async fn test_server_timestamp_calls_service() {
     let query = ServerTimestampResolver;
-    let schema = Schema::build(query, EmptyMutation, EmptySubscription).finish();
+    let schema = create_test_query_schema(query, None, None, None);
     let result = schema.execute("{ serverTimestamp }").await;
 
     assert!(result.errors.is_empty());
@@ -50,7 +50,7 @@ mod tests {
   #[tokio::test]
   async fn test_server_timestamp_returns_string() {
     let query = ServerTimestampResolver;
-    let schema = Schema::build(query, EmptyMutation, EmptySubscription).finish();
+    let schema = create_test_query_schema(query, None, None, None);
     let result = schema.execute("{ serverTimestamp }").await;
 
     assert!(result.errors.is_empty());

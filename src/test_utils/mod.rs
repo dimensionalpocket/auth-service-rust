@@ -17,6 +17,25 @@ use sqlx::SqlitePool;
 use tempfile::NamedTempFile;
 use uuid::Uuid;
 
+// GraphQL test utilities
+use crate::middleware::session::SessionContext;
+use async_graphql::{Object, ObjectType, Schema};
+use dps_config::DpsConfig;
+
+// Re-export GraphQL test utilities for consistent usage
+pub use async_graphql::{EmptyMutation, EmptySubscription};
+
+// Centralized TestEmptyQuery to replace all duplicates
+#[derive(Default)]
+pub struct TestEmptyQuery;
+
+#[Object]
+impl TestEmptyQuery {
+  async fn dummy(&self) -> &str {
+    "test"
+  }
+}
+
 pub async fn create_test_database() -> (SqlitePool, NamedTempFile) {
   create_test_database_with_config(true).await
 }
@@ -179,6 +198,61 @@ pub async fn create_test_user_via_mutation(
     .to_string()
 }
 
+// GraphQL test schema helper methods
+/// For query tests - pass query directly
+pub fn create_test_query_schema<Q>(
+  query: Q,
+  pool: Option<SqlitePool>,
+  session: Option<SessionContext>,
+  config: Option<DpsConfig>,
+) -> Schema<Q, EmptyMutation, EmptySubscription>
+where
+  Q: ObjectType + 'static,
+{
+  let mut schema_builder = Schema::build(query, EmptyMutation, EmptySubscription);
+
+  if let Some(pool) = pool {
+    schema_builder = schema_builder.data(pool);
+  }
+
+  if let Some(session) = session {
+    schema_builder = schema_builder.data(session);
+  }
+
+  if let Some(config) = config {
+    schema_builder = schema_builder.data(config);
+  }
+
+  schema_builder.finish()
+}
+
+/// For mutation tests - pass mutation directly
+pub fn create_test_mutation_schema<M>(
+  mutation: M,
+  pool: Option<SqlitePool>,
+  session: Option<SessionContext>,
+  config: Option<DpsConfig>,
+) -> Schema<TestEmptyQuery, M, EmptySubscription>
+where
+  M: ObjectType + 'static,
+{
+  let mut schema_builder = Schema::build(TestEmptyQuery, mutation, EmptySubscription);
+
+  if let Some(pool) = pool {
+    schema_builder = schema_builder.data(pool);
+  }
+
+  if let Some(session) = session {
+    schema_builder = schema_builder.data(session);
+  }
+
+  if let Some(config) = config {
+    schema_builder = schema_builder.data(config);
+  }
+
+  schema_builder.finish()
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -296,5 +370,129 @@ mod tests {
 
     assert_eq!(role.name, "admin_role");
     assert_eq!(role.permissions().len(), ROLE_PERMISSIONS.len());
+  }
+
+  // Tests for GraphQL schema helper methods
+  #[tokio::test]
+  async fn test_create_test_query_schema_no_context() {
+    use super::*;
+
+    let schema = create_test_query_schema(TestEmptyQuery, None, None, None);
+
+    // Verify schema was created successfully
+    assert!(schema.execute("{ dummy }").await.is_ok());
+  }
+
+  #[tokio::test]
+  async fn test_create_test_query_schema_with_pool() {
+    use super::*;
+
+    let (pool, _tmp) = create_test_database().await;
+    let schema = create_test_query_schema(TestEmptyQuery, Some(pool), None, None);
+
+    // Verify schema was created successfully
+    assert!(schema.execute("{ dummy }").await.is_ok());
+  }
+
+  #[tokio::test]
+  async fn test_create_test_query_schema_with_session() {
+    use super::*;
+    use crate::middleware::session::SessionContext;
+
+    let session = SessionContext::new(None);
+    let schema = create_test_query_schema(TestEmptyQuery, None, Some(session), None);
+
+    // Verify schema was created successfully
+    assert!(schema.execute("{ dummy }").await.is_ok());
+  }
+
+  #[tokio::test]
+  async fn test_create_test_query_schema_with_config() {
+    use super::*;
+    use dps_config::DpsConfig;
+
+    let config = DpsConfig::new();
+    let schema = create_test_query_schema(TestEmptyQuery, None, None, Some(config));
+
+    // Verify schema was created successfully
+    assert!(schema.execute("{ dummy }").await.is_ok());
+  }
+
+  #[tokio::test]
+  async fn test_create_test_query_schema_all_context() {
+    use super::*;
+    use crate::middleware::session::SessionContext;
+    use dps_config::DpsConfig;
+
+    let (pool, _tmp) = create_test_database().await;
+    let session = SessionContext::new(None);
+    let config = DpsConfig::new();
+
+    let schema = create_test_query_schema(TestEmptyQuery, Some(pool), Some(session), Some(config));
+
+    // Verify schema was created successfully
+    assert!(schema.execute("{ dummy }").await.is_ok());
+  }
+
+  #[tokio::test]
+  async fn test_create_test_mutation_schema_no_context() {
+    use super::*;
+
+    let schema = create_test_mutation_schema(EmptyMutation, None, None, None);
+
+    // Verify schema was created successfully
+    assert!(schema.execute("{ dummy }").await.is_ok());
+  }
+
+  #[tokio::test]
+  async fn test_create_test_mutation_schema_with_pool() {
+    use super::*;
+
+    let (pool, _tmp) = create_test_database().await;
+    let schema = create_test_mutation_schema(EmptyMutation, Some(pool), None, None);
+
+    // Verify schema was created successfully
+    assert!(schema.execute("{ dummy }").await.is_ok());
+  }
+
+  #[tokio::test]
+  async fn test_create_test_mutation_schema_with_session() {
+    use super::*;
+    use crate::middleware::session::SessionContext;
+
+    let session = SessionContext::new(None);
+    let schema = create_test_mutation_schema(EmptyMutation, None, Some(session), None);
+
+    // Verify schema was created successfully
+    assert!(schema.execute("{ dummy }").await.is_ok());
+  }
+
+  #[tokio::test]
+  async fn test_create_test_mutation_schema_with_config() {
+    use super::*;
+    use dps_config::DpsConfig;
+
+    let config = DpsConfig::new();
+    let schema = create_test_mutation_schema(EmptyMutation, None, None, Some(config));
+
+    // Verify schema was created successfully
+    assert!(schema.execute("{ dummy }").await.is_ok());
+  }
+
+  #[tokio::test]
+  async fn test_create_test_mutation_schema_all_context() {
+    use super::*;
+    use crate::middleware::session::SessionContext;
+    use dps_config::DpsConfig;
+
+    let (pool, _tmp) = create_test_database().await;
+    let session = SessionContext::new(None);
+    let config = DpsConfig::new();
+
+    let schema =
+      create_test_mutation_schema(EmptyMutation, Some(pool), Some(session), Some(config));
+
+    // Verify schema was created successfully
+    assert!(schema.execute("{ dummy }").await.is_ok());
   }
 }
