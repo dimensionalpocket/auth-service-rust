@@ -1,5 +1,8 @@
 use crate::middleware::session::SessionContext;
-use crate::queries::users::get_user_by_id_with_role::GetUserByIdWithRoleQuery;
+use crate::models::Role;
+use crate::queries::users::{
+  get_user_by_id_with_role::GetUserByIdWithRoleQuery, GetUserByNameWithRoleQuery,
+};
 use crate::services::{SessionError, SessionService, UserError, UserService};
 use sqlx::SqlitePool;
 use tracing::instrument;
@@ -9,6 +12,7 @@ use tracing::instrument;
 pub struct AuthResult {
   pub user_id: i64,
   pub username: String,
+  pub role: Role,
   pub session_token: String,
 }
 
@@ -18,7 +22,7 @@ pub struct RegisterResult {
   pub user_id: i64,
   pub username: String,
   pub uuid: String,
-  pub role_id: i64,
+  pub role: Role,
   pub created_ts: i64,
   pub updated_ts: i64,
   pub session_token: String,
@@ -30,8 +34,7 @@ pub struct AuthMeResult {
   pub user_id: i64,
   pub username: String,
   pub uuid: String,
-  pub role_id: i64,
-  pub role_name: String,
+  pub role: Role,
   pub created_ts: i64,
   pub updated_ts: i64,
   pub session_iat: i64,
@@ -68,22 +71,23 @@ impl AuthService {
     password: &str,
     session_secret: &[u8],
   ) -> Result<AuthResult, SessionError> {
-    // Find user by username first to provide better error handling
-    let user = UserService::get_user_by_name(pool, username)
+    // Find user by username with role information first
+    let user_with_role = GetUserByNameWithRoleQuery::run(pool, username)
       .await
       .map_err(|e| SessionError::DatabaseError(e.to_string()))?;
 
     // Check if user exists
-    let user =
-      user.ok_or_else(|| SessionError::AuthenticationError("User not found".to_string()))?;
+    let user_with_role = user_with_role
+      .ok_or_else(|| SessionError::AuthenticationError("User not found".to_string()))?;
 
     // Create session which includes password verification
     let session_token =
       SessionService::create_session(pool, username, password, session_secret).await?;
 
     Ok(AuthResult {
-      user_id: user.id,
-      username: user.name,
+      user_id: user_with_role.user.id,
+      username: user_with_role.user.name,
+      role: user_with_role.role,
       session_token,
     })
   }
@@ -124,6 +128,11 @@ impl AuthService {
     // Create user which includes validation and password hashing
     let user = UserService::create_user(pool, username, password).await?;
 
+    // Get user with role information
+    let user_with_role = GetUserByNameWithRoleQuery::run(pool, username)
+      .await?
+      .ok_or(UserError::UserNotFound(user.id))?;
+
     // Create session for the newly created user
     let session_token = SessionService::create_session_for_user(&user, session_secret)
       .map_err(|e| UserError::SessionError(e.to_string()))?;
@@ -132,7 +141,7 @@ impl AuthService {
       user_id: user.id,
       username: user.name,
       uuid: user.uuid,
-      role_id: user.role_id,
+      role: user_with_role.role,
       created_ts: user.created_ts,
       updated_ts: user.updated_ts,
       session_token,
@@ -175,8 +184,7 @@ impl AuthService {
       user_id: user_with_role.user.id,
       username: user_with_role.user.name,
       uuid: user_with_role.user.uuid,
-      role_id: user_with_role.user.role_id,
-      role_name: user_with_role.role_name,
+      role: user_with_role.role,
       created_ts: user_with_role.user.created_ts,
       updated_ts: user_with_role.user.updated_ts,
       session_iat: session_payload.iat,
@@ -288,7 +296,7 @@ mod tests {
     let auth_me_result = result.unwrap();
     assert_eq!(auth_me_result.user_id, user_id);
     assert_eq!(auth_me_result.username, "testuser");
-    assert_eq!(auth_me_result.role_name, "admin");
+    assert_eq!(auth_me_result.role.name, "admin");
     assert_eq!(auth_me_result.session_iat, 1706356800);
     assert_eq!(auth_me_result.session_exp, 1706616000);
   }

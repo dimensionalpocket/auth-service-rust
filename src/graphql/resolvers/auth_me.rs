@@ -1,3 +1,4 @@
+use crate::graphql::types::UserRole;
 use crate::middleware::session::SessionContext;
 use crate::services::{AuthService, SessionError};
 use async_graphql::{Context, Object, Result};
@@ -13,12 +14,8 @@ pub struct AuthMeResponse {
   pub uuid: String,
   /// The authenticated user's username
   pub username: String,
-  /// The authenticated user's role ID
-  #[graphql(name = "roleId")]
-  pub role_id: i64,
-  /// The name of the user's role
-  #[graphql(name = "roleName")]
-  pub role_name: String,
+  /// The authenticated user's role information
+  pub role: UserRole,
   /// Timestamp when the user was created
   #[graphql(name = "createdTs")]
   pub created_ts: i64,
@@ -44,7 +41,7 @@ impl AuthMeResolver {
   /// This query retrieves detailed user information for the authenticated user,
   /// including both user profile data and current session information.
   /// The response contains:
-  /// - User profile: ID, UUID, username, role ID, role name, timestamps
+  /// - User profile: ID, UUID, username, role information (id, name, permissions), timestamps
   /// - Session data: When session was created and when it expires
   ///
   /// Returns `null` if no valid session token was provided in the request.
@@ -64,8 +61,11 @@ impl AuthMeResolver {
   ///     userId
   ///     uuid
   ///     username
-  ///     roleId
-  ///     roleName
+  ///     role {
+  ///       id
+  ///       name
+  ///       permissions
+  ///     }
   ///     createdTs
   ///     updatedTs
   ///     sessionIat
@@ -82,8 +82,11 @@ impl AuthMeResolver {
   ///     "userId": 123,
   ///     "uuid": "550e8400-e29b-41d4-a716-446655440000",
   ///     "username": "johndoe",
-  ///     "roleId": 2,
-  ///     "roleName": "user",
+  ///     "role": {
+  ///       "id": "2",
+  ///       "name": "user",
+  ///       "permissions": ["can_view_user_self"]
+  ///     },
   ///     "createdTs": 1706356800,
   ///     "updatedTs": 1706356800,
   ///     "sessionIat": 1706356800,
@@ -118,8 +121,7 @@ impl AuthMeResolver {
           user_id: auth_me_result.user_id,
           uuid: auth_me_result.uuid,
           username: auth_me_result.username,
-          role_id: auth_me_result.role_id,
-          role_name: auth_me_result.role_name,
+          role: UserRole::from(auth_me_result.role),
           created_ts: auth_me_result.created_ts,
           updated_ts: auth_me_result.updated_ts,
           session_iat: auth_me_result.session_iat,
@@ -158,7 +160,7 @@ mod tests {
 
     // Setup: Create a test user
     sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567890, 1234567890, TRUE, '[\"can_view_user_self\"]')",
     )
     .execute(&pool)
     .await
@@ -185,7 +187,7 @@ mod tests {
 
     let result = schema
       .execute(
-        "{ authMe { userId uuid username roleId roleName createdTs updatedTs sessionIat sessionExp } }",
+        "{ authMe { userId uuid username role { id name permissions } createdTs updatedTs sessionIat sessionExp } }",
       )
       .await;
 
@@ -193,7 +195,7 @@ mod tests {
     let data = result.data.into_json().unwrap();
     assert_eq!(data["authMe"]["userId"], user_id);
     assert_eq!(data["authMe"]["username"], "testuser");
-    assert_eq!(data["authMe"]["roleName"], "user");
+    assert_eq!(data["authMe"]["role"]["name"], "user");
     assert_eq!(data["authMe"]["sessionIat"], 1706356800);
     assert_eq!(data["authMe"]["sessionExp"], 1706616000);
   }

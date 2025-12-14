@@ -1,3 +1,4 @@
+use crate::graphql::types::{UserRole, UserWithRoleResponse};
 use crate::middleware::session::SESSION_COOKIE_NAME;
 use crate::services::{AuthService, UserError};
 use crate::DpsAuthApiConfig;
@@ -8,22 +9,8 @@ use tracing::instrument;
 /// GraphQL output type for user registration response
 #[derive(async_graphql::SimpleObject)]
 pub struct AuthRegisterResponse {
-  /// The registered user's ID
-  #[graphql(name = "userId")]
-  pub user_id: i64,
-  /// The registered user's UUID (public identifier)
-  pub uuid: String,
-  /// The registered user's username
-  pub username: String,
-  /// The registered user's role ID
-  #[graphql(name = "roleId")]
-  pub role_id: i64,
-  /// Timestamp when the user was created
-  #[graphql(name = "createdTs")]
-  pub created_ts: i64,
-  /// Timestamp when the user was last updated
-  #[graphql(name = "updatedTs")]
-  pub updated_ts: i64,
+  /// The registered user's information including role
+  pub user: UserWithRoleResponse,
   /// Success message
   pub message: String,
 }
@@ -98,12 +85,14 @@ impl AuthRegisterResolver {
         let _ = ctx.append_http_header("set-cookie", cookie_value);
 
         Ok(AuthRegisterResponse {
-          user_id: register_result.user_id,
-          uuid: register_result.uuid,
-          username: register_result.username,
-          role_id: register_result.role_id,
-          created_ts: register_result.created_ts,
-          updated_ts: register_result.updated_ts,
+          user: UserWithRoleResponse {
+            user_id: register_result.user_id,
+            username: register_result.username,
+            role: UserRole::from(register_result.role),
+            uuid: Some(register_result.uuid),
+            created_ts: Some(register_result.created_ts),
+            updated_ts: Some(register_result.updated_ts),
+          },
           message: "User registration successful".to_string(),
         })
       }
@@ -135,7 +124,7 @@ mod tests {
 
     // Insert default role first
     sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567890, 1234567890, TRUE, '[\"can_view_user_self\"]')",
     )
     .execute(&pool)
     .await
@@ -166,12 +155,18 @@ mod tests {
     let query = r#"
       mutation {
         authRegister(username: "testuser", password: "testpass123", passwordConfirmation: "testpass123") {
-          userId
-          uuid
-          username
-          roleId
-          createdTs
-          updatedTs
+          user {
+            userId
+            uuid
+            username
+            role {
+              id
+              name
+              permissions
+            }
+            createdTs
+            updatedTs
+          }
           message
         }
       }
@@ -181,16 +176,17 @@ mod tests {
     assert!(result.errors.is_empty());
 
     let data = result.data.into_json().unwrap();
-    let user_data = &data["authRegister"];
+    let auth_register = &data["authRegister"];
+    let user_data = &auth_register["user"];
 
     assert!(user_data["userId"].as_i64().unwrap() > 0);
     assert!(!user_data["uuid"].as_str().unwrap().is_empty());
     assert_eq!(user_data["username"].as_str().unwrap(), "testuser");
-    assert!(user_data["roleId"].as_i64().unwrap() > 0);
+    assert_eq!(user_data["role"]["name"].as_str().unwrap(), "user");
     assert!(user_data["createdTs"].as_i64().unwrap() > 0);
     assert!(user_data["updatedTs"].as_i64().unwrap() > 0);
     assert_eq!(
-      user_data["message"].as_str().unwrap(),
+      auth_register["message"].as_str().unwrap(),
       "User registration successful"
     );
   }
@@ -232,8 +228,10 @@ mod tests {
     let query = r#"
       mutation {
         authRegister(username: "testuser", password: "testpass123", passwordConfirmation: "testpass123") {
-          userId
-          username
+          user {
+            userId
+            username
+          }
         }
       }
     "#;
@@ -318,8 +316,10 @@ mod tests {
     let query = r#"
       mutation {
         authRegister(username: "testuser", password: "testpass123", passwordConfirmation: "differentpass") {
-          userId
-          username
+          user {
+            userId
+            username
+          }
         }
       }
     "#;
@@ -366,8 +366,10 @@ mod tests {
     let query = r#"
       mutation {
         authRegister(username: "testuser", password: "testpass123", passwordConfirmation: "testpass123") {
-          userId
-          username
+          user {
+            userId
+            username
+          }
           message
         }
       }

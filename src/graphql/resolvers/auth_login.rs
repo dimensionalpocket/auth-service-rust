@@ -1,20 +1,18 @@
+use crate::graphql::types::{UserRole, UserWithRoleResponse};
 use crate::middleware::session::SESSION_COOKIE_NAME;
 use crate::services::{AuthService, SessionError};
 use crate::DpsAuthApiConfig;
-use async_graphql::{Context, Object, Result, SimpleObject};
+use async_graphql::{Context, Error, Object, Result};
 use sqlx::SqlitePool;
 use tracing::instrument;
 
 /// GraphQL output type for authentication response
-#[derive(SimpleObject)]
+#[derive(async_graphql::SimpleObject)]
 pub struct AuthLoginResponse {
   /// The session token for API authentication
   pub token: String,
-  /// The authenticated user's ID
-  #[graphql(name = "userId")]
-  pub user_id: i64,
-  /// The authenticated user's username
-  pub username: String,
+  /// The authenticated user's information including role
+  pub user: UserWithRoleResponse,
   /// Success message
   pub message: String,
 }
@@ -33,9 +31,14 @@ impl AuthLoginResolver {
     ctx: &Context<'_>,
     #[graphql(name = "username")] username: String,
     #[graphql(name = "password")] password: String,
-  ) -> Result<AuthLoginResponse> {
-    let pool = ctx.data::<SqlitePool>()?;
-    let config = ctx.data::<DpsAuthApiConfig>()?;
+  ) -> Result<AuthLoginResponse, Error> {
+    // Extract required context data with proper error handling
+    let pool = ctx
+      .data::<SqlitePool>()
+      .map_err(|_| async_graphql::Error::new("Internal server error"))?;
+    let config = ctx
+      .data::<DpsAuthApiConfig>()
+      .map_err(|_| async_graphql::Error::new("Internal server error"))?;
     let session_secret = config.session_secret.clone();
     let cookie_domain = config.cookie_domain.clone();
     let insecure_cookie = config.insecure_cookie;
@@ -58,8 +61,14 @@ impl AuthLoginResolver {
 
         Ok(AuthLoginResponse {
           token: auth_result.session_token,
-          user_id: auth_result.user_id,
-          username: auth_result.username,
+          user: UserWithRoleResponse {
+            user_id: auth_result.user_id,
+            username: auth_result.username,
+            role: UserRole::from(auth_result.role),
+            uuid: None,
+            created_ts: None,
+            updated_ts: None,
+          },
           message: "Authentication successful".to_string(),
         })
       }
@@ -95,7 +104,7 @@ mod tests {
 
   async fn setup_default_role(pool: &SqlitePool) {
     sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
+      "INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567890, 1234567890, TRUE, '[\"can_view_user_self\"]')",
     )
     .execute(pool)
     .await
@@ -132,8 +141,15 @@ mod tests {
       mutation {
         authLogin(username: "testuser", password: "password123") {
           token
-          userId
-          username
+          user {
+            userId
+            username
+            role {
+              id
+              name
+              permissions
+            }
+          }
           message
         }
       }
@@ -152,8 +168,9 @@ mod tests {
     let auth_login = &data["authLogin"];
 
     assert!(!auth_login["token"].as_str().unwrap().is_empty());
-    assert!(auth_login["userId"].as_i64().unwrap() > 0);
-    assert_eq!(auth_login["username"].as_str().unwrap(), "testuser");
+    assert!(auth_login["user"]["userId"].as_i64().unwrap() > 0);
+    assert_eq!(auth_login["user"]["username"].as_str().unwrap(), "testuser");
+    assert_eq!(auth_login["user"]["role"]["name"].as_str().unwrap(), "user");
     assert_eq!(
       auth_login["message"].as_str().unwrap(),
       "Authentication successful"
@@ -183,8 +200,10 @@ mod tests {
       mutation {
         authLogin(username: "testuser", password: "password123") {
           token
-          userId
-          username
+          user {
+            userId
+            username
+          }
           message
         }
       }
@@ -192,7 +211,7 @@ mod tests {
 
     let result = schema.execute(query).await;
 
-    // Verify: Should return user-friendly error
+    // Should return user-friendly error message
     assert!(!result.errors.is_empty());
     assert_eq!(result.errors[0].message, "Invalid credentials");
   }
@@ -215,10 +234,12 @@ mod tests {
 
     let query = r#"
       mutation {
-        authLogin(input: { username: "testuser", password: "password123" }) {
+        authLogin(username: "testuser", password: "password123") {
           token
-          userId
-          username
+          user {
+            userId
+            username
+          }
           message
         }
       }
@@ -226,9 +247,21 @@ mod tests {
 
     let result = schema.execute(query).await;
 
-    // Verify: Should return error (missing database pool)
+    // Verify: Should return user-friendly internal server error
     assert!(!result.errors.is_empty());
-    // The error will be about missing SqlitePool, not our mapped error
+
+    // The error should be mapped to a user-friendly message
+    let error_message = &result.errors[0].message;
+    assert_eq!(
+      error_message, "Internal server error",
+      "Expected 'Internal server error' for missing database pool, but got: {error_message}"
+    );
+
+    // Verify it's not our mapped authentication error
+    assert!(
+      !error_message.contains("Invalid credentials"),
+      "Should not get authentication error when database is missing"
+    );
   }
 
   #[tokio::test]

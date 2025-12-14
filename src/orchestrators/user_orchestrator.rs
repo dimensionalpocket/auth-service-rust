@@ -382,7 +382,7 @@ mod tests {
     let user_details = result.unwrap();
     assert_eq!(user_details.user.id, target_user.id);
     assert_eq!(user_details.user.name, "target_user");
-    assert_eq!(user_details.role_name, "user");
+    assert_eq!(user_details.role.name, "user");
     assert_eq!(user_details.user.role_id, user_role_id);
   }
 
@@ -531,7 +531,7 @@ mod tests {
     let user_details = result.unwrap();
     assert_eq!(user_details.user.id, admin_user.id);
     assert_eq!(user_details.user.name, "admin");
-    assert_eq!(user_details.role_name, "admin");
+    assert_eq!(user_details.role.name, "admin");
   }
 
   #[tokio::test]

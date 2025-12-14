@@ -29,11 +29,11 @@ It is intended to be deployed as a microservice with a volume to house the SQLit
 | Operation | Description |
 |-----------|-------------|
 | `serverTimestamp` | Get current server timestamp in milliseconds since Unix epoch. Returns timestamp (String). No authentication required. |
-| `authMe` | Get current authenticated user profile. Returns userId (Int), uuid (String), username (String), roleId (Int), roleName (String), createdTs (Int), updatedTs (Int), sessionIat (Int), sessionExp (Int). Requires valid session cookie. |
+| `authMe` | Get current authenticated user profile. Returns userId (Int), uuid (String), username (String), role { id (String), name (String), permissions ([String]) }, createdTs (Int), updatedTs (Int), sessionIat (Int), sessionExp (Int). Requires valid session cookie. |
 | `site` | Get complete site details by ID (admin only). Returns id (Int!), slug (String), subdomain (String), port (Int), protocol (String), metadataJson (String), createdTs (Int), updatedTs (Int). Requires can_view_site_details permission. |
 | `sites` | List all sites in database. Returns array of [id (Int), slug (String), subdomain (String), port (Int), protocol (String)]. No authentication required. |
-| `user` | Get complete user details by ID (admin only). Returns id (Int!), uuid (String), username (String), roleId (Int), roleName (String), createdTs (Int), updatedTs (Int). Requires can_view_user_details permission. |
-| `users` | List all users with role information (admin only). Returns array of [id (Int), uuid (String), username (String), roleName (String), createdTs (Int), updatedTs (Int)]. Requires can_list_users permission. |
+| `user` | Get complete user details by ID (admin only). Returns id (Int!), uuid (String), username (String), role { id (String), name (String), permissions ([String]) }, createdTs (Int), updatedTs (Int). Requires can_view_user_details permission. |
+| `users` | List all users with role information (admin only). Returns array of [id (Int), uuid (String), username (String), role { id (String), name (String), permissions ([String]) }, createdTs (Int), updatedTs (Int)]. Requires can_list_users permission. |
 | `rolePermissions` | List all available role permissions. Returns array of permission strings. Requires can_manage_roles permission. |
 | `roles` | List all roles with permissions. Returns array of [id (Int), name (String), permissions ([String]), createdTs (Int), updatedTs (Int)]. Requires can_manage_roles OR can_edit_user_role permission. |
 | `role` | Get single role by ID. Returns id (Int!), name (String), permissions ([String]), createdTs (Int), updatedTs (Int). Requires can_manage_roles permission. |
@@ -42,8 +42,8 @@ It is intended to be deployed as a microservice with a volume to house the SQLit
 
 | Operation | Description |
 |-----------|-------------|
-| `authRegister` | Register new user account. Input: username (String!), password (String!), passwordConfirmation (String!). Returns: userId (Int), uuid (String), username (String), roleId (Int), createdTs (Int), updatedTs (Int), message (String). No authentication required. |
-| `authLogin` | Authenticate user and create session. Input: username (String!), password (String!). Returns: token (String), userId (Int), username (String), message (String). No authentication required (sets cookie). |
+| `authRegister` | Register new user account. Input: username (String!), password (String!), passwordConfirmation (String!). Returns: user { userId (Int), uuid (String), username (String), role { id (String), name (String), permissions ([String]) }, createdTs (Int), updatedTs (Int) }, message (String). No authentication required. |
+| `authLogin` | Authenticate user and create session. Input: username (String!), password (String!). Returns: token (String), user { userId (Int), username (String), role { id (String), name (String), permissions ([String]) } }, message (String). No authentication required (sets cookie). |
 | `authLogout` | Logout user by clearing session cookie. No input required. Returns: message (String). No authentication required. |
 | `authChangePassword` | Change password for authenticated user. Input: currentPassword (String!), newPassword (String!), newPasswordConfirmation (String!). Returns: message (String). Requires valid session cookie. |
 | `addSite` | Add new site to database. Input: slug (String!), subdomain (String), port (Int), protocol (String), metadataJson (String). Returns: id (Int), slug (String), subdomain (String), port (Int), protocol (String), metadataJson (String), createdTs (Int), updatedTs (Int). Requires can_create_site permission. |

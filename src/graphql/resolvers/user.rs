@@ -1,3 +1,4 @@
+use crate::graphql::types::UserRole;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::user_orchestrator::UserOrchestrator;
 use crate::services::UserError;
@@ -10,12 +11,8 @@ pub struct UserDetailsResponse {
   pub id: i64,
   pub uuid: String,
   pub name: String,
-  /// The user's role ID
-  #[graphql(name = "roleId")]
-  pub role_id: i64,
-  /// The user's role name
-  #[graphql(name = "roleName")]
-  pub role_name: String,
+  /// The user's role information
+  pub role: UserRole,
   /// Timestamp when the user was created
   #[graphql(name = "createdTs")]
   pub created_ts: i64,
@@ -66,8 +63,7 @@ impl UserResolver {
         id: user.user.id,
         uuid: user.user.uuid,
         name: user.user.name,
-        role_id: user.user.role_id,
-        role_name: user.role_name,
+        role: UserRole::from(user.role),
         created_ts: user.user.created_ts,
         updated_ts: user.user.updated_ts,
       }),
@@ -150,8 +146,11 @@ mod tests {
                     id
                     uuid
                     name
-                    roleId
-                    roleName
+                    role {{
+                        id
+                        name
+                        permissions
+                    }}
                     createdTs
                     updatedTs
                 }}
@@ -169,8 +168,7 @@ mod tests {
     assert_eq!(user_data["id"].as_i64().unwrap(), target_user.id);
     assert_eq!(user_data["uuid"].as_str().unwrap(), "target-user-uuid");
     assert_eq!(user_data["name"].as_str().unwrap(), "target_user");
-    assert_eq!(user_data["roleId"].as_i64().unwrap(), user_role_id);
-    assert_eq!(user_data["roleName"].as_str().unwrap(), "user");
+    assert_eq!(user_data["role"]["name"].as_str().unwrap(), "user");
     assert!(user_data["createdTs"].as_i64().unwrap() > 0);
     assert!(user_data["updatedTs"].as_i64().unwrap() > 0);
   }

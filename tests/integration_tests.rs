@@ -50,7 +50,7 @@ async fn create_session_via_mutation(
   password: &str,
 ) -> axum::response::Response<Body> {
   let query = format!(
-    r#"{{"query": "mutation {{ authLogin(username: \"{username}\", password: \"{password}\") {{ token userId username message }} }}"}}"#
+    r#"{{"query": "mutation {{ authLogin(username: \"{username}\", password: \"{password}\") {{ token user {{ userId username }} message }} }}"}}"#
   );
 
   app
@@ -169,7 +169,7 @@ async fn test_create_session_mutation_success() {
 
   let query = format!(
     r#"{{
-      "query": "mutation {{ authLogin(username: \"{unique_username}\", password: \"password123\") {{ token userId username message }} }}"
+      "query": "mutation {{ authLogin(username: \"{unique_username}\", password: \"password123\") {{ token user {{ userId username }} message }} }}"
     }}"#
   );
 
@@ -224,7 +224,7 @@ async fn test_create_session_mutation_invalid_credentials() {
 
   let query = format!(
     r#"{{
-      "query": "mutation {{ authLogin(username: \"{unique_username}\", password: \"wrongpassword\") {{ token userId username message }} }}"
+      "query": "mutation {{ authLogin(username: \"{unique_username}\", password: \"wrongpassword\") {{ token user {{ userId username }} message }} }}"
     }}"#
   );
 
@@ -266,7 +266,7 @@ async fn test_create_session_mutation_with_missing_user() {
 
   let query = r#"
     {
-      "query": "mutation { authLogin(username: \"nonexistent_user\", password: \"password123\") { token userId username message } }"
+      "query": "mutation { authLogin(username: \"nonexistent_user\", password: \"password123\") { token user { userId username } message } }"
     }
   "#;
 
@@ -313,7 +313,7 @@ async fn test_get_auth_me_integration_authenticated() {
   // Create session first
   let create_session_query = format!(
     r#"{{
-      "query": "mutation {{ authLogin(username: \"{unique_username}\", password: \"password123\") {{ token userId username message }} }}"
+      "query": "mutation {{ authLogin(username: \"{unique_username}\", password: \"password123\") {{ token user {{ userId username }} message }} }}"
     }}"#
   );
 
@@ -342,7 +342,7 @@ async fn test_get_auth_me_integration_authenticated() {
   // Test authMe with token in header
   let get_session_query = r#"
     {
-      "query": "{ authMe { userId uuid username roleId createdTs updatedTs sessionIat sessionExp } }"
+      "query": "{ authMe { userId uuid username role { id name permissions } createdTs updatedTs sessionIat sessionExp } }"
     }
   "#;
 
@@ -377,7 +377,7 @@ async fn test_get_auth_me_integration_invalid_token() {
 
   let query = r#"
     {
-      "query": "{ authMe { userId uuid username roleId createdTs updatedTs sessionIat sessionExp } }"
+      "query": "{ authMe { userId uuid username role { id name permissions } createdTs updatedTs sessionIat sessionExp } }"
     }
   "#;
 
@@ -483,7 +483,7 @@ async fn test_get_auth_me_with_cookie_authentication() {
   let cookie_header = create_session_response.headers().get("set-cookie").unwrap();
 
   // Test authMe with cookie
-  let query = r#"{"query": "{ authMe { userId uuid username roleId createdTs updatedTs sessionIat sessionExp } }"}"#;
+  let query = r#"{"query": "{ authMe { userId uuid username role { id name permissions } createdTs updatedTs sessionIat sessionExp } }"}"#;
   let response = app
     .oneshot(
       Request::builder()
@@ -531,7 +531,7 @@ async fn test_session_header_precedence_over_cookie() {
   let cookie_header = session2_response.headers().get("set-cookie").unwrap();
 
   // Test with both header and cookie - header should win
-  let query = r#"{"query": "{ authMe { userId uuid username roleId createdTs updatedTs sessionIat sessionExp } }"}"#;
+  let query = r#"{"query": "{ authMe { userId uuid username role { id name permissions } createdTs updatedTs sessionIat sessionExp } }"}"#;
   let response = app
     .oneshot(
       Request::builder()
@@ -569,7 +569,7 @@ async fn test_session_invalid_header_no_cookie_fallback() {
   let cookie_header = session_response.headers().get("set-cookie").unwrap();
 
   // Test with invalid header and valid cookie - should NOT fallback to cookie
-  let query = r#"{"query": "{ authMe { userId uuid username roleId createdTs updatedTs sessionIat sessionExp } }"}"#;
+  let query = r#"{"query": "{ authMe { userId uuid username role { id name permissions } createdTs updatedTs sessionIat sessionExp } }"}"#;
   let response = app
     .oneshot(
       Request::builder()
@@ -619,7 +619,7 @@ async fn test_session_expired_token_handling() {
   let expired_token = DpsAuthSession::encode_token(&expired_payload, &test_secret).unwrap();
 
   // Test with expired token in header
-  let query = r#"{"query": "{ authMe { userId uuid username roleId createdTs updatedTs sessionIat sessionExp } }"}"#;
+  let query = r#"{"query": "{ authMe { userId uuid username role { id name permissions } createdTs updatedTs sessionIat sessionExp } }"}"#;
   let response = app
     .oneshot(
       Request::builder()

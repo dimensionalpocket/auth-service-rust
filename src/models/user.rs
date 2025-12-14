@@ -1,3 +1,4 @@
+use super::role::Role;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
@@ -13,9 +14,8 @@ pub struct User {
   pub metadata_json: Option<String>,
 }
 
-#[derive(Debug, FromRow)]
+#[derive(Debug)]
 pub struct UserWithRole {
-  #[sqlx(flatten)]
   pub user: User,
-  pub role_name: String,
+  pub role: Role,
 }

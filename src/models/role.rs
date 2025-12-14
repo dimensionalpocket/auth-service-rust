@@ -25,7 +25,7 @@ pub fn is_valid_role_permission(permission: &str) -> bool {
   ROLE_PERMISSIONS.contains(&permission)
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Role {
   pub id: i64,
   pub name: String,

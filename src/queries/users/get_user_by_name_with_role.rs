@@ -1,21 +1,21 @@
 use crate::models::{role::Role, user::User, user::UserWithRole};
 use sqlx::{Row, SqlitePool};
 
-/// Query to retrieve a single user with their role information by user ID
-pub struct GetUserByIdWithRoleQuery;
+/// Query to retrieve a single user with their role information by username
+pub struct GetUserByNameWithRoleQuery;
 
-impl GetUserByIdWithRoleQuery {
-  /// Execute the query to get a user with their role information
+impl GetUserByNameWithRoleQuery {
+  /// Execute the query to get a user with their role information by username
   ///
   /// # Arguments
   /// * `pool` - Database connection pool
-  /// * `user_id` - The ID of the user to retrieve
+  /// * `name` - The username of the user to retrieve
   ///
   /// # Returns
   /// * `Ok(Some(UserWithRole))` - User found with role information
   /// * `Ok(None)` - User not found
   /// * `Err(sqlx::Error)` - Database error occurred
-  pub async fn run(pool: &SqlitePool, user_id: i64) -> Result<Option<UserWithRole>, sqlx::Error> {
+  pub async fn run(pool: &SqlitePool, name: &str) -> Result<Option<UserWithRole>, sqlx::Error> {
     let row = sqlx::query(
       r#"
       SELECT 
@@ -28,10 +28,10 @@ impl GetUserByIdWithRoleQuery {
         r.permissions_json as role_permissions_json
       FROM users u
       JOIN roles r ON u.role_id = r.id
-      WHERE u.id = ?
+      WHERE u.name = ? COLLATE NOCASE
       "#
     )
-    .bind(user_id)
+    .bind(name)
     .fetch_optional(pool)
     .await?;
 
@@ -72,7 +72,7 @@ mod tests {
   use crate::test_utils::{create_test_database, create_test_role, create_test_user};
 
   #[tokio::test]
-  async fn test_get_user_by_id_with_role_success() {
+  async fn test_get_user_by_name_with_role_success() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create role and user
@@ -80,7 +80,9 @@ mod tests {
     let user = create_test_user(&pool, "testuser", role_id).await;
 
     // Query user with role
-    let result = GetUserByIdWithRoleQuery::run(&pool, user.id).await.unwrap();
+    let result = GetUserByNameWithRoleQuery::run(&pool, "testuser")
+      .await
+      .unwrap();
 
     assert!(result.is_some());
     let user_with_role = result.unwrap();
@@ -91,64 +93,70 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn test_get_user_by_id_with_role_not_found() {
+  async fn test_get_user_by_name_with_role_not_found() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Query non-existent user
-    let result = GetUserByIdWithRoleQuery::run(&pool, 999).await.unwrap();
+    let result = GetUserByNameWithRoleQuery::run(&pool, "nonexistent")
+      .await
+      .unwrap();
 
     assert!(result.is_none());
   }
 
   #[tokio::test]
-  async fn test_get_user_by_id_with_role_different_roles() {
+  async fn test_get_user_by_name_with_role_case_insensitive() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create different roles
-    let admin_role_id = create_test_role(&pool, "admin", &[]).await;
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
+    // Create role and user
+    let role_id = create_test_role(&pool, "user", &[]).await;
+    create_test_user(&pool, "TestUser", role_id).await;
 
-    // Create users with different roles
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
-    let regular_user = create_test_user(&pool, "regular", user_role_id).await;
-
-    // Query admin user
-    let admin_result = GetUserByIdWithRoleQuery::run(&pool, admin_user.id)
+    // Query with different cases
+    let result_lower = GetUserByNameWithRoleQuery::run(&pool, "testuser")
       .await
       .unwrap();
-    assert!(admin_result.is_some());
-    assert_eq!(admin_result.unwrap().role.name, "admin");
-
-    // Query regular user
-    let user_result = GetUserByIdWithRoleQuery::run(&pool, regular_user.id)
+    let result_upper = GetUserByNameWithRoleQuery::run(&pool, "TESTUSER")
       .await
       .unwrap();
-    assert!(user_result.is_some());
-    assert_eq!(user_result.unwrap().role.name, "user");
+    let result_mixed = GetUserByNameWithRoleQuery::run(&pool, "tEsTuSeR")
+      .await
+      .unwrap();
+
+    assert!(result_lower.is_some());
+    assert!(result_upper.is_some());
+    assert!(result_mixed.is_some());
+
+    assert_eq!(result_lower.unwrap().role.name, "user");
+    assert_eq!(result_upper.unwrap().role.name, "user");
+    assert_eq!(result_mixed.unwrap().role.name, "user");
   }
 
   #[tokio::test]
-  async fn test_get_user_by_id_with_role_joined_correctly() {
+  async fn test_get_user_by_name_with_role_permissions() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create role
-    let role_id = create_test_role(&pool, "test_role", &[]).await;
+    // Create role with permissions and user
+    let role_id = create_test_role(&pool, "admin", &["is_admin", "can_view_user_details"]).await;
+    let _user = create_test_user(&pool, "adminuser", role_id).await;
 
-    // Create user
-    let user = create_test_user(&pool, "test_user", role_id).await;
+    // Query user with role
+    let result = GetUserByNameWithRoleQuery::run(&pool, "adminuser")
+      .await
+      .unwrap();
 
-    // Query user and verify all fields are populated correctly
-    let result = GetUserByIdWithRoleQuery::run(&pool, user.id).await.unwrap();
     assert!(result.is_some());
-
     let user_with_role = result.unwrap();
-    assert_eq!(user_with_role.user.id, user.id);
-    assert_eq!(user_with_role.user.uuid, user.uuid);
-    assert_eq!(user_with_role.user.name, user.name);
-    assert_eq!(user_with_role.user.role_id, role_id);
-    assert_eq!(user_with_role.role.name, "test_role");
-    assert!(!user_with_role.user.password_hash.is_empty());
-    assert_eq!(user_with_role.user.created_ts, user.created_ts);
-    assert_eq!(user_with_role.user.updated_ts, user.updated_ts);
+    assert_eq!(user_with_role.user.name, "adminuser");
+    assert_eq!(user_with_role.role.name, "admin");
+    assert_eq!(user_with_role.role.permissions.len(), 2);
+    assert!(user_with_role
+      .role
+      .permissions
+      .contains(&"is_admin".to_string()));
+    assert!(user_with_role
+      .role
+      .permissions
+      .contains(&"can_view_user_details".to_string()));
   }
 }

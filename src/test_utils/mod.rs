@@ -162,7 +162,7 @@ pub async fn create_test_user_via_mutation(
 
   let query = format!(
     r#"{{
-        "query": "mutation {{ authRegister(username: \"{username}\", password: \"{password}\", passwordConfirmation: \"{password}\") {{ uuid username }} }}"
+        "query": "mutation {{ authRegister(username: \"{username}\", password: \"{password}\", passwordConfirmation: \"{password}\") {{ user {{ uuid username }} }} }}"
       }}"#
   );
 
@@ -189,9 +189,9 @@ pub async fn create_test_user_via_mutation(
 
   // Verify user creation was successful
   assert!(data["errors"].is_null(), "User creation failed: {body_str}");
-  assert!(!data["data"]["authRegister"]["uuid"].is_null());
+  assert!(!data["data"]["authRegister"]["user"]["uuid"].is_null());
 
-  data["data"]["authRegister"]["uuid"]
+  data["data"]["authRegister"]["user"]["uuid"]
     .as_str()
     .unwrap()
     .to_string()

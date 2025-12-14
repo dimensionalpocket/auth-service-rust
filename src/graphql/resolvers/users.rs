@@ -1,3 +1,4 @@
+use crate::graphql::types::UserRole;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::user_orchestrator::UserOrchestrator;
 use crate::services::UserError;
@@ -11,9 +12,8 @@ pub struct UserListing {
   pub id: i64,
   pub uuid: String,
   pub name: String,
-  /// The user's role name
-  #[graphql(name = "roleName")]
-  pub role_name: String,
+  /// The user's role information
+  pub role: UserRole,
   /// Timestamp when the user was created
   #[graphql(name = "createdTs")]
   pub created_ts: i64,
@@ -57,7 +57,7 @@ impl UsersResolver {
             id: user.user.id,
             uuid: user.user.uuid,
             name: user.user.name,
-            role_name: user.role_name,
+            role: UserRole::from(user.role),
             created_ts: user.user.created_ts,
             updated_ts: user.user.updated_ts,
           })
@@ -111,7 +111,7 @@ mod tests {
     let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
 
     let result = schema
-      .execute("{ users { id uuid name roleName createdTs updatedTs } }")
+      .execute("{ users { id uuid name role { id name permissions } createdTs updatedTs } }")
       .await;
 
     assert!(result.errors.is_empty());
@@ -124,7 +124,9 @@ mod tests {
       assert!(user["id"].is_number());
       assert!(user["uuid"].is_string());
       assert!(user["name"].is_string());
-      assert!(user["roleName"].is_string());
+      assert!(user["role"]["id"].is_string());
+      assert!(user["role"]["name"].is_string());
+      assert!(user["role"]["permissions"].is_array());
       assert!(user["createdTs"].is_number());
       assert!(user["updatedTs"].is_number());
     }
@@ -199,14 +201,14 @@ mod tests {
     let query = UsersResolver;
     let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
 
-    let result = schema.execute("{ users { id name roleName } }").await;
+    let result = schema.execute("{ users { id name role { name } } }").await;
 
     assert!(result.errors.is_empty());
     let data = result.data.into_json().unwrap();
     let users = data["users"].as_array().unwrap();
     assert_eq!(users.len(), 1); // Only admin user should be returned
     assert_eq!(users[0]["name"].as_str().unwrap(), "admin");
-    assert_eq!(users[0]["roleName"].as_str().unwrap(), "admin");
+    assert_eq!(users[0]["role"]["name"].as_str().unwrap(), "admin");
   }
 
   #[tokio::test]

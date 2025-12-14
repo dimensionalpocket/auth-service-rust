@@ -1,22 +1,57 @@
-use crate::models::user::UserWithRole;
-use sqlx::SqlitePool;
+use crate::models::{role::Role, user::User, user::UserWithRole};
+use sqlx::{Row, SqlitePool};
 
 pub struct GetAllUsersWithRolesQuery;
 
 impl GetAllUsersWithRolesQuery {
   pub async fn run(pool: &SqlitePool) -> Result<Vec<UserWithRole>, sqlx::Error> {
-    sqlx::query_as::<_, UserWithRole>(
+    let rows = sqlx::query(
       r#"
       SELECT 
         u.id, u.uuid, u.created_ts, u.updated_ts, u.name, u.role_id, u.password_hash, u.metadata_json,
-        r.name as role_name
+        r.id as role_id,
+        r.name as role_name,
+        r.created_ts as role_created_ts,
+        r.updated_ts as role_updated_ts,
+        r.is_default as role_is_default,
+        r.permissions_json as role_permissions_json
       FROM users u
       JOIN roles r ON u.role_id = r.id
       ORDER BY u.name
       "#
     )
     .fetch_all(pool)
-    .await
+    .await?;
+
+    let mut users_with_roles = Vec::new();
+    for row in rows {
+      let user = User {
+        id: row.try_get("id")?,
+        uuid: row.try_get("uuid")?,
+        created_ts: row.try_get("created_ts")?,
+        updated_ts: row.try_get("updated_ts")?,
+        name: row.try_get("name")?,
+        role_id: row.try_get("role_id")?,
+        password_hash: row.try_get("password_hash")?,
+        metadata_json: row.try_get("metadata_json")?,
+      };
+
+      let permissions_json: Option<String> = row.try_get("role_permissions_json")?;
+      let permissions = Role::deserialize_permissions(&permissions_json);
+
+      let role = Role {
+        id: row.try_get("role_id")?,
+        name: row.try_get("role_name")?,
+        created_ts: row.try_get("role_created_ts")?,
+        updated_ts: row.try_get("role_updated_ts")?,
+        is_default: row.try_get("role_is_default")?,
+        permissions,
+      };
+
+      users_with_roles.push(UserWithRole { user, role });
+    }
+
+    Ok(users_with_roles)
   }
 }
 
@@ -64,9 +99,9 @@ mod tests {
 
     // Verify ordering by name
     assert_eq!(result[0].user.name, "Alice");
-    assert_eq!(result[0].role_name, "admin");
+    assert_eq!(result[0].role.name, "admin");
     assert_eq!(result[1].user.name, "Bob");
-    assert_eq!(result[1].role_name, "user");
+    assert_eq!(result[1].role.name, "user");
   }
 
   #[tokio::test]
@@ -92,7 +127,7 @@ mod tests {
     assert_eq!(user_with_role.user.name, "TestUser");
     assert_eq!(user_with_role.user.uuid, "test-uuid");
     assert_eq!(user_with_role.user.role_id, 1);
-    assert_eq!(user_with_role.role_name, "test_role");
+    assert_eq!(user_with_role.role.name, "test_role");
     assert_eq!(user_with_role.user.password_hash, "test_hash");
     assert_eq!(
       user_with_role.user.metadata_json,
