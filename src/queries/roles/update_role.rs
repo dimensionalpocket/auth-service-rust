@@ -1,5 +1,5 @@
 use crate::models::Role;
-use sqlx::SqlitePool;
+use sqlx::{Row, SqlitePool};
 
 #[derive(Debug)]
 pub struct UpdateRoleData {
@@ -56,13 +56,24 @@ impl UpdateRoleQuery {
     }
 
     // Return updated role
-    sqlx::query_as::<_, Role>(
+    let row = sqlx::query(
             "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?"
         )
         .bind(data.id)
         .fetch_one(pool)
-        .await
-        .map(Some)
+        .await?;
+
+    let permissions_json: Option<String> = row.try_get("permissions_json")?;
+    let permissions = Role::deserialize_permissions(&permissions_json);
+
+    Ok(Some(Role {
+      id: row.try_get("id")?,
+      name: row.try_get("name")?,
+      created_ts: row.try_get("created_ts")?,
+      updated_ts: row.try_get("updated_ts")?,
+      is_default: row.try_get("is_default")?,
+      permissions,
+    }))
   }
 }
 
@@ -105,10 +116,13 @@ mod tests {
 
     assert_eq!(updated_role.id, role.id);
     assert_eq!(updated_role.name, "updated-role");
-    let permissions = updated_role.permissions();
-    assert_eq!(permissions.len(), 2);
-    assert!(permissions.contains(&"can_edit_user".to_string()));
-    assert!(permissions.contains(&"can_delete_user".to_string()));
+    assert_eq!(updated_role.permissions.len(), 2);
+    assert!(updated_role
+      .permissions
+      .contains(&"can_edit_user".to_string()));
+    assert!(updated_role
+      .permissions
+      .contains(&"can_delete_user".to_string()));
     assert!(updated_role.updated_ts > role.updated_ts);
     assert_eq!(updated_role.created_ts, role.created_ts);
   }
@@ -143,10 +157,13 @@ mod tests {
 
     assert_eq!(updated_role.id, role.id);
     assert_eq!(updated_role.name, "partial-updated");
-    let permissions = updated_role.permissions();
-    assert_eq!(permissions.len(), 2); // unchanged
-    assert!(permissions.contains(&"can_view_user_self".to_string()));
-    assert!(permissions.contains(&"can_list_users".to_string()));
+    assert_eq!(updated_role.permissions.len(), 2); // unchanged
+    assert!(updated_role
+      .permissions
+      .contains(&"can_view_user_self".to_string()));
+    assert!(updated_role
+      .permissions
+      .contains(&"can_list_users".to_string()));
     assert!(updated_role.updated_ts > role.updated_ts);
   }
 
@@ -180,8 +197,7 @@ mod tests {
 
     assert_eq!(updated_role.id, role.id);
     assert_eq!(updated_role.name, role.name); // unchanged
-    let permissions = updated_role.permissions();
-    assert_eq!(permissions.len(), 0); // should be empty now
+    assert_eq!(updated_role.permissions.len(), 0); // should be empty now
     assert!(updated_role.updated_ts > role.updated_ts);
   }
 
@@ -224,7 +240,7 @@ mod tests {
 
     assert_eq!(updated_role.id, role.id);
     assert_eq!(updated_role.name, role.name);
-    assert_eq!(updated_role.permissions(), role.permissions());
+    assert_eq!(updated_role.permissions, role.permissions);
     assert!(updated_role.updated_ts > role.updated_ts); // updated_ts should still change
   }
 
@@ -259,13 +275,12 @@ mod tests {
       .unwrap();
 
     assert_eq!(updated_role.name, "all-permissions-updated");
-    let permissions = updated_role.permissions();
-    assert_eq!(permissions.len(), all_permissions.len());
+    assert_eq!(updated_role.permissions.len(), all_permissions.len());
 
     // Verify all permissions are present
     for permission in &all_permissions {
       assert!(
-        permissions.contains(permission),
+        updated_role.permissions.contains(permission),
         "Missing permission: {permission}"
       );
     }

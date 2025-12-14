@@ -94,7 +94,7 @@ impl AddRoleResolver {
         id: role.id,
         name: role.name.clone(),
         is_default: role.is_default,
-        permissions: role.permissions(),
+        permissions: role.permissions,
         created_ts: role.created_ts,
         updated_ts: role.updated_ts,
       }),

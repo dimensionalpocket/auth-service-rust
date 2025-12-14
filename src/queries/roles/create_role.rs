@@ -41,12 +41,14 @@ impl CreateRoleQuery {
 
     let role_id = result.last_insert_rowid();
 
-    sqlx::query_as::<_, Role>(
-      "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?"
-    )
-    .bind(role_id)
-    .fetch_one(pool)
-    .await
+    Ok(Role {
+      id: role_id,
+      name: data.name,
+      created_ts: now,
+      updated_ts: now,
+      is_default: data.is_default,
+      permissions: data.permissions,
+    })
   }
 }
 
@@ -75,10 +77,9 @@ mod tests {
     assert!(role.created_ts > 0);
     assert_eq!(role.created_ts, role.updated_ts);
 
-    let permissions = role.permissions();
-    assert_eq!(permissions.len(), 2);
-    assert!(permissions.contains(&"can_view_user_self".to_string()));
-    assert!(permissions.contains(&"can_list_users".to_string()));
+    assert_eq!(role.permissions.len(), 2);
+    assert!(role.permissions.contains(&"can_view_user_self".to_string()));
+    assert!(role.permissions.contains(&"can_list_users".to_string()));
   }
 
   #[tokio::test]
@@ -95,8 +96,7 @@ mod tests {
 
     assert_eq!(role.name, "empty_permissions_role");
     assert!(role.is_default);
-    assert_eq!(role.permissions_json, Some("[]".to_string()));
-    assert_eq!(role.permissions().len(), 0);
+    assert_eq!(role.permissions.len(), 0);
   }
 
   #[tokio::test]
@@ -135,10 +135,8 @@ mod tests {
 
     assert_eq!(role.name, "default_test_role");
     assert!(role.is_default);
-    assert_eq!(role.permissions().len(), 1);
-    assert!(role
-      .permissions()
-      .contains(&"can_view_user_self".to_string()));
+    assert_eq!(role.permissions.len(), 1);
+    assert!(role.permissions.contains(&"can_view_user_self".to_string()));
   }
 
   #[tokio::test]
@@ -173,9 +171,8 @@ mod tests {
     assert_eq!(role.name, "many_permissions_role");
     assert!(!role.is_default);
 
-    let permissions = role.permissions();
-    assert_eq!(permissions.len(), 16);
-    assert!(permissions.contains(&"is_admin".to_string()));
-    assert!(permissions.contains(&"can_manage_roles".to_string()));
+    assert_eq!(role.permissions.len(), 16);
+    assert!(role.permissions.contains(&"is_admin".to_string()));
+    assert!(role.permissions.contains(&"can_manage_roles".to_string()));
   }
 }

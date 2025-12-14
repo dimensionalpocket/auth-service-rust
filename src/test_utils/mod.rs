@@ -340,11 +340,9 @@ mod tests {
 
     assert_eq!(role.name, "test_role");
     assert!(role.is_default);
-    assert_eq!(role.permissions().len(), 2);
-    assert!(role
-      .permissions()
-      .contains(&"can_view_user_self".to_string()));
-    assert!(role.permissions().contains(&"can_list_users".to_string()));
+    assert_eq!(role.permissions.len(), 2);
+    assert!(role.permissions.contains(&"can_view_user_self".to_string()));
+    assert!(role.permissions.contains(&"can_list_users".to_string()));
   }
 
   #[tokio::test]
@@ -356,7 +354,7 @@ mod tests {
 
     assert_eq!(role.name, "empty_role");
     assert!(!role.is_default);
-    assert_eq!(role.permissions().len(), 0);
+    assert_eq!(role.permissions.len(), 0);
   }
 
   #[tokio::test]
@@ -367,7 +365,7 @@ mod tests {
     let role = create_test_role_model(&pool, "admin_role", ROLE_PERMISSIONS, false).await;
 
     assert_eq!(role.name, "admin_role");
-    assert_eq!(role.permissions().len(), ROLE_PERMISSIONS.len());
+    assert_eq!(role.permissions.len(), ROLE_PERMISSIONS.len());
   }
 
   // Tests for GraphQL schema helper methods

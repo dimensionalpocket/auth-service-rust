@@ -61,7 +61,7 @@ impl RolesResolver {
     let role_listings: Vec<RoleListing> = roles
       .into_iter()
       .map(|role| {
-        let permissions = role.permissions();
+        let permissions = role.permissions;
         RoleListing {
           id: role.id,
           name: role.name,

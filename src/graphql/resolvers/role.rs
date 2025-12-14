@@ -60,7 +60,7 @@ impl RoleResolver {
       .await
     {
       Ok(role) => {
-        let permissions = role.permissions();
+        let permissions = role.permissions;
         Ok(RoleResponse {
           id: role.id,
           name: role.name,

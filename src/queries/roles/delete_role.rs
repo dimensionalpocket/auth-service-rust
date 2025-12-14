@@ -1,17 +1,29 @@
 use crate::models::Role;
-use sqlx::SqlitePool;
+use sqlx::{Row, SqlitePool};
 
 pub struct DeleteRoleQuery;
 
 impl DeleteRoleQuery {
   pub async fn run(pool: &SqlitePool, role_id: i64) -> Result<Role, sqlx::Error> {
     // First fetch the role to return its data
-    let role = sqlx::query_as::<_, Role>(
+    let row = sqlx::query(
       "SELECT id, created_ts, updated_ts, name, permissions_json, is_default FROM roles WHERE id = ?"
     )
     .bind(role_id)
     .fetch_one(pool)
     .await?;
+
+    let permissions_json: Option<String> = row.try_get("permissions_json")?;
+    let permissions = Role::deserialize_permissions(&permissions_json);
+
+    let role = Role {
+      id: row.try_get("id")?,
+      created_ts: row.try_get("created_ts")?,
+      updated_ts: row.try_get("updated_ts")?,
+      name: row.try_get("name")?,
+      is_default: row.try_get("is_default")?,
+      permissions,
+    };
 
     // Then delete the role
     let result = sqlx::query("DELETE FROM roles WHERE id = ?")

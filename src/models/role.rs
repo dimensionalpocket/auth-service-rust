@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
 
 /// Static array of all valid role permissions
 pub const ROLE_PERMISSIONS: &[&str] = &[
@@ -26,28 +25,31 @@ pub fn is_valid_role_permission(permission: &str) -> bool {
   ROLE_PERMISSIONS.contains(&permission)
 }
 
-#[derive(Debug, FromRow, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Role {
   pub id: i64,
   pub name: String,
   pub created_ts: i64,
   pub updated_ts: i64,
   pub is_default: bool,
-  pub permissions_json: Option<String>,
+  pub permissions: Vec<String>,
 }
 
 impl Role {
-  /// Get the permissions for this role, deserializing from JSON
-  pub fn permissions(&self) -> Vec<String> {
-    match &self.permissions_json {
-      Some(json_str) => serde_json::from_str(json_str).unwrap_or_else(|_| vec![]),
-      None => vec![],
-    }
-  }
-
   /// Check if this role has a specific permission
   pub fn has_permission(&self, permission: &str) -> bool {
-    self.permissions().contains(&permission.to_string())
+    self.permissions.contains(&permission.to_string())
+  }
+
+  /// Deserialize permissions from JSON string to Vec<String>
+  ///
+  /// This is a static helper method used by query objects to convert
+  /// the database representation (JSON) to the domain representation (Vec<String>).
+  pub fn deserialize_permissions(json_str: &Option<String>) -> Vec<String> {
+    match json_str {
+      Some(json) => serde_json::from_str(json).unwrap_or_else(|_| vec![]),
+      None => vec![],
+    }
   }
 }
 
@@ -56,65 +58,33 @@ mod tests {
   use super::*;
 
   #[test]
-  fn test_permissions_with_valid_json() {
+  fn test_permissions_direct_access() {
     let role = Role {
       id: 1,
       name: "test".to_string(),
       created_ts: 123456789,
       updated_ts: 123456789,
       is_default: false,
-      permissions_json: Some(r#"["can_create_user", "can_delete_user"]"#.to_string()),
+      permissions: vec!["can_create_user".to_string(), "can_delete_user".to_string()],
     };
 
-    let permissions = role.permissions();
-    assert_eq!(permissions.len(), 2);
-    assert!(permissions.contains(&"can_create_user".to_string()));
-    assert!(permissions.contains(&"can_delete_user".to_string()));
+    assert_eq!(role.permissions.len(), 2);
+    assert!(role.permissions.contains(&"can_create_user".to_string()));
+    assert!(role.permissions.contains(&"can_delete_user".to_string()));
   }
 
   #[test]
-  fn test_permissions_with_empty_json() {
+  fn test_permissions_empty() {
     let role = Role {
       id: 1,
       name: "test".to_string(),
       created_ts: 123456789,
       updated_ts: 123456789,
       is_default: false,
-      permissions_json: Some("[]".to_string()),
+      permissions: vec![],
     };
 
-    let permissions = role.permissions();
-    assert_eq!(permissions.len(), 0);
-  }
-
-  #[test]
-  fn test_permissions_with_none() {
-    let role = Role {
-      id: 1,
-      name: "test".to_string(),
-      created_ts: 123456789,
-      updated_ts: 123456789,
-      is_default: false,
-      permissions_json: None,
-    };
-
-    let permissions = role.permissions();
-    assert_eq!(permissions.len(), 0);
-  }
-
-  #[test]
-  fn test_permissions_with_invalid_json() {
-    let role = Role {
-      id: 1,
-      name: "test".to_string(),
-      created_ts: 123456789,
-      updated_ts: 123456789,
-      is_default: false,
-      permissions_json: Some("invalid json".to_string()),
-    };
-
-    let permissions = role.permissions();
-    assert_eq!(permissions.len(), 0); // Should return empty vec on parse error
+    assert_eq!(role.permissions.len(), 0);
   }
 
   #[test]
@@ -125,7 +95,7 @@ mod tests {
       created_ts: 123456789,
       updated_ts: 123456789,
       is_default: false,
-      permissions_json: Some(r#"["is_admin", "can_create_user"]"#.to_string()),
+      permissions: vec!["is_admin".to_string(), "can_create_user".to_string()],
     };
 
     assert!(role.has_permission("is_admin"));
@@ -140,7 +110,7 @@ mod tests {
       created_ts: 123456789,
       updated_ts: 123456789,
       is_default: true,
-      permissions_json: Some(r#"["can_view_user_self"]"#.to_string()),
+      permissions: vec!["can_view_user_self".to_string()],
     };
 
     assert!(!role.has_permission("is_admin"));
@@ -156,7 +126,7 @@ mod tests {
       created_ts: 123456789,
       updated_ts: 123456789,
       is_default: false,
-      permissions_json: None,
+      permissions: vec![],
     };
 
     assert!(!role.has_permission("any_permission"));
@@ -193,6 +163,40 @@ mod tests {
     assert!(!is_valid_role_permission("CAN_VIEW_USER_SELF")); // Wrong case
     assert!(!is_valid_role_permission("can_view_user_self ")); // Trailing space
     assert!(!is_valid_role_permission(" can_view_user_self")); // Leading space
+  }
+
+  #[test]
+  fn test_deserialize_permissions_valid_json() {
+    let json = Some(r#"["can_create_user", "can_delete_user"]"#.to_string());
+    let permissions = Role::deserialize_permissions(&json);
+
+    assert_eq!(permissions.len(), 2);
+    assert!(permissions.contains(&"can_create_user".to_string()));
+    assert!(permissions.contains(&"can_delete_user".to_string()));
+  }
+
+  #[test]
+  fn test_deserialize_permissions_empty_json() {
+    let json = Some("[]".to_string());
+    let permissions = Role::deserialize_permissions(&json);
+
+    assert_eq!(permissions.len(), 0);
+  }
+
+  #[test]
+  fn test_deserialize_permissions_none() {
+    let json = None;
+    let permissions = Role::deserialize_permissions(&json);
+
+    assert_eq!(permissions.len(), 0);
+  }
+
+  #[test]
+  fn test_deserialize_permissions_invalid_json() {
+    let json = Some("invalid json".to_string());
+    let permissions = Role::deserialize_permissions(&json);
+
+    assert_eq!(permissions.len(), 0); // Should return empty vec on parse error
   }
 
   #[test]

@@ -37,12 +37,24 @@ impl SetDefaultRoleQuery {
     tx.commit().await?;
 
     // Return updated role
-    sqlx::query_as::<_, Role>(
+    let row = sqlx::query(
             "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?"
         )
         .bind(role_id)
-        .fetch_optional(pool)
-        .await
+        .fetch_one(pool)
+        .await?;
+
+    let permissions_json: Option<String> = row.try_get("permissions_json")?;
+    let permissions = Role::deserialize_permissions(&permissions_json);
+
+    Ok(Some(Role {
+      id: row.try_get("id")?,
+      name: row.try_get("name")?,
+      created_ts: row.try_get("created_ts")?,
+      updated_ts: row.try_get("updated_ts")?,
+      is_default: row.try_get("is_default")?,
+      permissions,
+    }))
   }
 }
 
@@ -68,13 +80,26 @@ mod tests {
     assert!(updated_role.is_default);
 
     // Verify role2 is not default
-    let role2_updated = sqlx::query_as::<_, Role>(
+    let role2_row = sqlx::query(
             "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?"
         )
         .bind(role2_id)
         .fetch_one(&pool)
         .await
         .unwrap();
+    let permissions_json: Option<String> = role2_row.try_get("permissions_json").unwrap();
+    let permissions = match permissions_json {
+      Some(json) => serde_json::from_str(&json).unwrap_or_else(|_| vec![]),
+      None => vec![],
+    };
+    let role2_updated = Role {
+      id: role2_row.try_get("id").unwrap(),
+      name: role2_row.try_get("name").unwrap(),
+      created_ts: role2_row.try_get("created_ts").unwrap(),
+      updated_ts: role2_row.try_get("updated_ts").unwrap(),
+      is_default: role2_row.try_get("is_default").unwrap(),
+      permissions,
+    };
     assert!(!role2_updated.is_default);
   }
 
@@ -98,13 +123,26 @@ mod tests {
     assert!(updated_role2.is_default);
 
     // Verify role1 is no longer default
-    let role1_updated = sqlx::query_as::<_, Role>(
+    let role1_row = sqlx::query(
             "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?"
         )
         .bind(role1_id)
         .fetch_one(&pool)
         .await
         .unwrap();
+    let permissions_json: Option<String> = role1_row.try_get("permissions_json").unwrap();
+    let permissions = match permissions_json {
+      Some(json) => serde_json::from_str(&json).unwrap_or_else(|_| vec![]),
+      None => vec![],
+    };
+    let role1_updated = Role {
+      id: role1_row.try_get("id").unwrap(),
+      name: role1_row.try_get("name").unwrap(),
+      created_ts: role1_row.try_get("created_ts").unwrap(),
+      updated_ts: role1_row.try_get("updated_ts").unwrap(),
+      is_default: role1_row.try_get("is_default").unwrap(),
+      permissions,
+    };
     assert!(!role1_updated.is_default);
 
     // Verify only one default role exists
@@ -134,13 +172,26 @@ mod tests {
     let role_id = create_test_role(&pool, "role1", &[]).await;
 
     // Get original role to check timestamp
-    let original_role = sqlx::query_as::<_, Role>(
+    let original_role_row = sqlx::query(
             "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?"
         )
         .bind(role_id)
         .fetch_one(&pool)
         .await
         .unwrap();
+    let permissions_json: Option<String> = original_role_row.try_get("permissions_json").unwrap();
+    let permissions = match permissions_json {
+      Some(json) => serde_json::from_str(&json).unwrap_or_else(|_| vec![]),
+      None => vec![],
+    };
+    let original_role = Role {
+      id: original_role_row.try_get("id").unwrap(),
+      name: original_role_row.try_get("name").unwrap(),
+      created_ts: original_role_row.try_get("created_ts").unwrap(),
+      updated_ts: original_role_row.try_get("updated_ts").unwrap(),
+      is_default: original_role_row.try_get("is_default").unwrap(),
+      permissions,
+    };
     let original_updated_ts = original_role.updated_ts;
 
     // Wait a bit to ensure timestamp difference (1+ seconds for timestamp in seconds)

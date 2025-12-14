@@ -96,7 +96,7 @@ impl UpdateRoleResolver {
     .await
     {
       Ok(role) => {
-        let permissions = role.permissions();
+        let permissions = role.permissions;
         Ok(UpdateRoleResponse {
           id: role.id,
           name: role.name,

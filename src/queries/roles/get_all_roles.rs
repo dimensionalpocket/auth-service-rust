@@ -1,15 +1,32 @@
 use crate::models::Role;
-use sqlx::SqlitePool;
+use sqlx::{Row, SqlitePool};
 
 pub struct GetAllRolesQuery;
 
 impl GetAllRolesQuery {
   pub async fn run(pool: &SqlitePool) -> Result<Vec<Role>, sqlx::Error> {
-    sqlx::query_as::<_, Role>(
+    let rows = sqlx::query(
       "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles ORDER BY name",
     )
     .fetch_all(pool)
-    .await
+    .await?;
+
+    let mut roles = Vec::new();
+    for row in rows {
+      let permissions_json: Option<String> = row.try_get("permissions_json")?;
+      let permissions = Role::deserialize_permissions(&permissions_json);
+
+      roles.push(Role {
+        id: row.try_get("id")?,
+        name: row.try_get("name")?,
+        created_ts: row.try_get("created_ts")?,
+        updated_ts: row.try_get("updated_ts")?,
+        is_default: row.try_get("is_default")?,
+        permissions,
+      });
+    }
+
+    Ok(roles)
   }
 }
 

@@ -71,7 +71,7 @@ impl SetDefaultRoleResolver {
     .await
     {
       Ok(role) => {
-        let permissions = role.permissions();
+        let permissions = role.permissions;
         Ok(SetDefaultRoleResponse {
           id: role.id,
           name: role.name,

@@ -559,7 +559,7 @@ mod tests {
     let updated_role = result.unwrap();
     assert_eq!(updated_role.id, test_role_id);
     assert_eq!(updated_role.name, "updated-user");
-    let permissions = updated_role.permissions();
+    let permissions = updated_role.permissions;
     assert_eq!(permissions.len(), 2);
     assert!(permissions.contains(&"can_edit_user".to_string()));
     assert!(permissions.contains(&"can_delete_user".to_string()));
@@ -604,7 +604,7 @@ mod tests {
     let updated_role = result.unwrap();
     assert_eq!(updated_role.id, test_role_id);
     assert_eq!(updated_role.name, "senior-editor");
-    let permissions = updated_role.permissions();
+    let permissions = updated_role.permissions;
     assert_eq!(permissions.len(), 2); // unchanged
     assert!(permissions.contains(&"can_edit_content".to_string()));
     assert!(permissions.contains(&"can_view_content".to_string()));
@@ -839,7 +839,7 @@ mod tests {
     let updated_role = result.unwrap();
     assert_eq!(updated_role.id, test_role_id);
     assert_eq!(updated_role.name, "user"); // unchanged
-    let permissions = updated_role.permissions();
+    let permissions = updated_role.permissions;
     assert_eq!(permissions.len(), 0); // should be empty now
   }
 
@@ -880,7 +880,7 @@ mod tests {
     assert!(role.created_ts > 0);
     assert_eq!(role.created_ts, role.updated_ts);
 
-    let permissions = role.permissions();
+    let permissions = role.permissions;
     assert_eq!(permissions.len(), 2);
     assert!(permissions.contains(&"can_view_user_self".to_string()));
     assert!(permissions.contains(&"can_list_users".to_string()));
@@ -917,7 +917,7 @@ mod tests {
     let role = result.unwrap();
     assert_eq!(role.name, "empty_permissions_role");
     assert!(!role.is_default); // Always false for now
-    assert_eq!(role.permissions().len(), 0);
+    assert_eq!(role.permissions.len(), 0);
   }
 
   #[tokio::test]
@@ -1160,7 +1160,7 @@ mod tests {
     assert_eq!(role.name, "all_permissions_role");
     assert!(!role.is_default);
 
-    let permissions = role.permissions();
+    let permissions = role.permissions;
     assert_eq!(permissions.len(), all_permissions.len());
 
     // Verify all permissions are present
@@ -1406,8 +1406,8 @@ mod tests {
     assert_eq!(deleted_role.updated_ts, role_before.updated_ts);
     assert_eq!(deleted_role.is_default, role_before.is_default);
 
-    let permissions_before = role_before.permissions();
-    let permissions_deleted = deleted_role.permissions();
+    let permissions_before = role_before.permissions;
+    let permissions_deleted = deleted_role.permissions;
     assert_eq!(permissions_before.len(), permissions_deleted.len());
     for permission in permissions_before {
       assert!(permissions_deleted.contains(&permission));
