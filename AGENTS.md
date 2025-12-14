@@ -130,9 +130,25 @@
 
 ### Imports
 - Prefer specific imports over `use *;`
-- **Avoid using full paths** (e.g., `crate::module::Type` or `external_crate::module::Type`)
-  - Always use imported forms for local crate types/functions (e.g., `Role` instead of `crate::models::Role`)
-  - Full paths for certain external crate types/functions are acceptable if they improve clarity (e.g., `sqlx::Error`)
+- **Never use full paths in function bodies** - always import first
+- **Exceptions**: Types named "Error" should use full paths in code (e.g., `sqlx::Error`) and don't need to be imported directly
+
+```rust
+use crate::models::Role;
+use crate::services::UserService;
+use crate::services::UserError;
+use sqlx::{SqlitePool, Row};
+use async_graphql::{Context, Object, Result};
+use std::collections::HashMap;
+
+fn example() -> Result<(), UserError> {
+    let role = Role { ... };                    // ✅ Use imported type directly
+    let pool = SqlitePool::connect(...).await?; // ✅ Use imported type directly
+    let map = HashMap::new();                   // ✅ Use imported type directly
+    // let role = crate::models::Role { ... };   ❌ No full paths
+    // let error = sqlx::Error::RowNotFound;     // ✅ Error types use full paths
+}
+```
 
 ### Types & Naming
 - Use PascalCase for structs, enums, and types

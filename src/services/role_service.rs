@@ -1,3 +1,4 @@
+use crate::models::role::is_valid_role_permission;
 use crate::models::role::Role;
 use crate::models::user::User;
 use crate::queries::roles::{
@@ -101,7 +102,7 @@ impl RoleService {
 
     // Validate all permissions are valid
     for permission in &create_data.permissions {
-      if !crate::models::role::is_valid_role_permission(permission) {
+      if !is_valid_role_permission(permission) {
         return Err(RoleError::InvalidPermission(permission.clone()));
       }
     }
@@ -182,7 +183,7 @@ impl RoleService {
     // Validate permissions if provided
     if let Some(ref permissions) = update_data.permissions {
       for permission in permissions {
-        if !crate::models::role::is_valid_role_permission(permission) {
+        if !is_valid_role_permission(permission) {
           return Err(RoleError::InvalidPermission(permission.clone()));
         }
       }
@@ -249,7 +250,7 @@ impl RoleService {
     permission: &str,
   ) -> Result<bool, RoleError> {
     // Validate permission exists
-    if !crate::models::role::is_valid_role_permission(permission) {
+    if !is_valid_role_permission(permission) {
       warn!("Invalid permission checked: {}", permission);
       return Ok(false);
     }
@@ -276,7 +277,9 @@ impl RoleService {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::models::ROLE_PERMISSIONS;
   use crate::queries::roles::GetDefaultRoleQuery;
+  use crate::queries::users::{CreateUserData, CreateUserQuery};
   use crate::test_utils::create_test_database;
 
   #[tokio::test]
@@ -732,7 +735,7 @@ mod tests {
     let role_id = result.last_insert_rowid();
 
     // Update with all valid permissions
-    let all_permissions: Vec<String> = crate::models::ROLE_PERMISSIONS
+    let all_permissions: Vec<String> = ROLE_PERMISSIONS
       .iter()
       .map(|&perm| perm.to_string())
       .collect();
@@ -911,7 +914,7 @@ mod tests {
   async fn test_create_role_all_valid_permissions() {
     let (pool, _temp_file) = create_test_database().await;
 
-    let all_permissions: Vec<String> = crate::models::ROLE_PERMISSIONS
+    let all_permissions: Vec<String> = ROLE_PERMISSIONS
       .iter()
       .map(|&perm| perm.to_string())
       .collect();
@@ -1012,16 +1015,14 @@ mod tests {
     let role = RoleService::create_role(&pool, role_data).await.unwrap();
 
     // Create a user with this role
-    let user_data = crate::queries::users::CreateUserData {
+    let user_data = CreateUserData {
       uuid: uuid::Uuid::new_v4().to_string(),
       name: "test-user".to_string(),
       password_hash: "hashed_password".to_string(),
       role_id: Some(role.id),
       metadata_json: None,
     };
-    crate::queries::users::CreateUserQuery::run(&pool, user_data)
-      .await
-      .unwrap();
+    CreateUserQuery::run(&pool, user_data).await.unwrap();
 
     // Try to delete the role while it's in use
     let result = RoleService::delete_role(&pool, role.id).await;

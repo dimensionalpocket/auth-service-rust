@@ -98,6 +98,7 @@ impl SetDefaultRoleResolver {
 mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
+  use crate::queries::roles::GetRoleByIdQuery;
   use crate::test_utils::{
     create_test_database, create_test_mutation_schema, create_test_role, create_test_user,
   };
@@ -222,7 +223,6 @@ mod tests {
     assert!(result2.errors.is_empty());
 
     // Verify only role2 is default now using the existing query utilities
-    use crate::queries::roles::GetRoleByIdQuery;
     let role1_check = GetRoleByIdQuery::run(&pool, role1_id)
       .await
       .unwrap()

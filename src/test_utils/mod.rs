@@ -10,7 +10,7 @@
 #[cfg(any(test, feature = "test-utils"))]
 use crate::database::Database;
 use crate::models::{Role, User};
-use crate::queries::roles::{CreateRoleData, CreateRoleQuery};
+use crate::queries::roles::{CreateRoleData, CreateRoleQuery, GetDefaultRoleQuery};
 use crate::queries::users::{CreateUserData, CreateUserQuery};
 use crate::services::password_service::PasswordService;
 use sqlx::SqlitePool;
@@ -100,7 +100,6 @@ pub async fn create_test_user_full(
 ) -> User {
   // If no role_id specified, ensure a default role exists
   let final_role_id = if role_id.is_none() {
-    use crate::queries::roles::GetDefaultRoleQuery;
     match GetDefaultRoleQuery::run(pool).await.unwrap() {
       Some(default_role) => Some(default_role.id),
       None => {
@@ -270,7 +269,6 @@ mod tests {
     assert!(user.role_id > 0);
 
     // Verify that default role is created automatically
-    use crate::queries::roles::GetDefaultRoleQuery;
     let default_role = GetDefaultRoleQuery::run(&pool).await.unwrap().unwrap();
     assert_eq!(user.role_id, default_role.id);
     assert_eq!(default_role.name, "user");
@@ -397,7 +395,6 @@ mod tests {
   #[tokio::test]
   async fn test_create_test_query_schema_with_session() {
     use super::*;
-    use crate::middleware::session::SessionContext;
 
     let session = SessionContext::new(None);
     let schema = create_test_query_schema(TestEmptyQuery, None, Some(session), None);
@@ -430,7 +427,6 @@ mod tests {
   #[tokio::test]
   async fn test_create_test_query_schema_all_context() {
     use super::*;
-    use crate::middleware::session::SessionContext;
 
     let (pool, _tmp) = create_test_database().await;
     let session = SessionContext::new(None);
@@ -476,7 +472,6 @@ mod tests {
   #[tokio::test]
   async fn test_create_test_mutation_schema_with_session() {
     use super::*;
-    use crate::middleware::session::SessionContext;
 
     let session = SessionContext::new(None);
     let schema = create_test_mutation_schema(EmptyMutation, None, Some(session), None);
@@ -509,7 +504,6 @@ mod tests {
   #[tokio::test]
   async fn test_create_test_mutation_schema_all_context() {
     use super::*;
-    use crate::middleware::session::SessionContext;
 
     let (pool, _tmp) = create_test_database().await;
     let session = SessionContext::new(None);
