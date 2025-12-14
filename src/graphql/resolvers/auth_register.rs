@@ -116,19 +116,16 @@ impl AuthRegisterResolver {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::{create_test_database, create_test_mutation_schema};
+  use crate::test_utils::{
+    create_test_database, create_test_mutation_schema, create_test_role_model,
+  };
 
   #[tokio::test]
   async fn test_auth_register_calls_service_with_correct_parameters() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert default role first
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567890, 1234567890, TRUE, '[\"can_view_user_self\"]')",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
+    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
 
     // Test secret - 32 bytes for AES-256
     let test_secret = vec![
@@ -196,12 +193,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert default role first
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
+    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
 
     // Test secret - 32 bytes for AES-256
     let test_secret = vec![
@@ -334,12 +326,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert default role first
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
+    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
 
     // Test secret - 32 bytes for AES-256
     let test_secret = vec![

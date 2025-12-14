@@ -339,19 +339,16 @@ impl UserService {
 mod tests {
   use super::*;
   use crate::queries::users::{CreateUserData, CreateUserQuery, GetUserByIdQuery, UpdateUserData};
-  use crate::test_utils::{create_test_database, create_test_database_with_pool_size};
+  use crate::test_utils::{
+    create_test_database, create_test_database_with_pool_size, create_test_role_model,
+  };
 
   #[tokio::test]
   async fn test_create_user_success() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert default role first
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
+    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
 
     let user = UserService::create_user(&pool, "testuser", "password123")
       .await
@@ -371,12 +368,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert default role first
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
+    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
 
     // Create first user
     UserService::create_user(&pool, "testuser", "password123")

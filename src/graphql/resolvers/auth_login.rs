@@ -94,7 +94,9 @@ fn map_session_error_to_user_message(error: &SessionError) -> &'static str {
 mod tests {
   use super::*;
   use crate::services::UserService;
-  use crate::test_utils::{create_test_database, create_test_mutation_schema};
+  use crate::test_utils::{
+    create_test_database, create_test_mutation_schema, create_test_role_model,
+  };
 
   // Test secret - 32 bytes for AES-256 (base64-decoded from QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=)
   const TEST_SECRET: &[u8] = &[
@@ -102,21 +104,12 @@ mod tests {
     0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74, 0x4d, 0xb8,
   ];
 
-  async fn setup_default_role(pool: &SqlitePool) {
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567890, 1234567890, TRUE, '[\"can_view_user_self\"]')",
-    )
-    .execute(pool)
-    .await
-    .unwrap();
-  }
-
   #[tokio::test]
   async fn test_auth_login_calls_service_with_correct_parameters() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
+    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
     UserService::create_user(&pool, "testuser", "password123")
       .await
       .unwrap();

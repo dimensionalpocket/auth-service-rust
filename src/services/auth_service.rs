@@ -198,7 +198,9 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::services::UserService;
-  use crate::test_utils::create_test_database;
+  use crate::test_utils::{
+    create_test_database, create_test_role, create_test_role_model, create_test_user_full,
+  };
   use dps_auth_session::DpsAuthSessionPayload;
 
   // Test secret - 32 bytes for AES-256
@@ -207,21 +209,12 @@ mod tests {
     0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74, 0x4d, 0xb8,
   ];
 
-  async fn setup_default_role(pool: &SqlitePool) {
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
-    )
-    .execute(pool)
-    .await
-    .unwrap();
-  }
-
   #[tokio::test]
   async fn test_auth_login_success() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
+    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
     UserService::create_user(&pool, "testuser", "password123")
       .await
       .unwrap();
@@ -241,7 +234,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
+    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
     UserService::create_user(&pool, "testuser", "password123")
       .await
       .unwrap();
@@ -267,21 +260,16 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a role and user
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE)",
+    let admin_role_id = create_test_role(&pool, "admin", &["can_manage_users"]).await;
+    let user = create_test_user_full(
+      &pool,
+      "testuser",
+      Some(admin_role_id),
+      "test_password",
+      None,
     )
-    .execute(&pool)
-    .await
-    .unwrap();
-
-    let user_result = sqlx::query(
-      "INSERT INTO users (uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json) VALUES (?, 1234567890, 1234567890, 'testuser', 1, 'hashed_password', NULL)"
-    )
-    .bind("550e8400-e29b-41d4-a716-446655440000")
-    .execute(&pool)
-    .await
-    .unwrap();
-    let user_id = user_result.last_insert_rowid();
+    .await;
+    let user_id = user.id;
 
     let payload = DpsAuthSessionPayload {
       sub: user_id,

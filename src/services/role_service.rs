@@ -280,19 +280,15 @@ mod tests {
   use crate::models::ROLE_PERMISSIONS;
   use crate::queries::roles::GetDefaultRoleQuery;
   use crate::queries::users::{CreateUserData, CreateUserQuery};
-  use crate::test_utils::create_test_database;
+  use crate::test_utils::{create_test_database, create_test_role_model};
 
   #[tokio::test]
   async fn test_get_role_by_id_delegates_to_query() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test role with permissions
-    let result = sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\"]')")
-      .execute(&pool)
-      .await
-      .unwrap();
-
-    let role_id = result.last_insert_rowid();
+    let role = create_test_role_model(&pool, "admin", &["is_admin"], false).await;
+    let role_id = role.id;
     let role = RoleService::get_role_by_id(&pool, role_id).await.unwrap();
 
     assert!(role.is_some());
@@ -306,10 +302,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test role with permissions
-    sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567890, 1234567890, TRUE, '[\"can_view_user_self\"]')")
-      .execute(&pool)
-      .await
-      .unwrap();
+    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
 
     let role = RoleService::get_role_by_name(&pool, "user").await.unwrap();
 
