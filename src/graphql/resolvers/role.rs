@@ -87,38 +87,32 @@ impl RoleResolver {
 mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{create_test_database, create_test_query_schema};
+  use crate::test_utils::{
+    create_test_database, create_test_query_schema, create_test_role, create_test_role_model,
+    create_test_user,
+  };
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
   #[tokio::test]
   async fn test_get_role_success() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Insert admin role with can_manage_roles permission
-    sqlx::query(
-            "INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\", \"can_manage_roles\"]')"
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
+    // Create admin role with can_manage_roles permission
+    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
 
-    // Insert admin user
-    let admin_user_result = sqlx::query(
-            "INSERT INTO users (uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json) VALUES ('admin-uuid', 1234567890, 1234567890, 'admin', 1, 'hashed_password', NULL)"
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
-    let admin_user_id = admin_user_result.last_insert_rowid();
+    // Create admin user
+    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user_id = admin_user.id;
 
     // Create test role
-    let test_role_result = sqlx::query(
-            "INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567891, 1234567891, TRUE, '[\"can_view_user_self\", \"can_edit_profile\"]')"
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
-    let test_role_id = test_role_result.last_insert_rowid();
+    let test_role = create_test_role_model(
+      &pool,
+      "user",
+      &["can_view_user_self", "can_edit_profile"],
+      true,
+    )
+    .await;
+    let test_role_id = test_role.id;
 
     // Create session context for admin user
     let session_payload = ServiceSessionPayload {
@@ -172,30 +166,15 @@ mod tests {
   async fn test_get_role_forbidden() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Insert user role without can_manage_roles permission
-    sqlx::query(
-            "INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567890, 1234567890, TRUE, '[\"can_view_user_self\"]')"
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
+    // Create user role without can_manage_roles permission
+    let user_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
 
-    // Insert regular user
-    let user_result = sqlx::query(
-            "INSERT INTO users (uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json) VALUES ('user-uuid', 1234567890, 1234567890, 'user', 1, 'hashed_password', NULL)"
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
-    let user_id = user_result.last_insert_rowid();
+    // Create regular user
+    let user = create_test_user(&pool, "user", user_role_id).await;
+    let user_id = user.id;
 
     // Create test role to try to retrieve
-    sqlx::query(
-            "INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('editor', 1234567891, 1234567891, FALSE, '[\"can_edit_content\"]')"
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
+    create_test_role(&pool, "editor", &["can_edit_content"]).await;
 
     // Create session context for regular user
     let session_payload = ServiceSessionPayload {
@@ -250,22 +229,12 @@ mod tests {
   async fn test_get_role_not_found() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Insert admin role with can_manage_roles permission
-    sqlx::query(
-            "INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"is_admin\", \"can_manage_roles\"]')"
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
+    // Create admin role with can_manage_roles permission
+    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
 
-    // Insert admin user
-    let admin_user_result = sqlx::query(
-            "INSERT INTO users (uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json) VALUES ('admin-uuid', 1234567890, 1234567890, 'admin', 1, 'hashed_password', NULL)"
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
-    let admin_user_id = admin_user_result.last_insert_rowid();
+    // Create admin user
+    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user_id = admin_user.id;
 
     // Create session context for admin user
     let session_payload = ServiceSessionPayload {

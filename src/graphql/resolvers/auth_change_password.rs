@@ -90,7 +90,9 @@ mod tests {
   use super::*;
   use crate::middleware::session::{SessionContext, SessionPayload};
   use crate::services::{AuthService, UserService};
-  use crate::test_utils::{create_test_database, create_test_mutation_schema};
+  use crate::test_utils::{
+    create_test_database, create_test_mutation_schema, create_test_role_model,
+  };
 
   // Test secret - 32 bytes for AES-256
   const TEST_SECRET: &[u8] = &[
@@ -98,22 +100,15 @@ mod tests {
     0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74, 0x4d, 0xb8,
   ];
 
-  async fn setup_default_role(pool: &SqlitePool) {
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
-    )
-    .execute(pool)
-    .await
-    .unwrap();
-  }
-
   async fn create_authenticated_session(
     pool: &SqlitePool,
     username: &str,
     password: &str,
   ) -> (SessionContext, i64) {
+    // Create default role
+    create_test_role_model(pool, "user", &["can_view_user_self"], true).await;
+
     // Create user
-    setup_default_role(pool).await;
     let user = UserService::create_user(pool, username, password)
       .await
       .unwrap();
