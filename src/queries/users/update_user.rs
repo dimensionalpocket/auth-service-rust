@@ -102,25 +102,15 @@ mod tests {
   use super::*;
   use crate::queries::users::{CreateUserData, CreateUserQuery};
   use crate::services::PasswordService;
-  use crate::test_utils::create_test_database;
+  use crate::test_utils::{create_test_database, create_test_role_model};
 
   async fn setup_default_role(pool: &SqlitePool) {
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
-    )
-    .execute(pool)
-    .await
-    .unwrap();
+    create_test_role_model(pool, "user", &["can_view_user_self"], true).await;
   }
 
-  async fn setup_admin_role(pool: &SqlitePool) -> i64 {
-    let result = sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE)",
-    )
-    .execute(pool)
-    .await
-    .unwrap();
-    result.last_insert_rowid()
+  async fn setup_admin_role_for_update(pool: &SqlitePool) -> i64 {
+    let admin_role = create_test_role_model(pool, "admin", &["is_admin"], false).await;
+    admin_role.id
   }
 
   #[tokio::test]
@@ -163,7 +153,7 @@ mod tests {
 
     // Setup: Create a user and admin role
     setup_default_role(&pool).await;
-    let admin_role_id = setup_admin_role(&pool).await;
+    let admin_role_id = setup_admin_role_for_update(&pool).await;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -234,7 +224,7 @@ mod tests {
 
     // Setup: Create a user and admin role
     setup_default_role(&pool).await;
-    let admin_role_id = setup_admin_role(&pool).await;
+    let admin_role_id = setup_admin_role_for_update(&pool).await;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -270,7 +260,7 @@ mod tests {
 
     // Setup: Create a user with default role and admin role
     setup_default_role(&pool).await;
-    let admin_role_id = setup_admin_role(&pool).await;
+    let admin_role_id = setup_admin_role_for_update(&pool).await;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),

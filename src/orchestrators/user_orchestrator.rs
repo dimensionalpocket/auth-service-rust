@@ -1079,32 +1079,10 @@ mod tests {
 
   // Helper functions for orchestrator tests
   async fn create_admin_role(pool: &SqlitePool) -> i64 {
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[\"can_edit_user\"]')"
-    )
-    .execute(pool)
-    .await
-    .unwrap();
-
-    let role_id: i64 = sqlx::query_scalar("SELECT last_insert_rowid()")
-      .fetch_one(pool)
-      .await
-      .unwrap();
-    role_id
+    create_test_role(pool, "admin", &["can_edit_user"]).await
   }
 
   async fn create_user_role(pool: &SqlitePool) -> i64 {
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567890, 1234567890, TRUE, '[]')"
-    )
-    .execute(pool)
-    .await
-    .unwrap();
-
-    let role_id: i64 = sqlx::query_scalar("SELECT last_insert_rowid()")
-      .fetch_one(pool)
-      .await
-      .unwrap();
-    role_id
+    create_test_role(pool, "user", &[]).await
   }
 }

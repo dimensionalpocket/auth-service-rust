@@ -192,7 +192,7 @@ impl SessionService {
 mod tests {
   use super::*;
   use crate::services::UserService;
-  use crate::test_utils::create_test_database;
+  use crate::test_utils::{create_test_database, create_test_role_model};
 
   // Test secret - 32 bytes for AES-256 (base64-decoded from QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=)
   const TEST_SECRET: &[u8] = &[
@@ -201,12 +201,7 @@ mod tests {
   ];
 
   async fn setup_default_role(pool: &SqlitePool) {
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
-    )
-    .execute(pool)
-    .await
-    .unwrap();
+    create_test_role_model(pool, "user", &["can_view_user_self"], true).await;
   }
 
   #[tokio::test]

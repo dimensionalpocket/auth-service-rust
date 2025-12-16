@@ -17,7 +17,7 @@ impl GetUserByIdQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::create_test_database;
+  use crate::test_utils::{create_test_database, create_test_role_model};
   use uuid::Uuid;
 
   #[tokio::test]
@@ -25,26 +25,23 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test role first
-    let role_result = sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
-    let role_id = role_result.last_insert_rowid();
+    let role = create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    let role_id = role.id;
 
     // Insert test user
     let user_uuid = Uuid::new_v4().to_string();
-    let user_result = sqlx::query(
-      "INSERT INTO users (uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json) VALUES (?, 1234567890, 1234567890, 'Test User', ?, 'hashed_password', '{\"test\": true}')"
-    )
-    .bind(&user_uuid)
-    .bind(role_id)
-    .execute(&pool)
-    .await
-    .unwrap();
-
-    let user_id = user_result.last_insert_rowid();
+    let user_id = sqlx::query("INSERT INTO users (uuid, name, role_id, password_hash, metadata_json, created_ts, updated_ts) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .bind(&user_uuid)
+      .bind("Test User")
+      .bind(role_id)
+      .bind("hashed_password")
+      .bind("{\"test\": true}")
+      .bind(1234567890)
+      .bind(1234567890)
+      .execute(&pool)
+      .await
+      .unwrap()
+      .last_insert_rowid();
     let user = GetUserByIdQuery::run(&pool, user_id).await.unwrap();
 
     assert!(user.is_some());

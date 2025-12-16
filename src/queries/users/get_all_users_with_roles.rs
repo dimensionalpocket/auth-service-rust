@@ -58,7 +58,7 @@ impl GetAllUsersWithRolesQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::create_test_database;
+  use crate::test_utils::{create_test_database, create_test_role_model};
 
   #[tokio::test]
   async fn test_get_all_users_with_roles_empty() {
@@ -73,23 +73,30 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test roles
-    sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('admin', 1234567890, 1234567890, FALSE, '[]')")
-      .execute(&pool)
-      .await
-      .unwrap();
-
-    sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('user', 1234567890, 1234567890, TRUE, '[]')")
-      .execute(&pool)
-      .await
-      .unwrap();
+    let admin_role = create_test_role_model(&pool, "admin", &[], false).await;
+    let user_role = create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
 
     // Insert test users
-    sqlx::query("INSERT INTO users (uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json) VALUES ('user1-uuid', 1234567890, 1234567890, 'Alice', 1, 'hash1', NULL)")
+    sqlx::query("INSERT INTO users (uuid, name, role_id, password_hash, metadata_json, created_ts, updated_ts) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .bind("user1-uuid")
+      .bind("Alice")
+      .bind(admin_role.id)
+      .bind("hash1")
+      .bind(None::<String>)
+      .bind(1234567890)
+      .bind(1234567890)
       .execute(&pool)
       .await
       .unwrap();
 
-    sqlx::query("INSERT INTO users (uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json) VALUES ('user2-uuid', 1234567890, 1234567890, 'Bob', 2, 'hash2', NULL)")
+    sqlx::query("INSERT INTO users (uuid, name, role_id, password_hash, metadata_json, created_ts, updated_ts) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .bind("user2-uuid")
+      .bind("Bob")
+      .bind(user_role.id)
+      .bind("hash2")
+      .bind(None::<String>)
+      .bind(1234567890)
+      .bind(1234567890)
       .execute(&pool)
       .await
       .unwrap();
@@ -109,13 +116,17 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test role
-    sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default, permissions_json) VALUES ('test_role', 1234567890, 1234567890, FALSE, '[]')")
-      .execute(&pool)
-      .await
-      .unwrap();
+    let test_role = create_test_role_model(&pool, "test_role", &[], false).await;
 
     // Insert test user
-    sqlx::query("INSERT INTO users (uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json) VALUES ('test-uuid', 1234567890, 1234567890, 'TestUser', 1, 'test_hash', '{\"test\": true}')")
+    sqlx::query("INSERT INTO users (uuid, name, role_id, password_hash, metadata_json, created_ts, updated_ts) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .bind("test-uuid")
+      .bind("TestUser")
+      .bind(test_role.id)
+      .bind("test_hash")
+      .bind("{\"test\": true}")
+      .bind(1234567890)
+      .bind(1234567890)
       .execute(&pool)
       .await
       .unwrap();

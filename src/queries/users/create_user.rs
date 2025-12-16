@@ -64,7 +64,7 @@ impl CreateUserQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::create_test_database;
+  use crate::test_utils::{create_test_database, create_test_role_model};
   use uuid::Uuid;
 
   #[tokio::test]
@@ -72,13 +72,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test role first
-    let role_result = sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
-    let role_id = role_result.last_insert_rowid();
+    let role = create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    let role_id = role.id;
 
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {
@@ -105,13 +100,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test role first
-    let role_result = sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
-    let role_id = role_result.last_insert_rowid();
+    let role = create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    let role_id = role.id;
 
     let user_uuid = Uuid::new_v4().to_string();
     let create_data1 = CreateUserData {
@@ -160,10 +150,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test roles with one default
-    sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE), ('user', 1234567891, 1234567891, TRUE)")
-      .execute(&pool)
-      .await
-      .unwrap();
+    create_test_role_model(&pool, "admin", &["is_admin"], false).await;
+    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
 
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {
@@ -188,20 +176,9 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test roles with one default
-    let admin_result = sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
-    let admin_role_id = admin_result.last_insert_rowid();
-
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567891, 1234567891, TRUE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
+    let admin_role = create_test_role_model(&pool, "admin", &["is_admin"], false).await;
+    let admin_role_id = admin_role.id;
+    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
 
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {
@@ -224,10 +201,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test roles with no default
-    sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE), ('moderator', 1234567891, 1234567891, FALSE)")
-      .execute(&pool)
-      .await
-      .unwrap();
+    create_test_role_model(&pool, "admin", &["is_admin"], false).await;
+    create_test_role_model(&pool, "moderator", &["can_moderate"], false).await;
 
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {

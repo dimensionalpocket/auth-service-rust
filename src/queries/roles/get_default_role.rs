@@ -32,17 +32,15 @@ impl GetDefaultRoleQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::create_test_database;
+  use crate::test_utils::{create_test_database, create_test_role_model};
 
   #[tokio::test]
   async fn test_get_default_role_found() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test roles with one default
-    sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE), ('user', 1234567891, 1234567891, TRUE)")
-      .execute(&pool)
-      .await
-      .unwrap();
+    create_test_role_model(&pool, "admin", &["is_admin"], false).await;
+    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
 
     let role = GetDefaultRoleQuery::run(&pool).await.unwrap();
 
@@ -57,10 +55,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test roles with no default
-    sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE), ('moderator', 1234567891, 1234567891, FALSE)")
-      .execute(&pool)
-      .await
-      .unwrap();
+    create_test_role_model(&pool, "admin", &["is_admin"], false).await;
+    create_test_role_model(&pool, "moderator", &["can_moderate"], false).await;
 
     let role = GetDefaultRoleQuery::run(&pool).await.unwrap();
 

@@ -57,17 +57,11 @@ impl UpdateUserPasswordQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::queries::users::{CreateUserData, CreateUserQuery};
   use crate::services::PasswordService;
-  use crate::test_utils::create_test_database;
+  use crate::test_utils::{create_test_database, create_test_role_model, create_test_user_full};
 
   async fn setup_default_role(pool: &SqlitePool) {
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
-    )
-    .execute(pool)
-    .await
-    .unwrap();
+    create_test_role_model(pool, "user", &["can_view_user_self"], true).await;
   }
 
   #[tokio::test]
@@ -76,14 +70,14 @@ mod tests {
 
     // Setup: Create a user
     setup_default_role(&pool).await;
-    let create_data = CreateUserData {
-      uuid: "test-uuid".to_string(),
-      name: "testuser".to_string(),
-      role_id: None,
-      password_hash: PasswordService::generate("oldpassword").unwrap(),
-      metadata_json: None,
-    };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = create_test_user_full(
+      &pool,
+      "test-uuid",
+      None,
+      &PasswordService::generate("oldpassword").unwrap(),
+      None,
+    )
+    .await;
 
     // Wait a bit to ensure timestamp difference
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
@@ -126,14 +120,14 @@ mod tests {
 
     // Setup: Create a user
     setup_default_role(&pool).await;
-    let create_data = CreateUserData {
-      uuid: "test-uuid".to_string(),
-      name: "testuser".to_string(),
-      role_id: None,
-      password_hash: PasswordService::generate("oldpassword").unwrap(),
-      metadata_json: None,
-    };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = create_test_user_full(
+      &pool,
+      "test-uuid",
+      None,
+      &PasswordService::generate("oldpassword").unwrap(),
+      None,
+    )
+    .await;
 
     // Test: Update password
     let update_data = UpdateUserPasswordData {

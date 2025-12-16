@@ -40,14 +40,11 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test role
-    let result = sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
-
-    let role_id = result.last_insert_rowid();
+    let role_id = sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE)")
+      .execute(&pool)
+      .await
+      .unwrap()
+      .last_insert_rowid();
     let role = GetRoleByIdQuery::run(&pool, role_id).await.unwrap();
 
     assert!(role.is_some());

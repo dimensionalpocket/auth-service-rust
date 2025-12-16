@@ -33,17 +33,15 @@ impl GetAllRolesQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::create_test_database;
+  use crate::test_utils::{create_test_database, create_test_role_model};
 
   #[tokio::test]
   async fn test_get_all_roles_returns_default_roles() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test roles
-    sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE), ('user', 1234567891, 1234567891, TRUE)")
-      .execute(&pool)
-      .await
-      .unwrap();
+    create_test_role_model(&pool, "admin", &["is_admin"], false).await;
+    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
 
     let roles = GetAllRolesQuery::run(&pool).await.unwrap();
 

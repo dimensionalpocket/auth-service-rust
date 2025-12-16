@@ -33,19 +33,17 @@ impl GetRoleByNameQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::create_test_database;
+  use crate::test_utils::{create_test_database, create_test_role_model};
 
   #[tokio::test]
   async fn test_get_role_by_name_found() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test role
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
+    sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE)")
+      .execute(&pool)
+      .await
+      .unwrap();
 
     let role = GetRoleByNameQuery::run(&pool, "admin").await.unwrap();
 
@@ -70,12 +68,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test role
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
+    create_test_role_model(&pool, "admin", &["is_admin"], false).await;
 
     // Should not find with different case
     let role = GetRoleByNameQuery::run(&pool, "ADMIN").await.unwrap();

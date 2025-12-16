@@ -127,6 +127,44 @@ pub async fn create_test_user_full(
   CreateUserQuery::run(pool, create_data).await.unwrap()
 }
 
+/// Create a test user with all parameters including specific UUID
+pub async fn create_test_user_with_uuid(
+  pool: &SqlitePool,
+  uuid: &str,
+  username: &str,
+  role_id: Option<i64>,
+  password: &str,
+  metadata_json: Option<serde_json::Value>,
+) -> User {
+  // If no role_id specified, ensure a default role exists
+  let final_role_id = if role_id.is_none() {
+    match GetDefaultRoleQuery::run(pool).await.unwrap() {
+      Some(default_role) => Some(default_role.id),
+      None => {
+        // Create a default role if none exists
+        Some(
+          create_test_role_model(pool, "user", &["can_view_user_self"], true)
+            .await
+            .id,
+        )
+      }
+    }
+  } else {
+    role_id
+  };
+
+  let password_hash = PasswordService::generate(password).unwrap();
+  let metadata_json_str = metadata_json.map(|v| v.to_string());
+  let create_data = CreateUserData {
+    uuid: uuid.to_string(),
+    name: username.to_string(),
+    role_id: final_role_id,
+    password_hash,
+    metadata_json: metadata_json_str,
+  };
+  CreateUserQuery::run(pool, create_data).await.unwrap()
+}
+
 /// Create a test role and return ID
 pub async fn create_test_role(pool: &SqlitePool, name: &str, permissions: &[&str]) -> i64 {
   let role = create_test_role_model(pool, name, permissions, false).await;
@@ -522,5 +560,44 @@ mod tests {
 
     // Verify schema was created successfully
     assert!(schema.execute("{ dummy }").await.is_ok());
+  }
+
+  #[tokio::test]
+  async fn test_create_test_user_with_uuid_success() {
+    use crate::queries::users::GetUserByUuidQuery;
+
+    let (pool, _temp_file) = create_test_database().await;
+
+    // Test data
+    let test_uuid = "550e8400-e29b-41d4-a716-446655440000";
+    let test_username = "testuser";
+    let test_password = "password123";
+    let test_metadata = serde_json::json!({"key": "value"});
+
+    // Create user with specific UUID
+    let user = create_test_user_with_uuid(
+      &pool,
+      test_uuid,
+      test_username,
+      None, // Use default role
+      test_password,
+      Some(test_metadata.clone()),
+    )
+    .await;
+
+    // Verify user was created with correct data
+    assert_eq!(user.uuid, test_uuid);
+    assert_eq!(user.name, test_username);
+    assert!(user.role_id > 0); // Should have default role
+    assert!(user.password_hash.starts_with("$argon2")); // Password should be hashed
+    assert_eq!(user.metadata_json, Some(test_metadata.to_string()));
+
+    // Verify user can be retrieved by UUID
+    let retrieved_user = GetUserByUuidQuery::run(&pool, test_uuid).await.unwrap();
+    assert!(retrieved_user.is_some());
+    let retrieved_user = retrieved_user.unwrap();
+    assert_eq!(retrieved_user.id, user.id);
+    assert_eq!(retrieved_user.uuid, test_uuid);
+    assert_eq!(retrieved_user.name, test_username);
   }
 }

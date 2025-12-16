@@ -340,7 +340,8 @@ mod tests {
   use super::*;
   use crate::queries::users::{CreateUserData, CreateUserQuery, GetUserByIdQuery, UpdateUserData};
   use crate::test_utils::{
-    create_test_database, create_test_database_with_pool_size, create_test_role_model,
+    create_test_database, create_test_database_with_pool_size, create_test_role,
+    create_test_role_model,
   };
 
   #[tokio::test]
@@ -390,12 +391,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert default role first
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
+    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
 
     // Create first user with lowercase
     UserService::create_user(&pool, "testuser", "password123")
@@ -501,12 +497,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert default role first
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
+    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
 
     // Create a user first
     let user = UserService::create_user(&pool, "testuser", "password123")
@@ -535,12 +526,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert default role first
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
+    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
 
     // Create a user first
     let user = UserService::create_user(&pool, "testuser", "password123")
@@ -563,12 +549,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert default role first
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
+    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
 
     // Create a user first
     let user = UserService::create_user(&pool, "TestUser", "password123")
@@ -602,12 +583,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create default role and user
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
+    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
     let user = UserService::create_user(&pool, "testuser", "oldpassword123")
       .await
       .unwrap();
@@ -645,12 +621,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create default role and user
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
+    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
     let user = UserService::create_user(&pool, "testuser", "correctpassword")
       .await
       .unwrap();
@@ -680,12 +651,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create default role and user
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
+    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
     let user = UserService::create_user(&pool, "testuser", "currentpassword")
       .await
       .unwrap();
@@ -715,12 +681,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create default role and user
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
+    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
     let user = UserService::create_user(&pool, "testuser", "currentpassword")
       .await
       .unwrap();
@@ -768,12 +729,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create default role and user
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
+    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
     let user = UserService::create_user(&pool, "testuser", "password123")
       .await
       .unwrap();
@@ -1397,27 +1353,10 @@ mod tests {
 
   // Helper functions for tests
   async fn setup_default_role(pool: &SqlitePool) {
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
-    )
-    .execute(pool)
-    .await
-    .unwrap();
+    create_test_role_model(pool, "user", &["can_view_user_self"], true).await;
   }
 
   async fn create_admin_role(pool: &SqlitePool) -> i64 {
-    sqlx::query(
-      "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE)",
-    )
-    .execute(pool)
-    .await
-    .unwrap();
-
-    // Get the admin role ID
-    let role_id: i64 = sqlx::query_scalar("SELECT last_insert_rowid()")
-      .fetch_one(pool)
-      .await
-      .unwrap();
-    role_id
+    create_test_role(pool, "admin", &["is_admin"]).await
   }
 }
