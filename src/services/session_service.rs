@@ -1,7 +1,7 @@
 use crate::models::user::User;
 use crate::services::{PasswordService, UserService};
 use dps_auth_session::{DpsAuthSession, DpsAuthSessionError};
-use sqlx::SqlitePool;
+use sqlx::SqliteConnection;
 use std::fmt;
 
 // Re-export the session payload from the new crate for backward compatibility
@@ -36,6 +36,12 @@ impl fmt::Display for SessionError {
 impl From<DpsAuthSessionError> for SessionError {
   fn from(err: DpsAuthSessionError) -> Self {
     SessionError::AuthSessionError(err)
+  }
+}
+
+impl From<sqlx::Error> for SessionError {
+  fn from(err: sqlx::Error) -> Self {
+    SessionError::DatabaseError(err.to_string())
   }
 }
 
@@ -82,13 +88,13 @@ impl SessionService {
   ///
   /// # async fn example(pool: &SqlitePool) -> Result<(), Box<dyn std::error::Error>> {
   /// let secret = &[0u8; 32]; // In practice, use a proper secret
-  /// let token = SessionService::create_session(pool, "john_doe", "secure_password", secret).await?;
+  /// let token = SessionService::create_session(&mut *conn, "john_doe", "secure_password", secret).await?;
   /// println!("Session token: {}", token);
   /// # Ok(())
   /// # }
   /// ```
   pub async fn create_session(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     username: &str,
     password: &str,
     secret: &[u8],
@@ -111,7 +117,7 @@ impl SessionService {
     }
 
     // Retrieve user by username
-    let user = match UserService::get_user_by_name(pool, username).await {
+    let user = match UserService::get_user_by_name(&mut *conn, username).await {
       Ok(Some(user)) => user,
       Ok(None) => {
         let error_msg = "User not found";
@@ -200,22 +206,23 @@ mod tests {
     0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74, 0x4d, 0xb8,
   ];
 
-  async fn setup_default_role(pool: &SqlitePool) {
-    create_test_role_model(pool, "user", &["can_view_user_self"], true).await;
+  async fn setup_default_role(conn: &mut SqliteConnection) {
+    create_test_role_model(&mut *conn, "user", &["can_view_user_self"], true).await;
   }
 
   #[tokio::test]
   async fn test_create_session_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
-    let user = UserService::create_user(&pool, "testuser", "password123")
+    setup_default_role(&mut conn).await;
+    let user = UserService::create_user(&mut conn, "testuser", "password123")
       .await
       .unwrap();
 
     // Test: Create session
-    let token = SessionService::create_session(&pool, "testuser", "password123", TEST_SECRET)
+    let token = SessionService::create_session(&mut conn, "testuser", "password123", TEST_SECRET)
       .await
       .unwrap();
 
@@ -227,8 +234,9 @@ mod tests {
   #[tokio::test]
   async fn test_create_session_blank_username() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
-    let result = SessionService::create_session(&pool, "", "password123", TEST_SECRET).await;
+    let result = SessionService::create_session(&mut conn, "", "password123", TEST_SECRET).await;
 
     assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
     assert!(result.unwrap_err().to_string().contains("User is blank"));
@@ -237,8 +245,9 @@ mod tests {
   #[tokio::test]
   async fn test_create_session_whitespace_username() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
-    let result = SessionService::create_session(&pool, "   ", "password123", TEST_SECRET).await;
+    let result = SessionService::create_session(&mut conn, "   ", "password123", TEST_SECRET).await;
 
     assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
     assert!(result.unwrap_err().to_string().contains("User is blank"));
@@ -247,8 +256,9 @@ mod tests {
   #[tokio::test]
   async fn test_create_session_blank_password() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
-    let result = SessionService::create_session(&pool, "testuser", "", TEST_SECRET).await;
+    let result = SessionService::create_session(&mut conn, "testuser", "", TEST_SECRET).await;
 
     assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
     assert!(result
@@ -260,9 +270,10 @@ mod tests {
   #[tokio::test]
   async fn test_create_session_user_not_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     let result =
-      SessionService::create_session(&pool, "nonexistent", "password123", TEST_SECRET).await;
+      SessionService::create_session(&mut conn, "nonexistent", "password123", TEST_SECRET).await;
 
     assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
     assert!(result.unwrap_err().to_string().contains("User not found"));
@@ -271,16 +282,17 @@ mod tests {
   #[tokio::test]
   async fn test_create_session_wrong_password() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
-    UserService::create_user(&pool, "testuser", "correct_password")
+    setup_default_role(&mut conn).await;
+    UserService::create_user(&mut conn, "testuser", "correct_password")
       .await
       .unwrap();
 
     // Test: Try with wrong password
     let result =
-      SessionService::create_session(&pool, "testuser", "wrong_password", TEST_SECRET).await;
+      SessionService::create_session(&mut conn, "testuser", "wrong_password", TEST_SECRET).await;
 
     assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
     assert!(result
@@ -292,15 +304,16 @@ mod tests {
   #[tokio::test]
   async fn test_create_session_case_insensitive_username() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create a user with mixed case
-    setup_default_role(&pool).await;
-    let user = UserService::create_user(&pool, "TestUser", "password123")
+    setup_default_role(&mut conn).await;
+    let user = UserService::create_user(&mut conn, "TestUser", "password123")
       .await
       .unwrap();
 
     // Test: Login with different case
-    let token = SessionService::create_session(&pool, "testuser", "password123", TEST_SECRET)
+    let token = SessionService::create_session(&mut conn, "testuser", "password123", TEST_SECRET)
       .await
       .unwrap();
 
@@ -312,10 +325,11 @@ mod tests {
   #[tokio::test]
   async fn test_create_session_for_user_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
-    let user = UserService::create_user(&pool, "testuser", "password123")
+    setup_default_role(&mut conn).await;
+    let user = UserService::create_user(&mut conn, "testuser", "password123")
       .await
       .unwrap();
 
@@ -332,13 +346,14 @@ mod tests {
   #[tokio::test]
   async fn test_create_session_for_user_different_users() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create two users
-    setup_default_role(&pool).await;
-    let user1 = UserService::create_user(&pool, "user1", "password123")
+    setup_default_role(&mut conn).await;
+    let user1 = UserService::create_user(&mut conn, "user1", "password123")
       .await
       .unwrap();
-    let user2 = UserService::create_user(&pool, "user2", "password123")
+    let user2 = UserService::create_user(&mut conn, "user2", "password123")
       .await
       .unwrap();
 

@@ -1,5 +1,5 @@
 use crate::models::Role;
-use sqlx::{Row, SqlitePool};
+use sqlx::{Row, SqliteConnection};
 
 #[derive(Debug)]
 pub struct UpdateRoleData {
@@ -11,7 +11,10 @@ pub struct UpdateRoleData {
 pub struct UpdateRoleQuery;
 
 impl UpdateRoleQuery {
-  pub async fn run(pool: &SqlitePool, data: UpdateRoleData) -> Result<Option<Role>, sqlx::Error> {
+  pub async fn run(
+    conn: &mut SqliteConnection,
+    data: UpdateRoleData,
+  ) -> Result<Option<Role>, sqlx::Error> {
     let now = chrono::Utc::now().timestamp();
 
     // Build the UPDATE query dynamically based on provided fields
@@ -49,7 +52,7 @@ impl UpdateRoleQuery {
 
     query = query.bind(data.id);
 
-    let result = query.execute(pool).await?;
+    let result = query.execute(&mut *conn).await?;
 
     if result.rows_affected() == 0 {
       return Ok(None);
@@ -60,7 +63,7 @@ impl UpdateRoleQuery {
             "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?"
         )
         .bind(data.id)
-        .fetch_one(pool)
+        .fetch_one(&mut *conn)
         .await?;
 
     let permissions_json: Option<String> = row.try_get("permissions_json")?;
@@ -86,10 +89,11 @@ mod tests {
   #[tokio::test]
   async fn test_update_role_success() {
     let (pool, _tmp) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a role first
     let role = create_test_role_model(
-      &pool,
+      &mut conn,
       "test-role",
       &["can_view_user_self", "can_list_users"],
       false,
@@ -109,7 +113,7 @@ mod tests {
     // Add a delay to ensure different timestamps
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
-    let updated_role = UpdateRoleQuery::run(&pool, update_data)
+    let updated_role = UpdateRoleQuery::run(&mut conn, update_data)
       .await
       .unwrap()
       .unwrap();
@@ -130,10 +134,11 @@ mod tests {
   #[tokio::test]
   async fn test_update_role_partial_update() {
     let (pool, _tmp) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a role first
     let role = create_test_role_model(
-      &pool,
+      &mut conn,
       "partial-role",
       &["can_view_user_self", "can_list_users"],
       false,
@@ -150,7 +155,7 @@ mod tests {
       permissions: None,
     };
 
-    let updated_role = UpdateRoleQuery::run(&pool, update_data)
+    let updated_role = UpdateRoleQuery::run(&mut conn, update_data)
       .await
       .unwrap()
       .unwrap();
@@ -170,10 +175,11 @@ mod tests {
   #[tokio::test]
   async fn test_update_role_set_permissions_to_empty() {
     let (pool, _tmp) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a role first
     let role = create_test_role_model(
-      &pool,
+      &mut conn,
       "empty-permissions-role",
       &["can_view_user_self"],
       false,
@@ -190,7 +196,7 @@ mod tests {
       permissions: Some(vec![]), // Set to empty array
     };
 
-    let updated_role = UpdateRoleQuery::run(&pool, update_data)
+    let updated_role = UpdateRoleQuery::run(&mut conn, update_data)
       .await
       .unwrap()
       .unwrap();
@@ -204,6 +210,7 @@ mod tests {
   #[tokio::test]
   async fn test_update_role_not_found() {
     let (pool, _tmp) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     let update_data = UpdateRoleData {
       id: 999,
@@ -211,17 +218,18 @@ mod tests {
       permissions: None,
     };
 
-    let result = UpdateRoleQuery::run(&pool, update_data).await.unwrap();
+    let result = UpdateRoleQuery::run(&mut conn, update_data).await.unwrap();
     assert!(result.is_none());
   }
 
   #[tokio::test]
   async fn test_update_role_no_changes() {
     let (pool, _tmp) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a role first
     let role =
-      create_test_role_model(&pool, "no-changes-role", &["can_view_user_self"], false).await;
+      create_test_role_model(&mut conn, "no-changes-role", &["can_view_user_self"], false).await;
 
     // Add a delay to ensure different timestamps
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -233,7 +241,7 @@ mod tests {
       permissions: None,
     };
 
-    let updated_role = UpdateRoleQuery::run(&pool, update_data)
+    let updated_role = UpdateRoleQuery::run(&mut conn, update_data)
       .await
       .unwrap()
       .unwrap();
@@ -247,10 +255,11 @@ mod tests {
   #[tokio::test]
   async fn test_update_role_with_all_valid_permissions() {
     let (pool, _tmp) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a role first
     let role = create_test_role_model(
-      &pool,
+      &mut conn,
       "all-permissions-role",
       &["can_view_user_self"],
       false,
@@ -269,7 +278,7 @@ mod tests {
       permissions: Some(all_permissions.clone()),
     };
 
-    let updated_role = UpdateRoleQuery::run(&pool, update_data)
+    let updated_role = UpdateRoleQuery::run(&mut conn, update_data)
       .await
       .unwrap()
       .unwrap();

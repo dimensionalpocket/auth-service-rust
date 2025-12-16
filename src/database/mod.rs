@@ -33,6 +33,7 @@ impl Database {
       Some(size) => {
         SqlitePoolOptions::new()
           .max_connections(size)
+          .acquire_timeout(std::time::Duration::from_secs(2))
           .connect(&database_url)
           .await?
       }

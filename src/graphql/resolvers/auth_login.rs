@@ -43,7 +43,10 @@ impl AuthLoginResolver {
     let cookie_domain = config.cookie_domain.clone();
     let insecure_cookie = config.insecure_cookie;
 
-    match AuthService::login(pool, &username, &password, &session_secret).await {
+    // Temporary: this code should be moved to a new orchestrator method
+    // that will extract the connection. Resolvers should not handle connections directly.
+    let mut conn = pool.acquire().await?;
+    match AuthService::login(&mut conn, &username, &password, &session_secret).await {
       Ok(auth_result) => {
         // Set session cookie
         let cookie_value = format!(
@@ -109,10 +112,13 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
-    UserService::create_user(&pool, "testuser", "password123")
-      .await
-      .unwrap();
+    {
+      let mut conn = pool.acquire().await.unwrap();
+      create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+      UserService::create_user(&mut conn, "testuser", "password123")
+        .await
+        .unwrap();
+    } // Connection released here
 
     // Create GraphQL schema with just the mutation
     let test_config = DpsAuthApiConfig {

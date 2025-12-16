@@ -42,7 +42,8 @@ impl SitesResolver {
   #[graphql(name = "sites")]
   async fn sites(&self, ctx: &Context<'_>) -> Result<Vec<SiteListing>> {
     let pool = ctx.data::<SqlitePool>()?;
-    let sites = SiteService::get_all_sites(pool).await?;
+    let mut conn = pool.acquire().await?;
+    let sites = SiteService::get_all_sites(&mut conn).await?;
 
     let site_listings: Vec<SiteListing> = sites
       .into_iter()
@@ -85,25 +86,29 @@ mod tests {
   async fn test_sites_with_data() {
     let (pool, _tmp) = create_test_database().await;
 
-    // Create test sites
-    let site1_data = CreateSiteData {
-      slug: "alpha".to_string(),
-      subdomain: Some("www".to_string()),
-      port: Some(443),
-      protocol: None,
-      metadata_json: None,
-    };
+    // Setup: Create test sites
+    {
+      let mut conn = pool.acquire().await.unwrap();
 
-    let site2_data = CreateSiteData {
-      slug: "beta".to_string(),
-      subdomain: None,
-      port: Some(80),
-      protocol: Some("http".to_string()),
-      metadata_json: None,
-    };
+      let site1_data = CreateSiteData {
+        slug: "alpha".to_string(),
+        subdomain: Some("www".to_string()),
+        port: Some(443),
+        protocol: None,
+        metadata_json: None,
+      };
 
-    CreateSiteQuery::run(&pool, site1_data).await.unwrap();
-    CreateSiteQuery::run(&pool, site2_data).await.unwrap();
+      let site2_data = CreateSiteData {
+        slug: "beta".to_string(),
+        subdomain: None,
+        port: Some(80),
+        protocol: Some("http".to_string()),
+        metadata_json: None,
+      };
+
+      CreateSiteQuery::run(&mut conn, site1_data).await.unwrap();
+      CreateSiteQuery::run(&mut conn, site2_data).await.unwrap();
+    } // Connection released here
 
     let query = SitesResolver;
     let schema = create_test_query_schema(query, Some(pool), None, None);

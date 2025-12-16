@@ -23,14 +23,16 @@ impl AuthOrchestrator {
 
     let user_id = session_payload.sub;
 
+    let mut conn = pool.acquire().await?;
+
     // Authorization: Verify user exists
-    let _user = GetUserByIdQuery::run(pool, user_id)
+    let _user = GetUserByIdQuery::run(&mut conn, user_id)
       .await?
       .ok_or(UserError::UserNotFound(user_id))?;
 
     // Business logic: Update password
     UserService::update_password(
-      pool,
+      &mut conn,
       user_id,
       current_password,
       new_password,
@@ -50,10 +52,11 @@ mod tests {
   #[tokio::test]
   async fn test_change_authenticated_user_password_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create role and user
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
-    let user = create_test_user(&pool, "testuser", user_role_id).await;
+    let user_role_id = create_test_role(&mut conn, "user", &[]).await;
+    let user = create_test_user(&mut conn, "testuser", user_role_id).await;
 
     // Create session context for user
     let session_payload = DpsAuthSessionPayload {
@@ -140,10 +143,11 @@ mod tests {
   #[tokio::test]
   async fn test_change_authenticated_user_password_wrong_current_password() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create role and user
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
-    let user = create_test_user(&pool, "testuser", user_role_id).await;
+    let user_role_id = create_test_role(&mut conn, "user", &[]).await;
+    let user = create_test_user(&mut conn, "testuser", user_role_id).await;
 
     // Create session context for user
     let session_payload = DpsAuthSessionPayload {
@@ -175,10 +179,11 @@ mod tests {
   #[tokio::test]
   async fn test_change_authenticated_user_password_password_mismatch() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create role and user
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
-    let user = create_test_user(&pool, "testuser", user_role_id).await;
+    let user_role_id = create_test_role(&mut conn, "user", &[]).await;
+    let user = create_test_user(&mut conn, "testuser", user_role_id).await;
 
     // Create session context for user
     let session_payload = DpsAuthSessionPayload {
@@ -210,10 +215,11 @@ mod tests {
   #[tokio::test]
   async fn test_change_authenticated_user_password_invalid_new_password() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create role and user
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
-    let user = create_test_user(&pool, "testuser", user_role_id).await;
+    let user_role_id = create_test_role(&mut conn, "user", &[]).await;
+    let user = create_test_user(&mut conn, "testuser", user_role_id).await;
 
     // Create session context for user
     let session_payload = DpsAuthSessionPayload {

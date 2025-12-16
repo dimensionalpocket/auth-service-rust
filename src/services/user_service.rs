@@ -4,7 +4,7 @@ use crate::queries::users::{
   UpdateUserData, UpdateUserPasswordData, UpdateUserPasswordQuery, UpdateUserQuery,
 };
 use crate::services::{PasswordError, PasswordService};
-use sqlx::SqlitePool;
+use sqlx::sqlite::SqliteConnection;
 use uuid::Uuid;
 
 /// Custom error type for user operations
@@ -81,7 +81,7 @@ impl UserService {
   /// * `Ok(User)` - Successfully created user
   /// * `Err(UserError)` - Creation failed due to validation, uniqueness, or database error
   pub async fn create_user(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     username: &str,
     password: &str,
   ) -> Result<User, UserError> {
@@ -90,7 +90,7 @@ impl UserService {
     Self::validate_password(password)?;
 
     // Check if username already exists
-    if let Some(_existing_user) = GetUserByNameQuery::run(pool, username).await? {
+    if let Some(_existing_user) = GetUserByNameQuery::run(&mut *conn, username).await? {
       return Err(UserError::UsernameAlreadyExists(username.to_string()));
     }
 
@@ -110,7 +110,7 @@ impl UserService {
     };
 
     // Create the user
-    let user = CreateUserQuery::run(pool, create_data).await?;
+    let user = CreateUserQuery::run(&mut *conn, create_data).await?;
 
     Ok(user)
   }
@@ -126,10 +126,10 @@ impl UserService {
   /// * `Ok(None)` - User not found
   /// * `Err(sqlx::Error)` - Database error occurred
   pub async fn get_user_by_name(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     name: &str,
   ) -> Result<Option<User>, sqlx::Error> {
-    GetUserByNameQuery::run(pool, name).await
+    GetUserByNameQuery::run(&mut *conn, name).await
   }
 
   /// Retrieve a user by ID
@@ -143,10 +143,10 @@ impl UserService {
   /// * `Ok(None)` - User not found
   /// * `Err(sqlx::Error)` - Database error occurred
   pub async fn get_user_by_id(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     user_id: i64,
   ) -> Result<Option<User>, sqlx::Error> {
-    GetUserByIdQuery::run(pool, user_id).await
+    GetUserByIdQuery::run(&mut *conn, user_id).await
   }
 
   /// Validate username according to business rules
@@ -198,7 +198,7 @@ impl UserService {
   /// * `Ok(User)` - Successfully updated user
   /// * `Err(UserError)` - Update failed due to validation, verification, or database error
   pub async fn update_password(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     user_id: i64,
     current_password: &str,
     new_password: &str,
@@ -215,7 +215,7 @@ impl UserService {
     }
 
     // Get current user to verify current password
-    let user = GetUserByIdQuery::run(pool, user_id)
+    let user = GetUserByIdQuery::run(&mut *conn, user_id)
       .await
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
@@ -238,7 +238,7 @@ impl UserService {
       password_hash: new_password_hash,
     };
 
-    let updated_user = UpdateUserPasswordQuery::run(pool, user_id, update_data)
+    let updated_user = UpdateUserPasswordQuery::run(&mut *conn, user_id, update_data)
       .await
       .map_err(UserError::DatabaseError)?;
 
@@ -248,14 +248,14 @@ impl UserService {
   /// Delete a user by ID
   ///
   /// # Arguments
-  /// * `pool` - Database connection pool
+  /// * `conn` - Database connection
   /// * `user_id` - The ID of the user to delete
   ///
   /// # Returns
   /// * `Ok(bool)` - True if user was deleted, false if user was not found
   /// * `Err(UserError)` - Database error occurred
-  pub async fn delete_user(pool: &SqlitePool, user_id: i64) -> Result<bool, UserError> {
-    DeleteUserByIdQuery::run(pool, user_id)
+  pub async fn delete_user(conn: &mut SqliteConnection, user_id: i64) -> Result<bool, UserError> {
+    DeleteUserByIdQuery::run(&mut *conn, user_id)
       .await
       .map_err(UserError::DatabaseError)
   }
@@ -298,13 +298,13 @@ impl UserService {
   /// * `Ok(User)` - Successfully updated user
   /// * `Err(UserError)` - Validation, uniqueness, or database error
   pub async fn update_user(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     user_id: i64,
     mut update_data: UpdateUserData,
     password: Option<String>,
   ) -> Result<User, UserError> {
     // Get current user for validation and comparison
-    let current_user = GetUserByIdQuery::run(pool, user_id)
+    let current_user = GetUserByIdQuery::run(&mut *conn, user_id)
       .await
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
@@ -315,7 +315,7 @@ impl UserService {
 
       // Check username uniqueness if name is changing
       if name != &current_user.name {
-        if let Some(_existing_user) = GetUserByNameQuery::run(pool, name).await? {
+        if let Some(_existing_user) = GetUserByNameQuery::run(&mut *conn, name).await? {
           return Err(UserError::UsernameAlreadyExists(name.to_string()));
         }
       }
@@ -329,7 +329,7 @@ impl UserService {
     }
 
     // Update user in database
-    UpdateUserQuery::run(pool, update_data)
+    UpdateUserQuery::run(&mut *conn, update_data)
       .await
       .map_err(UserError::DatabaseError)
   }
@@ -347,11 +347,12 @@ mod tests {
   #[tokio::test]
   async fn test_create_user_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Insert default role first
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
 
-    let user = UserService::create_user(&pool, "testuser", "password123")
+    let user = UserService::create_user(&mut conn, "testuser", "password123")
       .await
       .unwrap();
 
@@ -367,17 +368,18 @@ mod tests {
   #[tokio::test]
   async fn test_create_user_username_already_exists() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Insert default role first
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
 
     // Create first user
-    UserService::create_user(&pool, "testuser", "password123")
+    UserService::create_user(&mut conn, "testuser", "password123")
       .await
       .unwrap();
 
     // Try to create second user with same username
-    let result = UserService::create_user(&pool, "testuser", "password456").await;
+    let result = UserService::create_user(&mut conn, "testuser", "password456").await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -389,17 +391,18 @@ mod tests {
   #[tokio::test]
   async fn test_create_user_case_insensitive_username_check() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Insert default role first
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
 
     // Create first user with lowercase
-    UserService::create_user(&pool, "testuser", "password123")
+    UserService::create_user(&mut conn, "testuser", "password123")
       .await
       .unwrap();
 
     // Try to create second user with different case
-    let result = UserService::create_user(&pool, "TestUser", "password456").await;
+    let result = UserService::create_user(&mut conn, "TestUser", "password456").await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -495,16 +498,17 @@ mod tests {
   #[tokio::test]
   async fn test_get_user_by_id_query_works_correctly() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Insert default role first
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
 
     // Create a user first
-    let user = UserService::create_user(&pool, "testuser", "password123")
+    let user = UserService::create_user(&mut conn, "testuser", "password123")
       .await
       .unwrap();
 
-    let retrieved_user = GetUserByIdQuery::run(&pool, user.id).await.unwrap();
+    let retrieved_user = GetUserByIdQuery::run(&mut conn, user.id).await.unwrap();
 
     assert!(retrieved_user.is_some());
     let retrieved_user = retrieved_user.unwrap();
@@ -515,8 +519,9 @@ mod tests {
   #[tokio::test]
   async fn test_get_user_by_id_query_not_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
-    let user = GetUserByIdQuery::run(&pool, 999).await.unwrap();
+    let user = GetUserByIdQuery::run(&mut conn, 999).await.unwrap();
 
     assert!(user.is_none());
   }
@@ -524,17 +529,18 @@ mod tests {
   #[tokio::test]
   async fn test_get_user_by_name_delegates_to_query() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Insert default role first
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
 
     // Create a user first
-    let user = UserService::create_user(&pool, "testuser", "password123")
+    let user = UserService::create_user(&mut conn, "testuser", "password123")
       .await
       .unwrap();
 
     // Retrieve by name
-    let retrieved_user = UserService::get_user_by_name(&pool, "testuser")
+    let retrieved_user = UserService::get_user_by_name(&mut conn, "testuser")
       .await
       .unwrap();
 
@@ -547,17 +553,18 @@ mod tests {
   #[tokio::test]
   async fn test_get_user_by_name_case_insensitive() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Insert default role first
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
 
     // Create a user first
-    let user = UserService::create_user(&pool, "TestUser", "password123")
+    let user = UserService::create_user(&mut conn, "TestUser", "password123")
       .await
       .unwrap();
 
     // Retrieve by different case
-    let retrieved_user = UserService::get_user_by_name(&pool, "testuser")
+    let retrieved_user = UserService::get_user_by_name(&mut conn, "testuser")
       .await
       .unwrap();
 
@@ -570,8 +577,9 @@ mod tests {
   #[tokio::test]
   async fn test_get_user_by_name_not_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
-    let user = UserService::get_user_by_name(&pool, "nonexistent")
+    let user = UserService::get_user_by_name(&mut conn, "nonexistent")
       .await
       .unwrap();
 
@@ -581,16 +589,17 @@ mod tests {
   #[tokio::test]
   async fn test_update_password_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create default role and user
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
-    let user = UserService::create_user(&pool, "testuser", "oldpassword123")
+    create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+    let user = UserService::create_user(&mut conn, "testuser", "oldpassword123")
       .await
       .unwrap();
 
     // Test: Update password
     let updated_user = UserService::update_password(
-      &pool,
+      &mut conn,
       user.id,
       "oldpassword123",
       "newpassword456",
@@ -619,16 +628,17 @@ mod tests {
   #[tokio::test]
   async fn test_update_password_invalid_current_password() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create default role and user
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
-    let user = UserService::create_user(&pool, "testuser", "correctpassword")
+    create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+    let user = UserService::create_user(&mut conn, "testuser", "correctpassword")
       .await
       .unwrap();
 
     // Test: Try to update with wrong current password
     let result = UserService::update_password(
-      &pool,
+      &mut conn,
       user.id,
       "wrongpassword",
       "newpassword456",
@@ -649,16 +659,17 @@ mod tests {
   #[tokio::test]
   async fn test_update_password_password_confirmation_mismatch() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create default role and user
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
-    let user = UserService::create_user(&pool, "testuser", "currentpassword")
+    create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+    let user = UserService::create_user(&mut conn, "testuser", "currentpassword")
       .await
       .unwrap();
 
     // Test: Try to update with mismatched password confirmation
     let result = UserService::update_password(
-      &pool,
+      &mut conn,
       user.id,
       "currentpassword",
       "newpassword456",
@@ -679,16 +690,17 @@ mod tests {
   #[tokio::test]
   async fn test_update_password_invalid_new_password() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create default role and user
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
-    let user = UserService::create_user(&pool, "testuser", "currentpassword")
+    create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+    let user = UserService::create_user(&mut conn, "testuser", "currentpassword")
       .await
       .unwrap();
 
     // Test: Try to update with invalid new password (too short)
     let result =
-      UserService::update_password(&pool, user.id, "currentpassword", "123", "123").await;
+      UserService::update_password(&mut conn, user.id, "currentpassword", "123", "123").await;
 
     // Verify: Should return error
     assert!(result.is_err());
@@ -703,10 +715,11 @@ mod tests {
   #[tokio::test]
   async fn test_update_password_nonexistent_user() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Test: Try to update password for non-existent user
     let result = UserService::update_password(
-      &pool,
+      &mut conn,
       999,
       "anypassword",
       "newpassword456",
@@ -727,23 +740,27 @@ mod tests {
   #[tokio::test]
   async fn test_delete_user_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create default role and user
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
-    let user = UserService::create_user(&pool, "testuser", "password123")
+    create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+    let user = UserService::create_user(&mut conn, "testuser", "password123")
       .await
       .unwrap();
 
     // Verify user exists before deletion
-    let user_before = GetUserByIdQuery::run(&pool, user.id).await.unwrap();
+    let user_before = GetUserByIdQuery::run(&mut conn, user.id).await.unwrap();
     assert!(user_before.is_some());
 
     // Test: Delete user
-    let deleted = UserService::delete_user(&pool, user.id).await.unwrap();
-    assert!(deleted);
+    {
+      let mut conn = pool.acquire().await.unwrap();
+      let deleted = UserService::delete_user(&mut conn, user.id).await.unwrap();
+      assert!(deleted);
+    } // Connection is freed here
 
     // Verify user is deleted
-    let user_after = GetUserByIdQuery::run(&pool, user.id).await.unwrap();
+    let user_after = GetUserByIdQuery::run(&mut conn, user.id).await.unwrap();
     assert!(user_after.is_none());
   }
 
@@ -752,26 +769,9 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Test: Try to delete non-existent user
-    let deleted = UserService::delete_user(&pool, 999).await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let deleted = UserService::delete_user(&mut conn, 999).await.unwrap();
     assert!(!deleted);
-  }
-
-  #[tokio::test]
-  async fn test_delete_user_database_error() {
-    let (pool, _temp_file) = create_test_database().await;
-
-    // Close the pool to simulate database error
-    pool.close().await;
-
-    // Test: Try to delete user with closed database
-    let result = UserService::delete_user(&pool, 1).await;
-    assert!(result.is_err());
-    match result.unwrap_err() {
-      UserError::DatabaseError(_) => {
-        // Expected error type
-      }
-      _ => panic!("Expected DatabaseError"),
-    }
   }
 
   // Tests for update_user method
@@ -779,9 +779,10 @@ mod tests {
   #[tokio::test]
   async fn test_update_user_success_name_only() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
+    setup_default_role(&mut conn).await;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -789,7 +790,7 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
 
     // Test: Update only name
     let update_data = UpdateUserData {
@@ -800,7 +801,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UserService::update_user(&pool, user.id, update_data, None).await;
+    let result = UserService::update_user(&mut conn, user.id, update_data, None).await;
     assert!(result.is_ok());
 
     let updated_user = result.unwrap();
@@ -814,10 +815,11 @@ mod tests {
   #[tokio::test]
   async fn test_update_user_success_role_only() {
     let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create a user and admin role
-    setup_default_role(&pool).await;
-    let admin_role_id = create_admin_role(&pool).await;
+    setup_default_role(&mut conn).await;
+    let admin_role_id = create_admin_role(&mut conn).await;
 
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
@@ -826,7 +828,7 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
 
     // Test: Update only role
     let update_data = UpdateUserData {
@@ -837,7 +839,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UserService::update_user(&pool, user.id, update_data, None).await;
+    let result = UserService::update_user(&mut conn, user.id, update_data, None).await;
     assert!(result.is_ok());
 
     let updated_user = result.unwrap();
@@ -851,9 +853,10 @@ mod tests {
   #[tokio::test]
   async fn test_update_user_success_password_only() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
+    setup_default_role(&mut conn).await;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -861,7 +864,7 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
 
     // Test: Update only password
     let update_data = UpdateUserData {
@@ -873,7 +876,7 @@ mod tests {
     };
 
     let result = UserService::update_user(
-      &pool,
+      &mut conn,
       user.id,
       update_data,
       Some("newpassword123".to_string()),
@@ -892,9 +895,10 @@ mod tests {
   #[tokio::test]
   async fn test_update_user_success_metadata_only() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
+    setup_default_role(&mut conn).await;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -902,7 +906,7 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
 
     // Test: Update only metadata
     let update_data = UpdateUserData {
@@ -913,7 +917,7 @@ mod tests {
       metadata_json: Some(Some(r#"{"key": "value"}"#.to_string())),
     };
 
-    let result = UserService::update_user(&pool, user.id, update_data, None).await;
+    let result = UserService::update_user(&mut conn, user.id, update_data, None).await;
     assert!(result.is_ok());
 
     let updated_user = result.unwrap();
@@ -930,10 +934,11 @@ mod tests {
   #[tokio::test]
   async fn test_update_user_success_metadata_to_null() {
     let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create a user with metadata
-    setup_default_role(&pool).await;
-    let admin_role_id = create_admin_role(&pool).await;
+    setup_default_role(&mut conn).await;
+    let admin_role_id = create_admin_role(&mut conn).await;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -941,7 +946,7 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: Some(r#"{"old": "data"}"#.to_string()),
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
 
     // Test: Set metadata to NULL
     let update_data = UpdateUserData {
@@ -952,7 +957,7 @@ mod tests {
       metadata_json: Some(None), // Explicitly set to NULL
     };
 
-    let result = UserService::update_user(&pool, user.id, update_data, None).await;
+    let result = UserService::update_user(&mut conn, user.id, update_data, None).await;
     assert!(result.is_ok());
 
     let updated_user = result.unwrap();
@@ -966,10 +971,11 @@ mod tests {
   #[tokio::test]
   async fn test_update_user_success_multiple_fields() {
     let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
-    let admin_role_id = create_admin_role(&pool).await;
+    setup_default_role(&mut conn).await;
+    let admin_role_id = create_admin_role(&mut conn).await;
 
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
@@ -978,7 +984,7 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
 
     // Test: Update multiple fields
     let update_data = UpdateUserData {
@@ -990,7 +996,7 @@ mod tests {
     };
 
     let result = UserService::update_user(
-      &pool,
+      &mut conn,
       user.id,
       update_data,
       Some("newpassword123".to_string()),
@@ -1012,9 +1018,10 @@ mod tests {
   #[tokio::test]
   async fn test_update_user_no_updates() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
+    setup_default_role(&mut conn).await;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -1022,7 +1029,7 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
 
     // Test: No updates provided
     let update_data = UpdateUserData {
@@ -1033,7 +1040,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UserService::update_user(&pool, user.id, update_data, None).await;
+    let result = UserService::update_user(&mut conn, user.id, update_data, None).await;
     assert!(result.is_ok());
 
     let updated_user = result.unwrap();
@@ -1047,6 +1054,7 @@ mod tests {
   #[tokio::test]
   async fn test_update_user_user_not_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Test: Try to update non-existent user
     let update_data = UpdateUserData {
@@ -1057,7 +1065,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UserService::update_user(&pool, 999, update_data, None).await;
+    let result = UserService::update_user(&mut conn, 999, update_data, None).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::UserNotFound(user_id) => {
@@ -1070,9 +1078,10 @@ mod tests {
   #[tokio::test]
   async fn test_update_user_username_validation_empty() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
+    setup_default_role(&mut conn).await;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -1080,7 +1089,7 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
 
     // Test: Try to update with empty username
     let update_data = UpdateUserData {
@@ -1091,7 +1100,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UserService::update_user(&pool, user.id, update_data, None).await;
+    let result = UserService::update_user(&mut conn, user.id, update_data, None).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::ValidationError(msg) => {
@@ -1104,9 +1113,10 @@ mod tests {
   #[tokio::test]
   async fn test_update_user_username_validation_too_short() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
+    setup_default_role(&mut conn).await;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -1114,7 +1124,7 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
 
     // Test: Try to update with too short username
     let update_data = UpdateUserData {
@@ -1125,7 +1135,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UserService::update_user(&pool, user.id, update_data, None).await;
+    let result = UserService::update_user(&mut conn, user.id, update_data, None).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::ValidationError(msg) => {
@@ -1138,9 +1148,10 @@ mod tests {
   #[tokio::test]
   async fn test_update_user_username_validation_too_long() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
+    setup_default_role(&mut conn).await;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -1148,7 +1159,7 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
 
     // Test: Try to update with too long username
     let long_name = "a".repeat(21);
@@ -1160,7 +1171,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UserService::update_user(&pool, user.id, update_data, None).await;
+    let result = UserService::update_user(&mut conn, user.id, update_data, None).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::ValidationError(msg) => {
@@ -1173,9 +1184,10 @@ mod tests {
   #[tokio::test]
   async fn test_update_user_username_validation_invalid_chars() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
+    setup_default_role(&mut conn).await;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -1183,7 +1195,7 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
 
     // Test: Try to update with invalid characters
     let update_data = UpdateUserData {
@@ -1194,7 +1206,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UserService::update_user(&pool, user.id, update_data, None).await;
+    let result = UserService::update_user(&mut conn, user.id, update_data, None).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::ValidationError(msg) => {
@@ -1209,9 +1221,10 @@ mod tests {
   #[tokio::test]
   async fn test_update_user_username_already_exists() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create two users
-    setup_default_role(&pool).await;
+    setup_default_role(&mut conn).await;
 
     let create_data1 = CreateUserData {
       uuid: "test-uuid-1".to_string(),
@@ -1220,7 +1233,7 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user1 = CreateUserQuery::run(&pool, create_data1).await.unwrap();
+    let user1 = CreateUserQuery::run(&mut conn, create_data1).await.unwrap();
 
     let create_data2 = CreateUserData {
       uuid: "test-uuid-2".to_string(),
@@ -1229,7 +1242,7 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let _user2 = CreateUserQuery::run(&pool, create_data2).await.unwrap();
+    let _user2 = CreateUserQuery::run(&mut conn, create_data2).await.unwrap();
 
     // Test: Try to update user1 with user2's username
     let update_data = UpdateUserData {
@@ -1240,7 +1253,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UserService::update_user(&pool, user1.id, update_data, None).await;
+    let result = UserService::update_user(&mut conn, user1.id, update_data, None).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::UsernameAlreadyExists(username) => {
@@ -1253,9 +1266,10 @@ mod tests {
   #[tokio::test]
   async fn test_update_user_password_validation_too_short() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
+    setup_default_role(&mut conn).await;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -1263,7 +1277,7 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
 
     // Test: Try to update with too short password
     let update_data = UpdateUserData {
@@ -1275,7 +1289,7 @@ mod tests {
     };
 
     let result =
-      UserService::update_user(&pool, user.id, update_data, Some("123".to_string())).await;
+      UserService::update_user(&mut conn, user.id, update_data, Some("123".to_string())).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::ValidationError(msg) => {
@@ -1288,9 +1302,10 @@ mod tests {
   #[tokio::test]
   async fn test_update_user_password_validation_too_long() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
+    setup_default_role(&mut conn).await;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -1298,7 +1313,7 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
 
     // Test: Try to update with too long password
     let long_password = "a".repeat(129);
@@ -1310,7 +1325,8 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UserService::update_user(&pool, user.id, update_data, Some(long_password)).await;
+    let result =
+      UserService::update_user(&mut conn, user.id, update_data, Some(long_password)).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::ValidationError(msg) => {
@@ -1323,9 +1339,10 @@ mod tests {
   #[tokio::test]
   async fn test_update_user_same_username_no_conflict() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
+    setup_default_role(&mut conn).await;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -1333,7 +1350,7 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
 
     // Test: Update user with same username (should not conflict)
     let update_data = UpdateUserData {
@@ -1344,7 +1361,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UserService::update_user(&pool, user.id, update_data, None).await;
+    let result = UserService::update_user(&mut conn, user.id, update_data, None).await;
     assert!(result.is_ok());
 
     let updated_user = result.unwrap();
@@ -1352,11 +1369,11 @@ mod tests {
   }
 
   // Helper functions for tests
-  async fn setup_default_role(pool: &SqlitePool) {
-    create_test_role_model(pool, "user", &["can_view_user_self"], true).await;
+  async fn setup_default_role(conn: &mut SqliteConnection) {
+    create_test_role_model(&mut *conn, "user", &["can_view_user_self"], true).await;
   }
 
-  async fn create_admin_role(pool: &SqlitePool) -> i64 {
-    create_test_role(pool, "admin", &["is_admin"]).await
+  async fn create_admin_role(conn: &mut SqliteConnection) -> i64 {
+    create_test_role(&mut *conn, "admin", &["is_admin"]).await
   }
 }

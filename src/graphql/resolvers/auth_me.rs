@@ -108,6 +108,7 @@ impl AuthMeResolver {
   #[graphql(name = "authMe")]
   async fn auth_me(&self, ctx: &Context<'_>) -> Result<Option<AuthMeResponse>> {
     let pool = ctx.data::<sqlx::SqlitePool>()?;
+    let mut conn = pool.acquire().await?;
 
     // Try to get session context, but don't fail if it's missing
     let session_context = match SessionContext::from_context(ctx) {
@@ -116,7 +117,7 @@ impl AuthMeResolver {
     };
 
     match &session_context.payload {
-      Some(_payload) => match AuthService::get_current_user(pool, session_context).await {
+      Some(_payload) => match AuthService::get_current_user(&mut conn, session_context).await {
         Ok(auth_me_result) => Ok(Some(AuthMeResponse {
           user_id: auth_me_result.user_id,
           uuid: auth_me_result.uuid,
@@ -159,15 +160,19 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a test user
-    let user = create_test_user_full(
-      &pool,
-      "testuser",
-      None, // Will create and use default role
-      "test_password",
-      None,
-    )
-    .await;
-    let user_id = user.id;
+    let user_id = {
+      let mut conn = pool.acquire().await.unwrap();
+
+      let user = create_test_user_full(
+        &mut conn,
+        "testuser",
+        None, // Will create and use default role
+        "test_password",
+        None,
+      )
+      .await;
+      user.id
+    }; // Connection released here
 
     let query = AuthMeResolver;
     let payload = ServiceSessionPayload {

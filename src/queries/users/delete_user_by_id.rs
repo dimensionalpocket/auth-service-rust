@@ -1,12 +1,12 @@
-use sqlx::SqlitePool;
+use sqlx::sqlite::SqliteConnection;
 
 pub struct DeleteUserByIdQuery;
 
 impl DeleteUserByIdQuery {
-  pub async fn run(pool: &SqlitePool, user_id: i64) -> Result<bool, sqlx::Error> {
+  pub async fn run(conn: &mut SqliteConnection, user_id: i64) -> Result<bool, sqlx::Error> {
     let result = sqlx::query("DELETE FROM users WHERE id = ?")
       .bind(user_id)
-      .execute(pool)
+      .execute(&mut *conn)
       .await?;
 
     Ok(result.rows_affected() > 0)
@@ -24,11 +24,13 @@ mod tests {
   async fn test_delete_user_by_id_success() {
     let (pool, _temp_file) = create_test_database().await;
 
+    let mut conn = pool.acquire().await.unwrap();
+
     // Insert test role first
     let role_result = sqlx::query(
       "INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('user', 1234567890, 1234567890, TRUE)",
     )
-    .execute(&pool)
+    .execute(&mut *conn)
     .await
     .unwrap();
     let role_id = role_result.last_insert_rowid();
@@ -40,7 +42,7 @@ mod tests {
         )
         .bind(&user_uuid)
         .bind(role_id)
-        .execute(&pool)
+        .execute(&mut *conn)
         .await
         .unwrap();
 
@@ -49,20 +51,20 @@ mod tests {
     // Verify user exists before deletion
     let user_exists = sqlx::query("SELECT COUNT(*) as count FROM users WHERE id = ?")
       .bind(user_id)
-      .fetch_one(&pool)
+      .fetch_one(&mut *conn)
       .await
       .unwrap()
       .get::<i64, _>("count");
     assert_eq!(user_exists, 1);
 
     // Delete the user
-    let deleted = DeleteUserByIdQuery::run(&pool, user_id).await.unwrap();
+    let deleted = DeleteUserByIdQuery::run(&mut conn, user_id).await.unwrap();
     assert!(deleted);
 
     // Verify user is deleted
     let user_exists = sqlx::query("SELECT COUNT(*) as count FROM users WHERE id = ?")
       .bind(user_id)
-      .fetch_one(&pool)
+      .fetch_one(&mut *conn)
       .await
       .unwrap()
       .get::<i64, _>("count");
@@ -73,8 +75,9 @@ mod tests {
   async fn test_delete_user_by_id_not_found() {
     let (pool, _temp_file) = create_test_database().await;
 
+    let mut conn = pool.acquire().await.unwrap();
     // Try to delete non-existent user
-    let deleted = DeleteUserByIdQuery::run(&pool, 999).await.unwrap();
+    let deleted = DeleteUserByIdQuery::run(&mut conn, 999).await.unwrap();
     assert!(!deleted);
   }
 
@@ -104,12 +107,13 @@ mod tests {
 
     let user_id = user_result.last_insert_rowid();
 
+    let mut conn = pool.acquire().await.unwrap();
     // First deletion should succeed
-    let deleted_first = DeleteUserByIdQuery::run(&pool, user_id).await.unwrap();
+    let deleted_first = DeleteUserByIdQuery::run(&mut conn, user_id).await.unwrap();
     assert!(deleted_first);
 
     // Second deletion should fail (user already deleted)
-    let deleted_second = DeleteUserByIdQuery::run(&pool, user_id).await.unwrap();
+    let deleted_second = DeleteUserByIdQuery::run(&mut conn, user_id).await.unwrap();
     assert!(!deleted_second);
   }
 }

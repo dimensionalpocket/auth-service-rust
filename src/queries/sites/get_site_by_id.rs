@@ -1,16 +1,16 @@
 use crate::models::Site;
-use sqlx::SqlitePool;
+use sqlx::SqliteConnection;
 
 pub struct GetSiteByIdQuery;
 
 impl GetSiteByIdQuery {
-  pub async fn run(pool: &SqlitePool, site_id: i64) -> Result<Option<Site>, sqlx::Error> {
+  pub async fn run(conn: &mut SqliteConnection, site_id: i64) -> Result<Option<Site>, sqlx::Error> {
     let site = sqlx::query_as::<_, Site>(
       "SELECT id, created_ts, updated_ts, slug, subdomain, port, protocol, metadata_json 
              FROM sites WHERE id = ?",
     )
     .bind(site_id)
-    .fetch_optional(pool)
+    .fetch_optional(&mut *conn)
     .await?;
 
     Ok(site)
@@ -26,6 +26,7 @@ mod tests {
   #[tokio::test]
   async fn test_get_site_by_id_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a test site first
     let site_data = CreateSiteData {
@@ -35,10 +36,12 @@ mod tests {
       protocol: Some("https".to_string()),
       metadata_json: Some("{\"description\": \"Test site\"}".to_string()),
     };
-    let created_site = CreateSiteQuery::run(&pool, site_data).await.unwrap();
+    let created_site = CreateSiteQuery::run(&mut conn, site_data).await.unwrap();
 
     // Test getting the site by ID
-    let retrieved_site = GetSiteByIdQuery::run(&pool, created_site.id).await.unwrap();
+    let retrieved_site = GetSiteByIdQuery::run(&mut conn, created_site.id)
+      .await
+      .unwrap();
 
     assert!(retrieved_site.is_some());
     let site = retrieved_site.unwrap();
@@ -59,9 +62,10 @@ mod tests {
   #[tokio::test]
   async fn test_get_site_by_id_not_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Test getting a non-existent site
-    let retrieved_site = GetSiteByIdQuery::run(&pool, 999).await.unwrap();
+    let retrieved_site = GetSiteByIdQuery::run(&mut conn, 999).await.unwrap();
 
     assert!(retrieved_site.is_none());
   }
@@ -69,9 +73,10 @@ mod tests {
   #[tokio::test]
   async fn test_get_site_by_id_empty_database() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Test getting a site from empty database
-    let retrieved_site = GetSiteByIdQuery::run(&pool, 1).await.unwrap();
+    let retrieved_site = GetSiteByIdQuery::run(&mut conn, 1).await.unwrap();
 
     assert!(retrieved_site.is_none());
   }
@@ -79,6 +84,7 @@ mod tests {
   #[tokio::test]
   async fn test_get_site_by_id_multiple_sites() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create multiple test sites
     let site1_data = CreateSiteData {
@@ -96,11 +102,11 @@ mod tests {
       metadata_json: Some("{\"type\": \"api\"}".to_string()),
     };
 
-    let created_site1 = CreateSiteQuery::run(&pool, site1_data).await.unwrap();
-    let created_site2 = CreateSiteQuery::run(&pool, site2_data).await.unwrap();
+    let created_site1 = CreateSiteQuery::run(&mut conn, site1_data).await.unwrap();
+    let created_site2 = CreateSiteQuery::run(&mut conn, site2_data).await.unwrap();
 
     // Test getting the first site
-    let retrieved_site1 = GetSiteByIdQuery::run(&pool, created_site1.id)
+    let retrieved_site1 = GetSiteByIdQuery::run(&mut conn, created_site1.id)
       .await
       .unwrap();
     assert!(retrieved_site1.is_some());
@@ -111,7 +117,7 @@ mod tests {
     assert_eq!(site1.metadata_json, None);
 
     // Test getting the second site
-    let retrieved_site2 = GetSiteByIdQuery::run(&pool, created_site2.id)
+    let retrieved_site2 = GetSiteByIdQuery::run(&mut conn, created_site2.id)
       .await
       .unwrap();
     assert!(retrieved_site2.is_some());
@@ -126,6 +132,7 @@ mod tests {
   #[tokio::test]
   async fn test_get_site_by_id_with_null_fields() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a site with null optional fields
     let site_data = CreateSiteData {
@@ -135,10 +142,12 @@ mod tests {
       protocol: None, // Will default to "https"
       metadata_json: None,
     };
-    let created_site = CreateSiteQuery::run(&pool, site_data).await.unwrap();
+    let created_site = CreateSiteQuery::run(&mut conn, site_data).await.unwrap();
 
     // Test getting the site
-    let retrieved_site = GetSiteByIdQuery::run(&pool, created_site.id).await.unwrap();
+    let retrieved_site = GetSiteByIdQuery::run(&mut conn, created_site.id)
+      .await
+      .unwrap();
 
     assert!(retrieved_site.is_some());
     let site = retrieved_site.unwrap();

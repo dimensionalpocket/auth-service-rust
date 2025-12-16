@@ -1,15 +1,15 @@
 use crate::models::Role;
-use sqlx::{Row, SqlitePool};
+use sqlx::{Row, SqliteConnection};
 
 pub struct GetRoleByNameQuery;
 
 impl GetRoleByNameQuery {
-  pub async fn run(pool: &SqlitePool, name: &str) -> Result<Option<Role>, sqlx::Error> {
+  pub async fn run(conn: &mut SqliteConnection, name: &str) -> Result<Option<Role>, sqlx::Error> {
     let row = sqlx::query(
       "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE name = ?",
     )
     .bind(name)
-    .fetch_optional(pool)
+    .fetch_optional(&mut *conn)
     .await?;
 
     if let Some(row) = row {
@@ -38,14 +38,15 @@ mod tests {
   #[tokio::test]
   async fn test_get_role_by_name_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Insert test role
     sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE)")
-      .execute(&pool)
+      .execute(&mut *conn)
       .await
       .unwrap();
 
-    let role = GetRoleByNameQuery::run(&pool, "admin").await.unwrap();
+    let role = GetRoleByNameQuery::run(&mut conn, "admin").await.unwrap();
 
     assert!(role.is_some());
     let role = role.unwrap();
@@ -57,8 +58,11 @@ mod tests {
   #[tokio::test]
   async fn test_get_role_by_name_not_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
-    let role = GetRoleByNameQuery::run(&pool, "nonexistent").await.unwrap();
+    let role = GetRoleByNameQuery::run(&mut conn, "nonexistent")
+      .await
+      .unwrap();
 
     assert!(role.is_none());
   }
@@ -66,12 +70,13 @@ mod tests {
   #[tokio::test]
   async fn test_get_role_by_name_case_sensitive() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Insert test role
-    create_test_role_model(&pool, "admin", &["is_admin"], false).await;
+    create_test_role_model(&mut conn, "admin", &["is_admin"], false).await;
 
     // Should not find with different case
-    let role = GetRoleByNameQuery::run(&pool, "ADMIN").await.unwrap();
+    let role = GetRoleByNameQuery::run(&mut conn, "ADMIN").await.unwrap();
     assert!(role.is_none());
   }
 }

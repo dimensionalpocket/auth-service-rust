@@ -13,6 +13,7 @@ use crate::models::{Role, User};
 use crate::queries::roles::{CreateRoleData, CreateRoleQuery, GetDefaultRoleQuery};
 use crate::queries::users::{CreateUserData, CreateUserQuery};
 use crate::services::password_service::PasswordService;
+use sqlx::SqliteConnection;
 use sqlx::SqlitePool;
 use tempfile::NamedTempFile;
 use uuid::Uuid;
@@ -76,23 +77,23 @@ pub async fn create_test_database_with_config_and_pool_size(
 }
 
 /// Create a test user with default password
-pub async fn create_test_user(pool: &SqlitePool, username: &str, role_id: i64) -> User {
-  create_test_user_with_password(pool, username, role_id, "password123").await
+pub async fn create_test_user(conn: &mut SqliteConnection, username: &str, role_id: i64) -> User {
+  create_test_user_with_password(&mut *conn, username, role_id, "password123").await
 }
 
 /// Create a test user with custom password
 pub async fn create_test_user_with_password(
-  pool: &SqlitePool,
+  conn: &mut SqliteConnection,
   username: &str,
   role_id: i64,
   password: &str,
 ) -> User {
-  create_test_user_full(pool, username, Some(role_id), password, None).await
+  create_test_user_full(&mut *conn, username, Some(role_id), password, None).await
 }
 
 /// Create a test user with all parameters
 pub async fn create_test_user_full(
-  pool: &SqlitePool,
+  conn: &mut SqliteConnection,
   username: &str,
   role_id: Option<i64>,
   password: &str,
@@ -100,12 +101,12 @@ pub async fn create_test_user_full(
 ) -> User {
   // If no role_id specified, ensure a default role exists
   let final_role_id = if role_id.is_none() {
-    match GetDefaultRoleQuery::run(pool).await.unwrap() {
+    match GetDefaultRoleQuery::run(&mut *conn).await.unwrap() {
       Some(default_role) => Some(default_role.id),
       None => {
         // Create a default role if none exists
         Some(
-          create_test_role_model(pool, "user", &["can_view_user_self"], true)
+          create_test_role_model(conn, "user", &["can_view_user_self"], true)
             .await
             .id,
         )
@@ -124,12 +125,12 @@ pub async fn create_test_user_full(
     password_hash,
     metadata_json: metadata_json_str,
   };
-  CreateUserQuery::run(pool, create_data).await.unwrap()
+  CreateUserQuery::run(&mut *conn, create_data).await.unwrap()
 }
 
 /// Create a test user with all parameters including specific UUID
 pub async fn create_test_user_with_uuid(
-  pool: &SqlitePool,
+  conn: &mut SqliteConnection,
   uuid: &str,
   username: &str,
   role_id: Option<i64>,
@@ -138,12 +139,12 @@ pub async fn create_test_user_with_uuid(
 ) -> User {
   // If no role_id specified, ensure a default role exists
   let final_role_id = if role_id.is_none() {
-    match GetDefaultRoleQuery::run(pool).await.unwrap() {
+    match GetDefaultRoleQuery::run(&mut *conn).await.unwrap() {
       Some(default_role) => Some(default_role.id),
       None => {
         // Create a default role if none exists
         Some(
-          create_test_role_model(pool, "user", &["can_view_user_self"], true)
+          create_test_role_model(conn, "user", &["can_view_user_self"], true)
             .await
             .id,
         )
@@ -162,18 +163,22 @@ pub async fn create_test_user_with_uuid(
     password_hash,
     metadata_json: metadata_json_str,
   };
-  CreateUserQuery::run(pool, create_data).await.unwrap()
+  CreateUserQuery::run(&mut *conn, create_data).await.unwrap()
 }
 
 /// Create a test role and return ID
-pub async fn create_test_role(pool: &SqlitePool, name: &str, permissions: &[&str]) -> i64 {
-  let role = create_test_role_model(pool, name, permissions, false).await;
+pub async fn create_test_role(
+  conn: &mut SqliteConnection,
+  name: &str,
+  permissions: &[&str],
+) -> i64 {
+  let role = create_test_role_model(&mut *conn, name, permissions, false).await;
   role.id
 }
 
 /// Create a test role and return full Role model
 pub async fn create_test_role_model(
-  pool: &SqlitePool,
+  conn: &mut SqliteConnection,
   name: &str,
   permissions: &[&str],
   is_default: bool,
@@ -183,7 +188,7 @@ pub async fn create_test_role_model(
     permissions: permissions.iter().map(|&p| p.to_string()).collect(),
     is_default,
   };
-  CreateRoleQuery::run(pool, create_data).await.unwrap()
+  CreateRoleQuery::run(&mut *conn, create_data).await.unwrap()
 }
 
 /// Create a test user via GraphQL mutation (for integration tests)
@@ -298,16 +303,17 @@ mod tests {
   #[tokio::test]
   async fn test_create_test_user_no_role() {
     let (pool, _tmp) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create user without role (will create and use default role automatically)
-    let user = create_test_user_full(&pool, "testuser", None, "password123", None).await;
+    let user = create_test_user_full(&mut conn, "testuser", None, "password123", None).await;
 
     assert_eq!(user.name, "testuser");
     // Should have the default role ID (created automatically)
     assert!(user.role_id > 0);
 
     // Verify that default role is created automatically
-    let default_role = GetDefaultRoleQuery::run(&pool).await.unwrap().unwrap();
+    let default_role = GetDefaultRoleQuery::run(&mut conn).await.unwrap().unwrap();
     assert_eq!(user.role_id, default_role.id);
     assert_eq!(default_role.name, "user");
     assert!(default_role.is_default);
@@ -316,11 +322,12 @@ mod tests {
   #[tokio::test]
   async fn test_create_test_user_custom_password() {
     let (pool, _tmp) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
-    let role_id = create_test_role(&pool, "test_role", &["can_view_user_self"]).await;
+    let role_id = create_test_role(&mut conn, "test_role", &["can_view_user_self"]).await;
 
     // Create user with custom password
-    let user = create_test_user_with_password(&pool, "testuser", role_id, "custompass").await;
+    let user = create_test_user_with_password(&mut conn, "testuser", role_id, "custompass").await;
 
     assert_eq!(user.name, "testuser");
     assert_eq!(user.role_id, role_id);
@@ -329,13 +336,14 @@ mod tests {
   #[tokio::test]
   async fn test_create_test_user_full() {
     let (pool, _tmp) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
-    let role_id = create_test_role(&pool, "test_role", &["can_view_user_self"]).await;
+    let role_id = create_test_role(&mut conn, "test_role", &["can_view_user_self"]).await;
     let metadata = serde_json::json!({"key": "value"});
 
     // Create user with all parameters
     let user = create_test_user_full(
-      &pool,
+      &mut conn,
       "testuser",
       Some(role_id),
       "password123",
@@ -351,10 +359,11 @@ mod tests {
   #[tokio::test]
   async fn test_create_test_role_id() {
     let (pool, _tmp) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create role and get ID
     let role_id = create_test_role(
-      &pool,
+      &mut conn,
       "test_role",
       &["can_view_user_self", "can_list_users"],
     )
@@ -366,10 +375,11 @@ mod tests {
   #[tokio::test]
   async fn test_create_test_role_model() {
     let (pool, _tmp) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create role and get full model
     let role = create_test_role_model(
-      &pool,
+      &mut conn,
       "test_role",
       &["can_view_user_self", "can_list_users"],
       true,
@@ -386,9 +396,10 @@ mod tests {
   #[tokio::test]
   async fn test_create_test_role_empty_permissions() {
     let (pool, _tmp) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create role with no permissions
-    let role = create_test_role_model(&pool, "empty_role", &[], false).await;
+    let role = create_test_role_model(&mut conn, "empty_role", &[], false).await;
 
     assert_eq!(role.name, "empty_role");
     assert!(!role.is_default);
@@ -398,9 +409,10 @@ mod tests {
   #[tokio::test]
   async fn test_create_test_role_all_permissions() {
     let (pool, _tmp) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create role with all available permissions
-    let role = create_test_role_model(&pool, "admin_role", ROLE_PERMISSIONS, false).await;
+    let role = create_test_role_model(&mut conn, "admin_role", ROLE_PERMISSIONS, false).await;
 
     assert_eq!(role.name, "admin_role");
     assert_eq!(role.permissions.len(), ROLE_PERMISSIONS.len());
@@ -567,6 +579,7 @@ mod tests {
     use crate::queries::users::GetUserByUuidQuery;
 
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Test data
     let test_uuid = "550e8400-e29b-41d4-a716-446655440000";
@@ -576,7 +589,7 @@ mod tests {
 
     // Create user with specific UUID
     let user = create_test_user_with_uuid(
-      &pool,
+      &mut conn,
       test_uuid,
       test_username,
       None, // Use default role
@@ -593,7 +606,7 @@ mod tests {
     assert_eq!(user.metadata_json, Some(test_metadata.to_string()));
 
     // Verify user can be retrieved by UUID
-    let retrieved_user = GetUserByUuidQuery::run(&pool, test_uuid).await.unwrap();
+    let retrieved_user = GetUserByUuidQuery::run(&mut conn, test_uuid).await.unwrap();
     assert!(retrieved_user.is_some());
     let retrieved_user = retrieved_user.unwrap();
     assert_eq!(retrieved_user.id, user.id);

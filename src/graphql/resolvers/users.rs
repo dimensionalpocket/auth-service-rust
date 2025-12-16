@@ -90,18 +90,24 @@ mod tests {
   async fn test_users_success() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create roles
-    let admin_role_id = create_test_role(&pool, "admin", &["can_list_users"]).await;
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
+    // Setup: Create admin user
+    let admin_user_id = {
+      let mut conn = pool.acquire().await.unwrap();
 
-    // Create users
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
-    let _regular_user = create_test_user(&pool, "user1", user_role_id).await;
-    let _another_user = create_test_user(&pool, "user2", user_role_id).await;
+      // Create roles
+      let admin_role_id = create_test_role(&mut conn, "admin", &["can_list_users"]).await;
+      let user_role_id = create_test_role(&mut conn, "user", &[]).await;
+
+      // Create users
+      let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
+      let _regular_user = create_test_user(&mut conn, "user1", user_role_id).await;
+      let _another_user = create_test_user(&mut conn, "user2", user_role_id).await;
+      admin_user.id
+    }; // Connection released here
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user_id,
       iat: 1000,
       exp: 2000,
     };
@@ -159,15 +165,21 @@ mod tests {
   async fn test_users_forbidden() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create role without can_list_users permission
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
+    // Setup: Create regular user
+    let user_id = {
+      let mut conn = pool.acquire().await.unwrap();
 
-    // Create regular user
-    let regular_user = create_test_user(&pool, "user1", user_role_id).await;
+      // Create role without can_list_users permission
+      let user_role_id = create_test_role(&mut conn, "user", &[]).await;
+
+      // Create regular user
+      let regular_user = create_test_user(&mut conn, "user1", user_role_id).await;
+      regular_user.id
+    }; // Connection released here
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
-      sub: regular_user.id,
+      sub: user_id,
       iat: 1000,
       exp: 2000,
     };
@@ -186,13 +198,19 @@ mod tests {
   async fn test_users_empty_database() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["can_list_users"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    // Setup: Create admin user
+    let admin_user_id = {
+      let mut conn = pool.acquire().await.unwrap();
+
+      // Create admin role and user
+      let admin_role_id = create_test_role(&mut conn, "admin", &["can_list_users"]).await;
+      let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
+      admin_user.id
+    }; // Connection released here
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user_id,
       iat: 1000,
       exp: 2000,
     };

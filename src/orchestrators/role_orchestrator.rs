@@ -23,22 +23,24 @@ impl RoleOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
+    let mut conn = pool.acquire().await?;
+
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
       .await?
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
     let can_manage_roles =
-      RoleService::check_user_permission(pool, &user, "can_manage_roles").await?;
+      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?;
     let can_edit_user_role =
-      RoleService::check_user_permission(pool, &user, "can_edit_user_role").await?;
+      RoleService::check_user_permission(&mut conn, &user, "can_edit_user_role").await?;
 
     if !can_manage_roles && !can_edit_user_role {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Get all roles
-    RoleService::get_all_roles(pool).await
+    RoleService::get_all_roles(&mut conn).await
   }
 
   /// Get a role by ID with permission check
@@ -50,6 +52,7 @@ impl RoleOrchestrator {
     session_context: SessionContext,
     role_id: i64,
   ) -> Result<Role, RoleError> {
+    let mut conn = pool.acquire().await?;
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -58,19 +61,19 @@ impl RoleOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
       .await?
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
     let can_manage_roles =
-      RoleService::check_user_permission(pool, &user, "can_manage_roles").await?;
+      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?;
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Get role by ID
-    let role = RoleService::get_role_by_id(pool, role_id).await?;
+    let role = RoleService::get_role_by_id(&mut conn, role_id).await?;
     match role {
       Some(role) => Ok(role),
       None => Err(RoleError::RoleNotFound(role_id)),
@@ -87,6 +90,7 @@ impl RoleOrchestrator {
     role_id: i64,
     update_data: UpdateRoleData,
   ) -> Result<Role, RoleError> {
+    let mut conn = pool.acquire().await?;
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -95,19 +99,19 @@ impl RoleOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
       .await?
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
     let can_manage_roles =
-      RoleService::check_user_permission(pool, &user, "can_manage_roles").await?;
+      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?;
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Update role
-    RoleService::update_role(pool, role_id, update_data).await
+    RoleService::update_role(&mut conn, role_id, update_data).await
   }
 
   /// Create a role with permission check
@@ -119,6 +123,7 @@ impl RoleOrchestrator {
     session_context: SessionContext,
     create_data: CreateRoleData,
   ) -> Result<Role, RoleError> {
+    let mut conn = pool.acquire().await?;
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -127,12 +132,12 @@ impl RoleOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
       .await?
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
     let can_manage_roles =
-      RoleService::check_user_permission(pool, &user, "can_manage_roles").await?;
+      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?;
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
@@ -143,7 +148,7 @@ impl RoleOrchestrator {
       permissions: create_data.permissions,
       is_default: false,
     };
-    RoleService::create_role(pool, create_data_with_default_false).await
+    RoleService::create_role(&mut conn, create_data_with_default_false).await
   }
 
   /// Delete a role with permission check
@@ -155,6 +160,8 @@ impl RoleOrchestrator {
     session_context: SessionContext,
     role_id: i64,
   ) -> Result<Role, RoleError> {
+    let mut conn = pool.acquire().await?;
+
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -163,19 +170,20 @@ impl RoleOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
       .await?
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
     let can_manage_roles =
-      RoleService::check_user_permission(pool, &user, "can_manage_roles").await?;
+      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?;
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Delete role
-    RoleService::delete_role(pool, role_id).await
+    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+    RoleService::delete_role(&mut conn, role_id).await
   }
 
   /// Set a role as default with permission check
@@ -187,6 +195,7 @@ impl RoleOrchestrator {
     session_context: SessionContext,
     role_id: i64,
   ) -> Result<Role, RoleError> {
+    let mut conn = pool.acquire().await?;
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -195,19 +204,19 @@ impl RoleOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
       .await?
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
     let can_manage_roles =
-      RoleService::check_user_permission(pool, &user, "can_manage_roles").await?;
+      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?;
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Set default role
-    RoleService::set_default_role(pool, role_id).await
+    RoleService::set_default_role(&mut conn, role_id).await
   }
 }
 
@@ -221,14 +230,16 @@ mod tests {
   #[tokio::test]
   async fn test_get_all_roles_with_permission_check_admin_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create some roles to retrieve
-    create_test_role(&pool, "user", &["can_view_user_self"]).await;
-    create_test_role(&pool, "editor", &["can_edit_content"]).await;
+    create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
+    create_test_role(&mut conn, "editor", &["can_edit_content"]).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -252,14 +263,15 @@ mod tests {
   #[tokio::test]
   async fn test_get_all_roles_with_permission_check_role_editor_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create role editor role and user
-    let role_editor_id = create_test_role(&pool, "role_editor", &["can_edit_user_role"]).await;
-    let role_editor_user = create_test_user(&pool, "role_editor", role_editor_id).await;
+    let role_editor_id = create_test_role(&mut conn, "role_editor", &["can_edit_user_role"]).await;
+    let role_editor_user = create_test_user(&mut conn, "role_editor", role_editor_id).await;
 
     // Create some roles to retrieve
-    create_test_role(&pool, "user", &["can_view_user_self"]).await;
-    create_test_role(&pool, "editor", &["can_edit_content"]).await;
+    create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
+    create_test_role(&mut conn, "editor", &["can_edit_content"]).await;
 
     // Create session context for role editor user
     let session_payload = DpsAuthSessionPayload {
@@ -326,10 +338,11 @@ mod tests {
   #[tokio::test]
   async fn test_get_all_roles_with_permission_check_forbidden() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create user role without required permissions
-    let user_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    let user_role_id = create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
+    let regular_user = create_test_user(&mut conn, "user", user_role_id).await;
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -354,10 +367,12 @@ mod tests {
   #[tokio::test]
   async fn test_get_all_roles_with_permission_check_empty_database() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -380,13 +395,15 @@ mod tests {
   #[tokio::test]
   async fn test_get_role_by_id_with_permission_check_admin_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create a role to retrieve
-    let test_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
+    let test_role_id = create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -410,9 +427,10 @@ mod tests {
   #[tokio::test]
   async fn test_get_role_by_id_with_permission_check_unauthenticated() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a role to try to retrieve
-    let test_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
+    let test_role_id = create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
 
     // Create session context without user (not authenticated)
     let session_context = SessionContext::new(None);
@@ -433,9 +451,10 @@ mod tests {
   #[tokio::test]
   async fn test_get_role_by_id_with_permission_check_nonexistent_user() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a role to try to retrieve
-    let test_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
+    let test_role_id = create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
 
     // Create session context for non-existent user
     let session_payload = DpsAuthSessionPayload {
@@ -461,13 +480,14 @@ mod tests {
   #[tokio::test]
   async fn test_get_role_by_id_with_permission_check_forbidden() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create user role without required permissions
-    let user_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    let user_role_id = create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
+    let regular_user = create_test_user(&mut conn, "user", user_role_id).await;
 
     // Create a role to try to retrieve
-    let test_role_id = create_test_role(&pool, "editor", &["can_edit_content"]).await;
+    let test_role_id = create_test_role(&mut conn, "editor", &["can_edit_content"]).await;
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -493,10 +513,12 @@ mod tests {
   #[tokio::test]
   async fn test_get_role_by_id_with_permission_check_not_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -521,13 +543,15 @@ mod tests {
   #[tokio::test]
   async fn test_update_role_with_permission_check_admin_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create a role to update
-    let test_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
+    let test_role_id = create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -568,14 +592,20 @@ mod tests {
   #[tokio::test]
   async fn test_update_role_with_permission_check_partial_update() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create a role to update
-    let test_role_id =
-      create_test_role(&pool, "editor", &["can_edit_content", "can_view_content"]).await;
+    let test_role_id = create_test_role(
+      &mut conn,
+      "editor",
+      &["can_edit_content", "can_view_content"],
+    )
+    .await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -613,9 +643,10 @@ mod tests {
   #[tokio::test]
   async fn test_update_role_with_permission_check_unauthenticated() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a role to try to update
-    let test_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
+    let test_role_id = create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
 
     // Create session context without user (not authenticated)
     let session_context = SessionContext::new(None);
@@ -646,9 +677,10 @@ mod tests {
   #[tokio::test]
   async fn test_update_role_with_permission_check_nonexistent_user() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a role to try to update
-    let test_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
+    let test_role_id = create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
 
     // Create session context for non-existent user
     let session_payload = DpsAuthSessionPayload {
@@ -684,13 +716,14 @@ mod tests {
   #[tokio::test]
   async fn test_update_role_with_permission_check_forbidden() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create user role without required permissions
-    let user_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    let user_role_id = create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
+    let regular_user = create_test_user(&mut conn, "user", user_role_id).await;
 
     // Create a role to try to update
-    let test_role_id = create_test_role(&pool, "editor", &["can_edit_content"]).await;
+    let test_role_id = create_test_role(&mut conn, "editor", &["can_edit_content"]).await;
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -726,10 +759,12 @@ mod tests {
   #[tokio::test]
   async fn test_update_role_with_permission_check_not_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -761,13 +796,15 @@ mod tests {
   #[tokio::test]
   async fn test_update_role_with_permission_check_invalid_permission() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create a role to update
-    let test_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
+    let test_role_id = create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -804,13 +841,15 @@ mod tests {
   #[tokio::test]
   async fn test_update_role_with_permission_check_empty_permissions() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create a role to update
-    let test_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
+    let test_role_id = create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -846,10 +885,12 @@ mod tests {
   #[tokio::test]
   async fn test_create_role_with_permission_check_admin_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -889,10 +930,12 @@ mod tests {
   #[tokio::test]
   async fn test_create_role_with_permission_check_empty_permissions() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -980,10 +1023,11 @@ mod tests {
   #[tokio::test]
   async fn test_create_role_with_permission_check_forbidden() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create user role without required permissions
-    let user_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    let user_role_id = create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
+    let regular_user = create_test_user(&mut conn, "user", user_role_id).await;
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -1015,10 +1059,12 @@ mod tests {
   #[tokio::test]
   async fn test_create_role_with_permission_check_validation_error() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -1051,10 +1097,12 @@ mod tests {
   #[tokio::test]
   async fn test_create_role_with_permission_check_invalid_permission() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -1087,13 +1135,15 @@ mod tests {
   #[tokio::test]
   async fn test_create_role_with_permission_check_duplicate_name() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create an existing role first
-    create_test_role(&pool, "existing_role", &["can_view_user_self"]).await;
+    create_test_role(&mut conn, "existing_role", &["can_view_user_self"]).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -1126,10 +1176,12 @@ mod tests {
   #[tokio::test]
   async fn test_create_role_with_permission_check_all_valid_permissions() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -1175,13 +1227,15 @@ mod tests {
   #[tokio::test]
   async fn test_delete_role_with_permission_check_admin_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create a role to delete
-    let test_role_id = create_test_role(&pool, "test_role", &["can_view_user_self"]).await;
+    let test_role_id = create_test_role(&mut conn, "test_role", &["can_view_user_self"]).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -1201,7 +1255,7 @@ mod tests {
     assert_eq!(deleted_role.name, "test_role");
 
     // Verify role is actually deleted
-    let check_result = RoleService::get_role_by_id(&pool, test_role_id).await;
+    let check_result = RoleService::get_role_by_id(&mut conn, test_role_id).await;
     assert!(check_result.is_ok());
     assert!(check_result.unwrap().is_none());
   }
@@ -1209,9 +1263,10 @@ mod tests {
   #[tokio::test]
   async fn test_delete_role_with_permission_check_unauthenticated() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a role to try to delete
-    let test_role_id = create_test_role(&pool, "test_role", &["can_view_user_self"]).await;
+    let test_role_id = create_test_role(&mut conn, "test_role", &["can_view_user_self"]).await;
 
     // Create session context without user (not authenticated)
     let session_context = SessionContext::new(None);
@@ -1232,9 +1287,10 @@ mod tests {
   #[tokio::test]
   async fn test_delete_role_with_permission_check_nonexistent_user() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a role to try to delete
-    let test_role_id = create_test_role(&pool, "test_role", &["can_view_user_self"]).await;
+    let test_role_id = create_test_role(&mut conn, "test_role", &["can_view_user_self"]).await;
 
     // Create session context for non-existent user
     let session_payload = DpsAuthSessionPayload {
@@ -1260,13 +1316,14 @@ mod tests {
   #[tokio::test]
   async fn test_delete_role_with_permission_check_forbidden() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create user role without required permissions
-    let user_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    let user_role_id = create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
+    let regular_user = create_test_user(&mut conn, "user", user_role_id).await;
 
     // Create a role to try to delete
-    let test_role_id = create_test_role(&pool, "test_role", &["can_edit_content"]).await;
+    let test_role_id = create_test_role(&mut conn, "test_role", &["can_edit_content"]).await;
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -1292,10 +1349,12 @@ mod tests {
   #[tokio::test]
   async fn test_delete_role_with_permission_check_not_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -1320,16 +1379,18 @@ mod tests {
   #[tokio::test]
   async fn test_delete_role_with_permission_check_role_in_use() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create a role to delete
-    let test_role_id = create_test_role(&pool, "test_role", &["can_view_user_self"]).await;
+    let test_role_id = create_test_role(&mut conn, "test_role", &["can_view_user_self"]).await;
 
     // Create a user with the role to be deleted
-    let user_with_role = create_test_user(&pool, "user_with_role", test_role_id).await;
+    let user_with_role = create_test_user(&mut conn, "user_with_role", test_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -1352,12 +1413,12 @@ mod tests {
     }
 
     // Verify the user still exists and has the role
-    let check_user = GetUserByIdQuery::run(&pool, user_with_role.id).await;
+    let check_user = GetUserByIdQuery::run(&mut conn, user_with_role.id).await;
     assert!(check_user.is_ok());
     assert!(check_user.unwrap().is_some());
 
     // Verify the role still exists
-    let check_role = RoleService::get_role_by_id(&pool, test_role_id).await;
+    let check_role = RoleService::get_role_by_id(&mut conn, test_role_id).await;
     assert!(check_role.is_ok());
     assert!(check_role.unwrap().is_some());
   }
@@ -1365,21 +1426,23 @@ mod tests {
   #[tokio::test]
   async fn test_delete_role_with_permission_check_returns_deleted_data() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create a role with specific data to delete
     let test_role_id = create_test_role(
-      &pool,
+      &mut conn,
       "detailed_role",
       &["can_edit_user", "can_delete_user"],
     )
     .await;
 
     // Get the role data before deletion for comparison
-    let role_before = RoleService::get_role_by_id(&pool, test_role_id)
+    let role_before = RoleService::get_role_by_id(&mut conn, test_role_id)
       .await
       .unwrap()
       .unwrap();
@@ -1417,13 +1480,15 @@ mod tests {
   #[tokio::test]
   async fn test_set_default_role_with_permission_check_admin_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create a role to set as default
-    let test_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
+    let test_role_id = create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -1451,9 +1516,10 @@ mod tests {
   #[tokio::test]
   async fn test_set_default_role_with_permission_check_unauthenticated() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a role to try to set as default
-    let test_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
+    let test_role_id = create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
 
     // Create session context without user (not authenticated)
     let session_context = SessionContext::new(None);
@@ -1477,9 +1543,10 @@ mod tests {
   #[tokio::test]
   async fn test_set_default_role_with_permission_check_nonexistent_user() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a role to try to set as default
-    let test_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
+    let test_role_id = create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
 
     // Create session context for non-existent user
     let session_payload = DpsAuthSessionPayload {
@@ -1508,13 +1575,14 @@ mod tests {
   #[tokio::test]
   async fn test_set_default_role_with_permission_check_forbidden() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create user role without required permissions
-    let user_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    let user_role_id = create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
+    let regular_user = create_test_user(&mut conn, "user", user_role_id).await;
 
     // Create a role to try to set as default
-    let test_role_id = create_test_role(&pool, "editor", &["can_edit_content"]).await;
+    let test_role_id = create_test_role(&mut conn, "editor", &["can_edit_content"]).await;
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -1543,10 +1611,12 @@ mod tests {
   #[tokio::test]
   async fn test_set_default_role_with_permission_check_not_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -1575,15 +1645,17 @@ mod tests {
   #[tokio::test]
   async fn test_set_default_role_with_permission_check_atomic_behavior() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create multiple roles
-    let role1_id = create_test_role(&pool, "role1", &["can_view_user_self"]).await;
-    let role2_id = create_test_role(&pool, "role2", &["can_list_users"]).await;
-    let role3_id = create_test_role(&pool, "role3", &["can_manage_roles"]).await;
+    let role1_id = create_test_role(&mut conn, "role1", &["can_view_user_self"]).await;
+    let role2_id = create_test_role(&mut conn, "role2", &["can_list_users"]).await;
+    let role3_id = create_test_role(&mut conn, "role3", &["can_manage_roles"]).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -1605,7 +1677,7 @@ mod tests {
     assert!(updated_role1.is_default);
 
     // Verify only role1 is default
-    let all_roles = RoleService::get_all_roles(&pool).await.unwrap();
+    let all_roles = RoleService::get_all_roles(&mut conn).await.unwrap();
     let default_roles: Vec<_> = all_roles.iter().filter(|r| r.is_default).collect();
     assert_eq!(default_roles.len(), 1);
     assert_eq!(default_roles[0].id, role1_id);
@@ -1625,13 +1697,15 @@ mod tests {
     assert!(updated_role2.is_default);
 
     // Verify only role2 is default now
-    let all_roles = RoleService::get_all_roles(&pool).await.unwrap();
+    let all_roles = RoleService::get_all_roles(&mut conn).await.unwrap();
     let default_roles: Vec<_> = all_roles.iter().filter(|r| r.is_default).collect();
     assert_eq!(default_roles.len(), 1);
     assert_eq!(default_roles[0].id, role2_id);
 
     // Verify role1 is no longer default
-    let current_role1 = RoleService::get_role_by_id(&pool, role1_id).await.unwrap();
+    let current_role1 = RoleService::get_role_by_id(&mut conn, role1_id)
+      .await
+      .unwrap();
     assert!(current_role1.is_some());
     assert!(!current_role1.unwrap().is_default);
 
@@ -1647,13 +1721,15 @@ mod tests {
     assert!(updated_role3.is_default);
 
     // Verify only role3 is default now
-    let all_roles = RoleService::get_all_roles(&pool).await.unwrap();
+    let all_roles = RoleService::get_all_roles(&mut conn).await.unwrap();
     let default_roles: Vec<_> = all_roles.iter().filter(|r| r.is_default).collect();
     assert_eq!(default_roles.len(), 1);
     assert_eq!(default_roles[0].id, role3_id);
 
     // Verify role2 is no longer default
-    let current_role2 = RoleService::get_role_by_id(&pool, role2_id).await.unwrap();
+    let current_role2 = RoleService::get_role_by_id(&mut conn, role2_id)
+      .await
+      .unwrap();
     assert!(current_role2.is_some());
     assert!(!current_role2.unwrap().is_default);
   }
@@ -1661,16 +1737,18 @@ mod tests {
   #[tokio::test]
   async fn test_set_default_role_with_permission_check_timestamp_update() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create a role to set as default
-    let test_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
+    let test_role_id = create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
 
     // Get the role before setting as default to compare timestamps
-    let role_before = RoleService::get_role_by_id(&pool, test_role_id)
+    let role_before = RoleService::get_role_by_id(&mut conn, test_role_id)
       .await
       .unwrap()
       .unwrap();

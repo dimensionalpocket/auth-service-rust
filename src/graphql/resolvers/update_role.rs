@@ -138,20 +138,28 @@ mod tests {
   async fn test_update_role_success() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create admin role with can_manage_roles permission
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
+    // Setup: Create admin user and role
+    let (admin_user_id, role_id) = {
+      let mut conn = pool.acquire().await.unwrap();
 
-    // Create admin user
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
-    let admin_user_id = admin_user.id;
+      // Create admin role with can_manage_roles permission
+      let admin_role_id =
+        create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
 
-    // Create a role first
-    let role_id = create_test_role(
-      &pool,
-      "test-role",
-      &["can_view_user_self", "can_list_users"],
-    )
-    .await;
+      // Create admin user
+      let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
+      let admin_user_id = admin_user.id;
+
+      // Create a role first
+      let role_id = create_test_role(
+        &mut conn,
+        "test-role",
+        &["can_view_user_self", "can_list_users"],
+      )
+      .await;
+
+      (admin_user_id, role_id)
+    }; // Connection released here
 
     // Create session context for admin user
     let session_payload = ServiceSessionPayload {
@@ -207,20 +215,28 @@ mod tests {
   async fn test_update_role_partial_update() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create admin role with can_manage_roles permission
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
+    // Setup: Create admin user and role
+    let (admin_user_id, role_id) = {
+      let mut conn = pool.acquire().await.unwrap();
 
-    // Create admin user
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
-    let admin_user_id = admin_user.id;
+      // Create admin role with can_manage_roles permission
+      let admin_role_id =
+        create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
 
-    // Create a role first
-    let role_id = create_test_role(
-      &pool,
-      "partial-role",
-      &["can_view_user_self", "can_list_users"],
-    )
-    .await;
+      // Create admin user
+      let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
+      let admin_user_id = admin_user.id;
+
+      // Create a role first
+      let role_id = create_test_role(
+        &mut conn,
+        "partial-role",
+        &["can_view_user_self", "can_list_users"],
+      )
+      .await;
+
+      (admin_user_id, role_id)
+    }; // Connection released here
 
     // Create session context for admin user
     let session_payload = ServiceSessionPayload {
@@ -269,15 +285,22 @@ mod tests {
   async fn test_update_role_forbidden() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create user role without can_manage_roles permission
-    let user_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
+    // Setup: Create regular user and role
+    let (user_id, role_id) = {
+      let mut conn = pool.acquire().await.unwrap();
 
-    // Create regular user
-    let user = create_test_user(&pool, "user", user_role_id).await;
-    let user_id = user.id;
+      // Create user role without can_manage_roles permission
+      let user_role_id = create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
 
-    // Create a role first
-    let role_id = create_test_role(&pool, "test-role", &["can_view_user_self"]).await;
+      // Create regular user
+      let user = create_test_user(&mut conn, "user", user_role_id).await;
+      let user_id = user.id;
+
+      // Create a role first
+      let role_id = create_test_role(&mut conn, "test-role", &["can_view_user_self"]).await;
+
+      (user_id, role_id)
+    }; // Connection released here
 
     // Create session context for regular user
     let session_payload = ServiceSessionPayload {
@@ -333,12 +356,18 @@ mod tests {
   async fn test_update_role_not_found() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create admin role with can_manage_roles permission
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
+    // Setup: Create admin user
+    let admin_user_id = {
+      let mut conn = pool.acquire().await.unwrap();
 
-    // Create admin user
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
-    let admin_user_id = admin_user.id;
+      // Create admin role with can_manage_roles permission
+      let admin_role_id =
+        create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+
+      // Create admin user
+      let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
+      admin_user.id
+    }; // Connection released here
 
     // Create session context for admin user
     let session_payload = ServiceSessionPayload {
@@ -369,15 +398,23 @@ mod tests {
   async fn test_update_role_invalid_permission() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create admin role with can_manage_roles permission
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
+    // Setup: Create admin user and role
+    let (admin_user_id, role_id) = {
+      let mut conn = pool.acquire().await.unwrap();
 
-    // Create admin user
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
-    let admin_user_id = admin_user.id;
+      // Create admin role with can_manage_roles permission
+      let admin_role_id =
+        create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
 
-    // Create a role first
-    let role_id = create_test_role(&pool, "test-role", &["can_view_user_self"]).await;
+      // Create admin user
+      let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
+      let admin_user_id = admin_user.id;
+
+      // Create a role first
+      let role_id = create_test_role(&mut conn, "test-role", &["can_view_user_self"]).await;
+
+      (admin_user_id, role_id)
+    }; // Connection released here
 
     // Create session context for admin user
     let session_payload = ServiceSessionPayload {
@@ -411,16 +448,18 @@ mod tests {
   #[tokio::test]
   async fn test_update_role_empty_permissions() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role with can_manage_roles permission
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
 
     // Create admin user
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
     let admin_user_id = admin_user.id;
 
     // Create a role first
-    let role_id = create_test_role(&pool, "test-role", &["can_view_user_self"]).await;
+    let role_id = create_test_role(&mut conn, "test-role", &["can_view_user_self"]).await;
 
     // Create session context for admin user
     let session_payload = ServiceSessionPayload {

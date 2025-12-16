@@ -11,20 +11,21 @@ use uuid::Uuid;
 async fn test_complete_user_creation_flow() {
   // Setup test database
   let (pool, _temp_file) = create_test_database().await;
+  let mut conn = pool.acquire().await.unwrap();
 
   // Create test roles using test utilities
-  let _admin_role_id = create_test_role(&pool, "admin", &[]).await;
-  let _user_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
+  let _admin_role_id = create_test_role(&mut conn, "admin", &[]).await;
+  let _user_role_id = create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
 
   // Get user role
-  let role = GetRoleByNameQuery::run(&pool, "user")
+  let role = GetRoleByNameQuery::run(&mut conn, "user")
     .await
     .unwrap()
     .expect("Role should exist");
 
   // Create user using test utility (this tests the complete flow)
   let created_user = create_test_user_full(
-    &pool,
+    &mut conn,
     "Test User",
     Some(role.id),
     "test_password",
@@ -37,7 +38,7 @@ async fn test_complete_user_creation_flow() {
   assert_eq!(created_user.role_id, role.id);
 
   // Verify user can be retrieved by UUID
-  let retrieved_user = GetUserByUuidQuery::run(&pool, &created_user.uuid)
+  let retrieved_user = GetUserByUuidQuery::run(&mut conn, &created_user.uuid)
     .await
     .unwrap()
     .expect("User should be found");
@@ -50,13 +51,14 @@ async fn test_complete_user_creation_flow() {
 async fn test_default_roles_seeded() {
   // Setup test database
   let (pool, _temp_file) = create_test_database().await;
+  let mut conn = pool.acquire().await.unwrap();
 
   // Create test roles using test utilities to simulate seeding
-  create_test_role(&pool, "admin", &[]).await;
-  create_test_role(&pool, "user", &["can_view_user_self"]).await;
+  create_test_role(&mut conn, "admin", &[]).await;
+  create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
 
   // Verify default roles exist
-  let roles = GetAllRolesQuery::run(&pool).await.unwrap();
+  let roles = GetAllRolesQuery::run(&mut conn).await.unwrap();
 
   assert_eq!(roles.len(), 2);
 
@@ -69,6 +71,7 @@ async fn test_default_roles_seeded() {
 async fn test_foreign_key_constraint_enforced() {
   // Setup test database
   let (pool, _temp_file) = create_test_database().await;
+  let mut conn = pool.acquire().await.unwrap();
 
   // Try to create user with invalid role_id
   let user_uuid = Uuid::new_v4().to_string();
@@ -80,7 +83,7 @@ async fn test_foreign_key_constraint_enforced() {
     metadata_json: None,
   };
 
-  let result = CreateUserQuery::run(&pool, create_data).await;
+  let result = CreateUserQuery::run(&mut conn, create_data).await;
 
   // Should fail due to foreign key constraint
   assert!(result.is_err());

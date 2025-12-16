@@ -1,5 +1,5 @@
 use crate::models::{role::Role, user::User, user::UserWithRole};
-use sqlx::{Row, SqlitePool};
+use sqlx::{Row, SqliteConnection};
 
 /// Query to retrieve a single user with their role information by username
 pub struct GetUserByNameWithRoleQuery;
@@ -15,7 +15,10 @@ impl GetUserByNameWithRoleQuery {
   /// * `Ok(Some(UserWithRole))` - User found with role information
   /// * `Ok(None)` - User not found
   /// * `Err(sqlx::Error)` - Database error occurred
-  pub async fn run(pool: &SqlitePool, name: &str) -> Result<Option<UserWithRole>, sqlx::Error> {
+  pub async fn run(
+    conn: &mut SqliteConnection,
+    name: &str,
+  ) -> Result<Option<UserWithRole>, sqlx::Error> {
     let row = sqlx::query(
       r#"
       SELECT 
@@ -32,7 +35,7 @@ impl GetUserByNameWithRoleQuery {
       "#
     )
     .bind(name)
-    .fetch_optional(pool)
+    .fetch_optional(&mut *conn)
     .await?;
 
     if let Some(row) = row {
@@ -74,13 +77,14 @@ mod tests {
   #[tokio::test]
   async fn test_get_user_by_name_with_role_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create role and user
-    let role_id = create_test_role(&pool, "admin", &["can_view_user_details"]).await;
-    let user = create_test_user(&pool, "testuser", role_id).await;
+    let role_id = create_test_role(&mut conn, "admin", &["can_view_user_details"]).await;
+    let user = create_test_user(&mut conn, "testuser", role_id).await;
 
     // Query user with role
-    let result = GetUserByNameWithRoleQuery::run(&pool, "testuser")
+    let result = GetUserByNameWithRoleQuery::run(&mut conn, "testuser")
       .await
       .unwrap();
 
@@ -95,9 +99,10 @@ mod tests {
   #[tokio::test]
   async fn test_get_user_by_name_with_role_not_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Query non-existent user
-    let result = GetUserByNameWithRoleQuery::run(&pool, "nonexistent")
+    let result = GetUserByNameWithRoleQuery::run(&mut conn, "nonexistent")
       .await
       .unwrap();
 
@@ -107,19 +112,20 @@ mod tests {
   #[tokio::test]
   async fn test_get_user_by_name_with_role_case_insensitive() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create role and user
-    let role_id = create_test_role(&pool, "user", &[]).await;
-    create_test_user(&pool, "TestUser", role_id).await;
+    let role_id = create_test_role(&mut conn, "user", &[]).await;
+    create_test_user(&mut conn, "TestUser", role_id).await;
 
     // Query with different cases
-    let result_lower = GetUserByNameWithRoleQuery::run(&pool, "testuser")
+    let result_lower = GetUserByNameWithRoleQuery::run(&mut conn, "testuser")
       .await
       .unwrap();
-    let result_upper = GetUserByNameWithRoleQuery::run(&pool, "TESTUSER")
+    let result_upper = GetUserByNameWithRoleQuery::run(&mut conn, "TESTUSER")
       .await
       .unwrap();
-    let result_mixed = GetUserByNameWithRoleQuery::run(&pool, "tEsTuSeR")
+    let result_mixed = GetUserByNameWithRoleQuery::run(&mut conn, "tEsTuSeR")
       .await
       .unwrap();
 
@@ -135,13 +141,15 @@ mod tests {
   #[tokio::test]
   async fn test_get_user_by_name_with_role_permissions() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create role with permissions and user
-    let role_id = create_test_role(&pool, "admin", &["is_admin", "can_view_user_details"]).await;
-    let _user = create_test_user(&pool, "adminuser", role_id).await;
+    let role_id =
+      create_test_role(&mut conn, "admin", &["is_admin", "can_view_user_details"]).await;
+    let _user = create_test_user(&mut conn, "adminuser", role_id).await;
 
     // Query user with role
-    let result = GetUserByNameWithRoleQuery::run(&pool, "adminuser")
+    let result = GetUserByNameWithRoleQuery::run(&mut conn, "adminuser")
       .await
       .unwrap();
 

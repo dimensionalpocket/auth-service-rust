@@ -1,15 +1,15 @@
 use crate::models::Role;
-use sqlx::{Row, SqlitePool};
+use sqlx::{Row, SqliteConnection};
 
 pub struct GetRoleByIdQuery;
 
 impl GetRoleByIdQuery {
-  pub async fn run(pool: &SqlitePool, role_id: i64) -> Result<Option<Role>, sqlx::Error> {
+  pub async fn run(conn: &mut SqliteConnection, role_id: i64) -> Result<Option<Role>, sqlx::Error> {
     let row = sqlx::query(
       "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?",
     )
     .bind(role_id)
-    .fetch_optional(pool)
+    .fetch_optional(&mut *conn)
     .await?;
 
     if let Some(row) = row {
@@ -38,14 +38,15 @@ mod tests {
   #[tokio::test]
   async fn test_get_role_by_id_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Insert test role
     let role_id = sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE)")
-      .execute(&pool)
+      .execute(&mut *conn)
       .await
       .unwrap()
       .last_insert_rowid();
-    let role = GetRoleByIdQuery::run(&pool, role_id).await.unwrap();
+    let role = GetRoleByIdQuery::run(&mut conn, role_id).await.unwrap();
 
     assert!(role.is_some());
     let role = role.unwrap();
@@ -58,8 +59,9 @@ mod tests {
   #[tokio::test]
   async fn test_get_role_by_id_not_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
-    let role = GetRoleByIdQuery::run(&pool, 999).await.unwrap();
+    let role = GetRoleByIdQuery::run(&mut conn, 999).await.unwrap();
 
     assert!(role.is_none());
   }

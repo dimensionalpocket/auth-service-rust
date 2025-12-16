@@ -59,9 +59,10 @@ impl AuthRegisterResolver {
     let session_secret = config.session_secret.clone();
     let cookie_domain = config.cookie_domain.clone();
     let insecure_cookie = config.insecure_cookie;
+    let mut conn = pool.acquire().await?;
 
     match AuthService::register(
-      pool,
+      &mut conn,
       &username,
       &password,
       &password_confirmation,
@@ -124,8 +125,11 @@ mod tests {
   async fn test_auth_register_calls_service_with_correct_parameters() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Insert default role first
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    // Setup: Insert default role
+    {
+      let mut conn = pool.acquire().await.unwrap();
+      create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+    } // Connection released here
 
     // Test secret - 32 bytes for AES-256
     let test_secret = vec![
@@ -192,8 +196,11 @@ mod tests {
   async fn test_auth_register_returns_error_for_duplicate_username() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Insert default role first
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    // Setup: Insert default role
+    {
+      let mut conn = pool.acquire().await.unwrap();
+      create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+    } // Connection released here
 
     // Test secret - 32 bytes for AES-256
     let test_secret = vec![
@@ -325,8 +332,11 @@ mod tests {
   async fn test_auth_register_sets_cookie() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Insert default role first
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    // Setup: Insert default role
+    {
+      let mut conn = pool.acquire().await.unwrap();
+      create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+    } // Connection released here
 
     // Test secret - 32 bytes for AES-256
     let test_secret = vec![

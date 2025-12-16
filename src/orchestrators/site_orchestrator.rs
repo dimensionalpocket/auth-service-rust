@@ -1,4 +1,5 @@
 use crate::middleware::session::SessionContext;
+use crate::models::Site;
 use crate::queries::sites::{CreateSiteData, GetSiteByIdQuery, UpdateSiteData};
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::role_service::RoleError;
@@ -25,7 +26,8 @@ impl SiteOrchestrator {
     pool: &SqlitePool,
     session_context: SessionContext,
     create_data: CreateSiteData,
-  ) -> Result<crate::models::Site, SiteError> {
+  ) -> Result<Site, SiteError> {
+    let mut conn = pool.acquire().await?;
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -34,26 +36,28 @@ impl SiteOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
       .await
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = RoleService::check_user_permission(pool, &user, "can_create_site").await?;
+    let allowed = RoleService::check_user_permission(&mut conn, &user, "can_create_site").await?;
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Create site
-    SiteService::create_site(pool, create_data).await
+    SiteService::create_site(&mut conn, create_data).await
   }
 
   pub async fn remove_site_with_permission_check(
     pool: &SqlitePool,
     session_context: SessionContext,
     site_id: i64,
-  ) -> Result<crate::models::Site, SiteError> {
+  ) -> Result<Site, SiteError> {
+    let mut conn = pool.acquire().await?;
+
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -62,19 +66,20 @@ impl SiteOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
       .await
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = RoleService::check_user_permission(pool, &user, "can_delete_site").await?;
+    let allowed = RoleService::check_user_permission(&mut conn, &user, "can_delete_site").await?;
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Delete site
-    SiteService::delete_site(pool, site_id).await
+    let mut conn = pool.acquire().await?;
+    SiteService::delete_site(&mut conn, site_id).await
   }
 
   pub async fn update_site_with_permission_check(
@@ -82,7 +87,9 @@ impl SiteOrchestrator {
     session_context: SessionContext,
     site_id: i64,
     update_data: UpdateSiteData,
-  ) -> Result<Option<crate::models::Site>, SiteError> {
+  ) -> Result<Option<Site>, SiteError> {
+    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
+
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -91,26 +98,27 @@ impl SiteOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
       .await
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = RoleService::check_user_permission(pool, &user, "can_update_site").await?;
+    let allowed = RoleService::check_user_permission(&mut conn, &user, "can_edit_site").await?;
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Update site
-    SiteService::update_site(pool, site_id, update_data).await
+    SiteService::update_site(&mut conn, site_id, update_data).await
   }
 
-  pub async fn get_site_details_with_permission_check(
+  pub async fn get_site_by_id_with_permission_check(
     pool: &SqlitePool,
     session_context: SessionContext,
     site_id: i64,
-  ) -> Result<crate::models::Site, SiteError> {
+  ) -> Result<Site, SiteError> {
+    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -119,19 +127,20 @@ impl SiteOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
       .await
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = RoleService::check_user_permission(pool, &user, "can_view_site_details").await?;
+    let allowed =
+      RoleService::check_user_permission(&mut conn, &user, "can_view_site_details").await?;
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Get site details
-    GetSiteByIdQuery::run(pool, site_id)
+    GetSiteByIdQuery::run(&mut conn, site_id)
       .await
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::SiteNotFound(site_id))
@@ -149,10 +158,11 @@ mod tests {
   #[tokio::test]
   async fn test_create_site_with_permission_check_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["can_create_site"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id = create_test_role(&mut conn, "admin", &["can_create_site"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -247,10 +257,11 @@ mod tests {
   #[tokio::test]
   async fn test_create_site_with_permission_check_forbidden() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create user role without can_create_site permission
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    let user_role_id = create_test_role(&mut conn, "user", &[]).await;
+    let regular_user = create_test_user(&mut conn, "user", user_role_id).await;
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -284,10 +295,11 @@ mod tests {
   #[tokio::test]
   async fn test_remove_site_with_permission_check_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["can_delete_site"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id = create_test_role(&mut conn, "admin", &["can_delete_site"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -297,7 +309,7 @@ mod tests {
       protocol: None,
       metadata_json: None,
     };
-    let site = CreateSiteQuery::run(&pool, create_data).await.unwrap();
+    let site = CreateSiteQuery::run(&mut conn, create_data).await.unwrap();
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -320,10 +332,11 @@ mod tests {
   #[tokio::test]
   async fn test_remove_site_with_permission_check_forbidden() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create user role without can_delete_site permission
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    let user_role_id = create_test_role(&mut conn, "user", &[]).await;
+    let regular_user = create_test_user(&mut conn, "user", user_role_id).await;
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -333,7 +346,7 @@ mod tests {
       protocol: None,
       metadata_json: None,
     };
-    let site = CreateSiteQuery::run(&pool, create_data).await.unwrap();
+    let site = CreateSiteQuery::run(&mut conn, create_data).await.unwrap();
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -359,10 +372,11 @@ mod tests {
   #[tokio::test]
   async fn test_update_site_with_permission_check_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["can_update_site"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id = create_test_role(&mut conn, "admin", &["can_update_site"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -372,7 +386,7 @@ mod tests {
       protocol: None,
       metadata_json: None,
     };
-    let site = CreateSiteQuery::run(&pool, create_data).await.unwrap();
+    let site = CreateSiteQuery::run(&mut conn, create_data).await.unwrap();
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -413,10 +427,11 @@ mod tests {
   #[tokio::test]
   async fn test_update_site_with_permission_check_forbidden() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create user role without can_update_site permission
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    let user_role_id = create_test_role(&mut conn, "user", &[]).await;
+    let regular_user = create_test_user(&mut conn, "user", user_role_id).await;
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -426,7 +441,7 @@ mod tests {
       protocol: None,
       metadata_json: None,
     };
-    let site = CreateSiteQuery::run(&pool, create_data).await.unwrap();
+    let site = CreateSiteQuery::run(&mut conn, create_data).await.unwrap();
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -466,10 +481,11 @@ mod tests {
   #[tokio::test]
   async fn test_get_site_details_with_permission_check_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["can_view_site_details"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id = create_test_role(&mut conn, "admin", &["can_view_site_details"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -479,7 +495,7 @@ mod tests {
       protocol: Some("https".to_string()),
       metadata_json: Some("{\"description\": \"Test site\"}".to_string()),
     };
-    let site = CreateSiteQuery::run(&pool, create_data).await.unwrap();
+    let site = CreateSiteQuery::run(&mut conn, create_data).await.unwrap();
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -491,8 +507,7 @@ mod tests {
 
     // Test site details retrieval
     let result =
-      SiteOrchestrator::get_site_details_with_permission_check(&pool, session_context, site.id)
-        .await;
+      SiteOrchestrator::get_site_by_id_with_permission_check(&pool, session_context, site.id).await;
 
     assert!(result.is_ok());
     let retrieved_site = result.unwrap();
@@ -506,10 +521,11 @@ mod tests {
   #[tokio::test]
   async fn test_get_site_details_with_permission_check_forbidden() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create user role without can_view_site_details permission
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    let user_role_id = create_test_role(&mut conn, "user", &[]).await;
+    let regular_user = create_test_user(&mut conn, "user", user_role_id).await;
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -519,7 +535,7 @@ mod tests {
       protocol: None,
       metadata_json: None,
     };
-    let site = CreateSiteQuery::run(&pool, create_data).await.unwrap();
+    let site = CreateSiteQuery::run(&mut conn, create_data).await.unwrap();
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -531,8 +547,7 @@ mod tests {
 
     // Test site details retrieval
     let result =
-      SiteOrchestrator::get_site_details_with_permission_check(&pool, session_context, site.id)
-        .await;
+      SiteOrchestrator::get_site_by_id_with_permission_check(&pool, session_context, site.id).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -546,10 +561,11 @@ mod tests {
   #[tokio::test]
   async fn test_get_site_details_with_permission_check_site_not_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["can_view_site_details"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_role_id = create_test_role(&mut conn, "admin", &["can_view_site_details"]).await;
+    let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -561,7 +577,7 @@ mod tests {
 
     // Test site details retrieval for non-existent site
     let result =
-      SiteOrchestrator::get_site_details_with_permission_check(&pool, session_context, 999).await;
+      SiteOrchestrator::get_site_by_id_with_permission_check(&pool, session_context, 999).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {

@@ -87,20 +87,28 @@ mod tests {
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[tokio::test]
-  async fn test_roles_admin_success() {
+  async fn test_roles_list_retrieves_all_roles_with_permissions() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    // Setup: Create admin user and roles
+    let admin_user_id = {
+      let mut conn = pool.acquire().await.unwrap();
 
-    // Create some roles to retrieve
-    create_test_role(&pool, "user", &["can_view_user_self"]).await;
-    create_test_role(&pool, "editor", &["can_edit_content"]).await;
+      // Create admin role and user
+      let admin_role_id =
+        create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+      let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
+
+      // Create some roles to retrieve
+      create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
+      create_test_role(&mut conn, "editor", &["can_edit_content"]).await;
+
+      admin_user.id
+    }; // Connection released here
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user_id,
       iat: 1000,
       exp: 2000,
     };
@@ -133,17 +141,25 @@ mod tests {
   async fn test_roles_role_editor_success() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create role editor role and user
-    let role_editor_id = create_test_role(&pool, "role_editor", &["can_edit_user_role"]).await;
-    let role_editor_user = create_test_user(&pool, "role_editor", role_editor_id).await;
+    // Setup: Create role editor user and roles
+    let user_id = {
+      let mut conn = pool.acquire().await.unwrap();
 
-    // Create some roles to retrieve
-    create_test_role(&pool, "user", &["can_view_user_self"]).await;
-    create_test_role(&pool, "editor", &["can_edit_content"]).await;
+      // Create role editor role and user
+      let role_editor_id =
+        create_test_role(&mut conn, "role_editor", &["can_edit_user_role"]).await;
+      let role_editor_user = create_test_user(&mut conn, "role_editor", role_editor_id).await;
+
+      // Create some roles to retrieve
+      create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
+      create_test_role(&mut conn, "editor", &["can_edit_content"]).await;
+
+      role_editor_user.id
+    }; // Connection released here
 
     // Create session context for role editor user
     let session_payload = DpsAuthSessionPayload {
-      sub: role_editor_user.id,
+      sub: user_id,
       iat: 1000,
       exp: 2000,
     };
@@ -194,13 +210,19 @@ mod tests {
   async fn test_roles_forbidden() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create user role without required permissions
-    let user_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    // Setup: Create regular user
+    let user_id = {
+      let mut conn = pool.acquire().await.unwrap();
+
+      // Create user role without required permissions
+      let user_role_id = create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
+      let regular_user = create_test_user(&mut conn, "user", user_role_id).await;
+      regular_user.id
+    }; // Connection released here
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
-      sub: regular_user.id,
+      sub: user_id,
       iat: 1000,
       exp: 2000,
     };
@@ -221,13 +243,20 @@ mod tests {
   async fn test_roles_empty_database() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    // Setup: Create admin user
+    let user_id = {
+      let mut conn = pool.acquire().await.unwrap();
+
+      // Create admin role and user
+      let admin_role_id =
+        create_test_role(&mut conn, "admin", &["is_admin", "can_manage_roles"]).await;
+      let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
+      admin_user.id
+    }; // Connection released here
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: user_id,
       iat: 1000,
       exp: 2000,
     };

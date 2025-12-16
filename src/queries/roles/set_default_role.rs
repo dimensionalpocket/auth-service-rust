@@ -1,12 +1,12 @@
 use crate::models::Role;
-use sqlx::{Row, SqlitePool};
+use sqlx::{Connection, Row, SqliteConnection};
 
 pub struct SetDefaultRoleQuery;
 
 impl SetDefaultRoleQuery {
-  pub async fn run(pool: &SqlitePool, role_id: i64) -> Result<Option<Role>, sqlx::Error> {
+  pub async fn run(conn: &mut SqliteConnection, role_id: i64) -> Result<Option<Role>, sqlx::Error> {
     // Use a transaction for atomic operation
-    let mut tx = pool.begin().await?;
+    let mut tx = conn.begin().await?;
 
     // First verify the role exists
     let role_exists = sqlx::query("SELECT COUNT(*) FROM roles WHERE id = ?")
@@ -41,7 +41,7 @@ impl SetDefaultRoleQuery {
             "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?"
         )
         .bind(role_id)
-        .fetch_one(pool)
+        .fetch_one(&mut *conn)
         .await?;
 
     let permissions_json: Option<String> = row.try_get("permissions_json")?;
@@ -66,13 +66,14 @@ mod tests {
   #[tokio::test]
   async fn test_set_default_role_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create test roles
-    let role1_id = create_test_role(&pool, "role1", &[]).await;
-    let role2_id = create_test_role(&pool, "role2", &[]).await;
+    let role1_id = create_test_role(&mut conn, "role1", &[]).await;
+    let role2_id = create_test_role(&mut conn, "role2", &[]).await;
 
     // Set role1 as default
-    let result = SetDefaultRoleQuery::run(&pool, role1_id).await.unwrap();
+    let result = SetDefaultRoleQuery::run(&mut conn, role1_id).await.unwrap();
 
     assert!(result.is_some());
     let updated_role = result.unwrap();
@@ -84,7 +85,7 @@ mod tests {
             "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?"
         )
         .bind(role2_id)
-        .fetch_one(&pool)
+        .fetch_one(&mut *conn)
         .await
         .unwrap();
     let permissions_json: Option<String> = role2_row.try_get("permissions_json").unwrap();
@@ -106,16 +107,17 @@ mod tests {
   #[tokio::test]
   async fn test_set_default_role_atomic_behavior() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create test roles
-    let role1_id = create_test_role(&pool, "role1", &[]).await;
-    let role2_id = create_test_role(&pool, "role2", &[]).await;
+    let role1_id = create_test_role(&mut conn, "role1", &[]).await;
+    let role2_id = create_test_role(&mut conn, "role2", &[]).await;
 
     // Set role1 as default first
-    SetDefaultRoleQuery::run(&pool, role1_id).await.unwrap();
+    SetDefaultRoleQuery::run(&mut conn, role1_id).await.unwrap();
 
     // Then set role2 as default
-    let result = SetDefaultRoleQuery::run(&pool, role2_id).await.unwrap();
+    let result = SetDefaultRoleQuery::run(&mut conn, role2_id).await.unwrap();
 
     assert!(result.is_some());
     let updated_role2 = result.unwrap();
@@ -127,7 +129,7 @@ mod tests {
             "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?"
         )
         .bind(role1_id)
-        .fetch_one(&pool)
+        .fetch_one(&mut *conn)
         .await
         .unwrap();
     let permissions_json: Option<String> = role1_row.try_get("permissions_json").unwrap();
@@ -147,7 +149,7 @@ mod tests {
 
     // Verify only one default role exists
     let default_count = sqlx::query("SELECT COUNT(*) FROM roles WHERE is_default = TRUE")
-      .fetch_one(&pool)
+      .fetch_one(&mut *conn)
       .await
       .unwrap()
       .get::<i64, _>(0);
@@ -157,9 +159,10 @@ mod tests {
   #[tokio::test]
   async fn test_set_default_role_not_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Try to set non-existent role as default
-    let result = SetDefaultRoleQuery::run(&pool, 999).await.unwrap();
+    let result = SetDefaultRoleQuery::run(&mut conn, 999).await.unwrap();
 
     assert!(result.is_none());
   }
@@ -167,16 +170,17 @@ mod tests {
   #[tokio::test]
   async fn test_set_default_role_timestamp_update() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create test role
-    let role_id = create_test_role(&pool, "role1", &[]).await;
+    let role_id = create_test_role(&mut conn, "role1", &[]).await;
 
     // Get original role to check timestamp
     let original_role_row = sqlx::query(
             "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?"
         )
         .bind(role_id)
-        .fetch_one(&pool)
+        .fetch_one(&mut *conn)
         .await
         .unwrap();
     let permissions_json: Option<String> = original_role_row.try_get("permissions_json").unwrap();
@@ -198,7 +202,7 @@ mod tests {
     tokio::time::sleep(tokio::time::Duration::from_millis(1050)).await;
 
     // Set role as default
-    let result = SetDefaultRoleQuery::run(&pool, role_id).await.unwrap();
+    let result = SetDefaultRoleQuery::run(&mut conn, role_id).await.unwrap();
 
     assert!(result.is_some());
     let updated_role = result.unwrap();

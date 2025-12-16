@@ -94,34 +94,47 @@ mod tests {
   async fn test_get_user_details_success() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Insert admin role with can_view_user_details permission
-    let admin_role = create_test_role_model(
-      &pool,
-      "admin",
-      &["is_admin", "can_view_user_details"],
-      false,
-    )
-    .await;
-    let admin_role_id = admin_role.id;
+    // Setup: Create roles and users
+    let (admin_user_id, target_user) = {
+      let mut conn = pool.acquire().await.unwrap();
 
-    // Insert user role without special permissions
-    let user_role = create_test_role_model(&pool, "user", &[], true).await;
-    let user_role_id = user_role.id;
+      // Insert admin role with can_view_user_details permission
+      let admin_role = create_test_role_model(
+        &mut conn,
+        "admin",
+        &["is_admin", "can_view_user_details"],
+        false,
+      )
+      .await;
+      let admin_role_id = admin_role.id;
 
-    // Insert admin user
-    let admin_user =
-      create_test_user_full(&pool, "admin", Some(admin_role_id), "test_password", None).await;
-    let admin_user_id = admin_user.id;
+      // Insert user role without special permissions
+      let user_role = create_test_role_model(&mut conn, "user", &[], true).await;
+      let user_role_id = user_role.id;
 
-    // Create test user
-    let create_data = CreateUserData {
-      uuid: "target-user-uuid".to_string(),
-      name: "target_user".to_string(),
-      role_id: Some(user_role_id),
-      password_hash: "hashed_password".to_string(),
-      metadata_json: None,
-    };
-    let target_user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+      // Insert admin user
+      let admin_user = create_test_user_full(
+        &mut conn,
+        "admin",
+        Some(admin_role_id),
+        "test_password",
+        None,
+      )
+      .await;
+      let admin_user_id = admin_user.id;
+
+      // Create test user
+      let create_data = CreateUserData {
+        uuid: "target-user-uuid".to_string(),
+        name: "target_user".to_string(),
+        role_id: Some(user_role_id),
+        password_hash: "hashed_password".to_string(),
+        metadata_json: None,
+      };
+      let target_user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
+
+      (admin_user_id, target_user)
+    }; // Connection released here
 
     // Create session context for admin user
     let session_payload = ServiceSessionPayload {
@@ -172,14 +185,20 @@ mod tests {
   async fn test_get_user_details_forbidden() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Insert user role without can_view_user_details permission
-    let user_role = create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
-    let user_role_id = user_role.id;
+    // Setup: Create user and role
+    let user_id = {
+      let mut conn = pool.acquire().await.unwrap();
 
-    // Insert regular user
-    let user =
-      create_test_user_full(&pool, "user", Some(user_role_id), "test_password", None).await;
-    let user_id = user.id;
+      // Insert user role without can_view_user_details permission
+      let user_role =
+        create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+      let user_role_id = user_role.id;
+
+      // Insert regular user
+      let user =
+        create_test_user_full(&mut conn, "user", Some(user_role_id), "test_password", None).await;
+      user.id
+    }; // Connection released here
 
     // Create session context for regular user
     let session_payload = ServiceSessionPayload {
@@ -234,20 +253,31 @@ mod tests {
   async fn test_get_user_details_not_found() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Insert admin role with can_view_user_details permission
-    let admin_role = create_test_role_model(
-      &pool,
-      "admin",
-      &["is_admin", "can_view_user_details"],
-      false,
-    )
-    .await;
-    let admin_role_id = admin_role.id;
+    // Setup: Create admin user
+    let admin_user_id = {
+      let mut conn = pool.acquire().await.unwrap();
 
-    // Insert admin user
-    let admin_user =
-      create_test_user_full(&pool, "admin", Some(admin_role_id), "test_password", None).await;
-    let admin_user_id = admin_user.id;
+      // Insert admin role with can_view_user_details permission
+      let admin_role = create_test_role_model(
+        &mut conn,
+        "admin",
+        &["is_admin", "can_view_user_details"],
+        false,
+      )
+      .await;
+      let admin_role_id = admin_role.id;
+
+      // Insert admin user
+      let admin_user = create_test_user_full(
+        &mut conn,
+        "admin",
+        Some(admin_role_id),
+        "test_password",
+        None,
+      )
+      .await;
+      admin_user.id
+    }; // Connection released here
 
     // Create session context for admin user
     let session_payload = ServiceSessionPayload {

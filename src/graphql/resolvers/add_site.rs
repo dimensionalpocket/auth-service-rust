@@ -130,12 +130,18 @@ mod tests {
   async fn test_add_site_success() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create admin role with can_create_site permission
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_create_site"]).await;
+    // Setup: Create admin user
+    let admin_user_id = {
+      let mut conn = pool.acquire().await.unwrap();
 
-    // Create admin user
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
-    let admin_user_id = admin_user.id;
+      // Create admin role with can_create_site permission
+      let admin_role_id =
+        create_test_role(&mut conn, "admin", &["is_admin", "can_create_site"]).await;
+
+      // Create admin user
+      let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
+      admin_user.id
+    }; // Connection released here
 
     // Create session context for admin user
     let session_payload = ServiceSessionPayload {
@@ -192,12 +198,17 @@ mod tests {
   async fn test_add_site_forbidden() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create user role without can_create_site permission
-    let user_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
+    // Setup: Create regular user
+    let user_id = {
+      let mut conn = pool.acquire().await.unwrap();
 
-    // Create regular user
-    let user = create_test_user(&pool, "user", user_role_id).await;
-    let user_id = user.id;
+      // Create user role without can_create_site permission
+      let user_role_id = create_test_role(&mut conn, "user", &["can_view_user_self"]).await;
+
+      // Create regular user
+      let user = create_test_user(&mut conn, "user", user_role_id).await;
+      user.id
+    }; // Connection released here
 
     // Create session context for regular user
     let session_payload = ServiceSessionPayload {
@@ -252,12 +263,18 @@ mod tests {
   async fn test_add_site_duplicate_slug() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create admin role with can_create_site permission
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_create_site"]).await;
+    // Setup: Create admin user
+    let admin_user_id = {
+      let mut conn = pool.acquire().await.unwrap();
 
-    // Create admin user
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
-    let admin_user_id = admin_user.id;
+      // Create admin role with can_create_site permission
+      let admin_role_id =
+        create_test_role(&mut conn, "admin", &["is_admin", "can_create_site"]).await;
+
+      // Create admin user
+      let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
+      admin_user.id
+    }; // Connection released here
 
     // Create session context for admin user
     let session_payload = ServiceSessionPayload {
@@ -293,12 +310,18 @@ mod tests {
   async fn test_add_site_invalid_slug() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create admin role with can_create_site permission
-    let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_create_site"]).await;
+    // Setup: Create admin user
+    let admin_user_id = {
+      let mut conn = pool.acquire().await.unwrap();
 
-    // Create admin user
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
-    let admin_user_id = admin_user.id;
+      // Create admin role with can_create_site permission
+      let admin_role_id =
+        create_test_role(&mut conn, "admin", &["is_admin", "can_create_site"]).await;
+
+      // Create admin user
+      let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
+      admin_user.id
+    }; // Connection released here
 
     // Create session context for admin user
     let session_payload = ServiceSessionPayload {

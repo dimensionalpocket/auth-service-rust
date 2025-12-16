@@ -73,17 +73,24 @@ mod tests {
   async fn test_delete_user_success() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create roles
-    let admin_role_id = create_test_role(&pool, "admin", &["can_delete_user"]).await;
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
+    // Setup: Create roles and users
+    let (admin_user_id, target_user_id) = {
+      let mut conn = pool.acquire().await.unwrap();
 
-    // Create users
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
-    let target_user = create_test_user(&pool, "target_user", user_role_id).await;
+      // Create roles
+      let admin_role_id = create_test_role(&mut conn, "admin", &["can_delete_user"]).await;
+      let user_role_id = create_test_role(&mut conn, "user", &[]).await;
+
+      // Create users
+      let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
+      let target_user = create_test_user(&mut conn, "target_user", user_role_id).await;
+
+      (admin_user.id, target_user.id)
+    }; // Connection released here
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user_id,
       iat: 1000,
       exp: 2000,
     };
@@ -96,10 +103,9 @@ mod tests {
     let query = format!(
       r#"
             mutation {{
-                deleteUser(id: {})
+                deleteUser(id: {target_user_id})
             }}
-            "#,
-      target_user.id
+            "#
     );
 
     let result = schema.execute(query).await;
@@ -115,7 +121,7 @@ mod tests {
 
     // Verify user is actually deleted from database
     let deleted_user = sqlx::query("SELECT COUNT(*) as count FROM users WHERE id = ?")
-      .bind(target_user.id)
+      .bind(target_user_id)
       .fetch_one(&pool)
       .await
       .unwrap()
@@ -127,16 +133,23 @@ mod tests {
   async fn test_delete_user_forbidden() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create role without can_delete_user permission
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
+    // Setup: Create users
+    let (regular_user_id, target_user_id) = {
+      let mut conn = pool.acquire().await.unwrap();
 
-    // Create regular user
-    let regular_user = create_test_user(&pool, "user1", user_role_id).await;
-    let target_user = create_test_user(&pool, "target_user", user_role_id).await;
+      // Create role without can_delete_user permission
+      let user_role_id = create_test_role(&mut conn, "user", &[]).await;
+
+      // Create regular user
+      let regular_user = create_test_user(&mut conn, "user1", user_role_id).await;
+      let target_user = create_test_user(&mut conn, "target_user", user_role_id).await;
+
+      (regular_user.id, target_user.id)
+    }; // Connection released here
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
-      sub: regular_user.id,
+      sub: regular_user_id,
       iat: 1000,
       exp: 2000,
     };
@@ -149,10 +162,9 @@ mod tests {
     let query = format!(
       r#"
             mutation {{
-                deleteUser(id: {})
+                deleteUser(id: {target_user_id})
             }}
-            "#,
-      target_user.id
+            "#
     );
 
     let result = schema.execute(query).await;
@@ -186,13 +198,19 @@ mod tests {
   async fn test_delete_user_self_deletion_prevented() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["can_delete_user"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    // Setup: Create admin user
+    let admin_user_id = {
+      let mut conn = pool.acquire().await.unwrap();
+
+      // Create admin role and user
+      let admin_role_id = create_test_role(&mut conn, "admin", &["can_delete_user"]).await;
+      let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
+      admin_user.id
+    }; // Connection released here
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user_id,
       iat: 1000,
       exp: 2000,
     };
@@ -205,10 +223,9 @@ mod tests {
     let query = format!(
       r#"
             mutation {{
-                deleteUser(id: {})
+                deleteUser(id: {admin_user_id})
             }}
-            "#,
-      admin_user.id // Same as session user ID
+            "#
     );
 
     let result = schema.execute(query).await;
@@ -219,7 +236,7 @@ mod tests {
 
     // Verify user still exists
     let user_still_exists = sqlx::query("SELECT COUNT(*) as count FROM users WHERE id = ?")
-      .bind(admin_user.id)
+      .bind(admin_user_id)
       .fetch_one(&pool)
       .await
       .unwrap()
@@ -231,13 +248,19 @@ mod tests {
   async fn test_delete_user_not_found() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["can_delete_user"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    // Setup: Create admin user
+    let admin_user_id = {
+      let mut conn = pool.acquire().await.unwrap();
+
+      // Create admin role and user
+      let admin_role_id = create_test_role(&mut conn, "admin", &["can_delete_user"]).await;
+      let admin_user = create_test_user(&mut conn, "admin", admin_role_id).await;
+      admin_user.id
+    }; // Connection released here
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user_id,
       iat: 1000,
       exp: 2000,
     };
@@ -264,9 +287,15 @@ mod tests {
   async fn test_delete_user_nonexistent_session_user() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create target user
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
-    let target_user = create_test_user(&pool, "target_user", user_role_id).await;
+    // Setup: Create target user
+    let target_user_id = {
+      let mut conn = pool.acquire().await.unwrap();
+
+      // Create target user
+      let user_role_id = create_test_role(&mut conn, "user", &[]).await;
+      let target_user = create_test_user(&mut conn, "target_user", user_role_id).await;
+      target_user.id
+    }; // Connection released here
 
     // Create session context for non-existent user
     let session_payload = DpsAuthSessionPayload {
@@ -283,10 +312,9 @@ mod tests {
     let query = format!(
       r#"
             mutation {{
-                deleteUser(id: {})
+                deleteUser(id: {target_user_id})
             }}
-            "#,
-      target_user.id
+            "#
     );
 
     let result = schema.execute(query).await;

@@ -4,7 +4,7 @@ use crate::queries::users::{
   get_user_by_id_with_role::GetUserByIdWithRoleQuery, GetUserByNameWithRoleQuery,
 };
 use crate::services::{SessionError, SessionService, UserError, UserService};
-use sqlx::SqlitePool;
+use sqlx::SqliteConnection;
 use tracing::instrument;
 
 /// Result type for authentication operations containing both user and session information
@@ -64,15 +64,15 @@ impl AuthService {
   /// # Errors
   /// * `UserError` - If user not found or other user-related errors
   /// * `SessionError` - If authentication fails or session creation fails
-  #[instrument(skip(pool, session_secret, password), fields(username = %username))]
+  #[instrument(skip(conn, password), fields(username = %username))]
   pub async fn login(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     username: &str,
     password: &str,
     session_secret: &[u8],
   ) -> Result<AuthResult, SessionError> {
     // Find user by username with role information first
-    let user_with_role = GetUserByNameWithRoleQuery::run(pool, username)
+    let user_with_role = GetUserByNameWithRoleQuery::run(&mut *conn, username)
       .await
       .map_err(|e| SessionError::DatabaseError(e.to_string()))?;
 
@@ -82,7 +82,7 @@ impl AuthService {
 
     // Create session which includes password verification
     let session_token =
-      SessionService::create_session(pool, username, password, session_secret).await?;
+      SessionService::create_session(&mut *conn, username, password, session_secret).await?;
 
     Ok(AuthResult {
       user_id: user_with_role.user.id,
@@ -110,9 +110,9 @@ impl AuthService {
   ///
   /// # Errors
   /// * `UserError` - If password confirmation doesn't match or user creation fails due to validation, uniqueness, or database error
-  #[instrument(skip(pool, session_secret), fields(username = %username))]
+  #[instrument(skip(conn, session_secret, password_confirmation), fields(username = %username))]
   pub async fn register(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     username: &str,
     password: &str,
     password_confirmation: &str,
@@ -126,10 +126,10 @@ impl AuthService {
     }
 
     // Create user which includes validation and password hashing
-    let user = UserService::create_user(pool, username, password).await?;
+    let user = UserService::create_user(&mut *conn, username, password).await?;
 
     // Get user with role information
-    let user_with_role = GetUserByNameWithRoleQuery::run(pool, username)
+    let user_with_role = GetUserByNameWithRoleQuery::run(&mut *conn, username)
       .await?
       .ok_or(UserError::UserNotFound(user.id))?;
 
@@ -164,9 +164,9 @@ impl AuthService {
   ///
   /// # Errors
   /// * `SessionError` - If no valid session exists or user not found
-  #[instrument(skip(pool))]
+  #[instrument(skip(conn, session_context))]
   pub async fn get_current_user(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     session_context: &SessionContext,
   ) -> Result<AuthMeResult, SessionError> {
     let session_payload = session_context
@@ -175,7 +175,7 @@ impl AuthService {
       .ok_or_else(|| SessionError::AuthenticationError("No valid session".to_string()))?;
 
     // Get user details from database with role information
-    let user_with_role = GetUserByIdWithRoleQuery::run(pool, session_payload.sub)
+    let user_with_role = GetUserByIdWithRoleQuery::run(&mut *conn, session_payload.sub)
       .await
       .map_err(|e| SessionError::DatabaseError(e.to_string()))?
       .ok_or_else(|| SessionError::AuthenticationError("User not found".to_string()))?;
@@ -212,15 +212,16 @@ mod tests {
   #[tokio::test]
   async fn test_auth_login_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create a user
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
-    UserService::create_user(&pool, "testuser", "password123")
+    create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+    UserService::create_user(&mut conn, "testuser", "password123")
       .await
       .unwrap();
 
     // Test successful login
-    let result = AuthService::login(&pool, "testuser", "password123", TEST_SECRET).await;
+    let result = AuthService::login(&mut conn, "testuser", "password123", TEST_SECRET).await;
 
     assert!(result.is_ok());
     let auth_result = result.unwrap();
@@ -232,15 +233,16 @@ mod tests {
   #[tokio::test]
   async fn test_auth_login_invalid_credentials() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create a user
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
-    UserService::create_user(&pool, "testuser", "password123")
+    create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+    UserService::create_user(&mut conn, "testuser", "password123")
       .await
       .unwrap();
 
     // Test login with wrong password
-    let result = AuthService::login(&pool, "testuser", "wrongpassword", TEST_SECRET).await;
+    let result = AuthService::login(&mut conn, "testuser", "wrongpassword", TEST_SECRET).await;
 
     assert!(result.is_err());
   }
@@ -248,9 +250,10 @@ mod tests {
   #[tokio::test]
   async fn test_auth_login_user_not_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Test login with non-existent user
-    let result = AuthService::login(&pool, "nonexistent", "password123", TEST_SECRET).await;
+    let result = AuthService::login(&mut conn, "nonexistent", "password123", TEST_SECRET).await;
 
     assert!(result.is_err());
   }
@@ -258,11 +261,12 @@ mod tests {
   #[tokio::test]
   async fn test_get_current_user_with_role() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Setup: Create a role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["can_manage_users"]).await;
+    let admin_role_id = create_test_role(&mut conn, "admin", &["can_manage_users"]).await;
     let user = create_test_user_full(
-      &pool,
+      &mut conn,
       "testuser",
       Some(admin_role_id),
       "test_password",
@@ -278,7 +282,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(payload));
 
-    let result = AuthService::get_current_user(&pool, &session_context).await;
+    let result = AuthService::get_current_user(&mut conn, &session_context).await;
 
     assert!(result.is_ok());
     let auth_me_result = result.unwrap();

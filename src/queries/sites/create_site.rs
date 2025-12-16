@@ -1,5 +1,5 @@
 use crate::models::Site;
-use sqlx::SqlitePool;
+use sqlx::SqliteConnection;
 
 #[derive(Debug)]
 pub struct CreateSiteData {
@@ -13,7 +13,7 @@ pub struct CreateSiteData {
 pub struct CreateSiteQuery;
 
 impl CreateSiteQuery {
-  pub async fn run(pool: &SqlitePool, data: CreateSiteData) -> Result<Site, sqlx::Error> {
+  pub async fn run(conn: &mut SqliteConnection, data: CreateSiteData) -> Result<Site, sqlx::Error> {
     let now = chrono::Utc::now().timestamp();
     let protocol = data.protocol.unwrap_or_else(|| "https".to_string());
 
@@ -30,7 +30,7 @@ impl CreateSiteQuery {
     .bind(data.port)
     .bind(&protocol)
     .bind(&data.metadata_json)
-    .execute(pool)
+    .execute(&mut *conn)
     .await?;
 
     let site_id = result.last_insert_rowid();
@@ -39,7 +39,7 @@ impl CreateSiteQuery {
       "SELECT id, created_ts, updated_ts, slug, subdomain, port, protocol, metadata_json FROM sites WHERE id = ?"
     )
     .bind(site_id)
-    .fetch_one(pool)
+    .fetch_one(&mut *conn)
     .await
   }
 }
@@ -52,6 +52,7 @@ mod tests {
   #[tokio::test]
   async fn test_create_site_success() {
     let (pool, _tmp) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     let data = CreateSiteData {
       slug: "example".to_string(),
@@ -61,7 +62,7 @@ mod tests {
       metadata_json: Some(r#"{"a":1}"#.to_string()),
     };
 
-    let site = CreateSiteQuery::run(&pool, data).await.unwrap();
+    let site = CreateSiteQuery::run(&mut conn, data).await.unwrap();
 
     assert_eq!(site.slug, "example");
     assert_eq!(site.protocol, "https");
@@ -75,6 +76,7 @@ mod tests {
   #[tokio::test]
   async fn test_create_site_duplicate_slug_fails() {
     let (pool, _tmp) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     let data1 = CreateSiteData {
       slug: "duplicate".to_string(),
@@ -84,7 +86,7 @@ mod tests {
       metadata_json: None,
     };
 
-    CreateSiteQuery::run(&pool, data1).await.unwrap();
+    CreateSiteQuery::run(&mut conn, data1).await.unwrap();
 
     let data2 = CreateSiteData {
       slug: "duplicate".to_string(),
@@ -94,13 +96,14 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = CreateSiteQuery::run(&pool, data2).await;
+    let result = CreateSiteQuery::run(&mut conn, data2).await;
     assert!(result.is_err());
   }
 
   #[tokio::test]
   async fn test_create_site_nullable_fields() {
     let (pool, _tmp) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     let data = CreateSiteData {
       slug: "nullable".to_string(),
@@ -110,7 +113,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let site = CreateSiteQuery::run(&pool, data).await.unwrap();
+    let site = CreateSiteQuery::run(&mut conn, data).await.unwrap();
 
     assert_eq!(site.slug, "nullable");
     assert_eq!(site.protocol, "http");

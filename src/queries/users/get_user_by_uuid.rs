@@ -1,15 +1,15 @@
 use crate::models::User;
-use sqlx::SqlitePool;
+use sqlx::SqliteConnection;
 
 pub struct GetUserByUuidQuery;
 
 impl GetUserByUuidQuery {
-  pub async fn run(pool: &SqlitePool, uuid: &str) -> Result<Option<User>, sqlx::Error> {
+  pub async fn run(conn: &mut SqliteConnection, uuid: &str) -> Result<Option<User>, sqlx::Error> {
     sqlx::query_as::<_, User>(
       "SELECT id, uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json FROM users WHERE uuid = ?"
     )
     .bind(uuid)
-    .fetch_optional(pool)
+    .fetch_optional(&mut *conn)
     .await
   }
 }
@@ -23,9 +23,10 @@ mod tests {
   #[tokio::test]
   async fn test_get_user_by_uuid_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Insert test role first
-    let role = create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    let role = create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
     let role_id = role.id;
 
     // Insert test user
@@ -38,11 +39,13 @@ mod tests {
       .bind(None::<String>)
       .bind(1234567890)
       .bind(1234567890)
-      .execute(&pool)
+      .execute(&mut *conn)
       .await
       .unwrap();
 
-    let user = GetUserByUuidQuery::run(&pool, &user_uuid).await.unwrap();
+    let user = GetUserByUuidQuery::run(&mut conn, &user_uuid)
+      .await
+      .unwrap();
 
     assert!(user.is_some());
     let user = user.unwrap();
@@ -56,9 +59,12 @@ mod tests {
   #[tokio::test]
   async fn test_get_user_by_uuid_not_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     let user_uuid = Uuid::new_v4().to_string();
-    let user = GetUserByUuidQuery::run(&pool, &user_uuid).await.unwrap();
+    let user = GetUserByUuidQuery::run(&mut conn, &user_uuid)
+      .await
+      .unwrap();
 
     assert!(user.is_none());
   }
