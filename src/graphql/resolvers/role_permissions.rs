@@ -6,6 +6,9 @@ use async_graphql::{Context, Object, Result};
 use sqlx::SqlitePool;
 use tracing::instrument;
 
+// TODO: Migrate this resolver to use orchestrator pattern like other resolvers.
+// This resolver was implemented before orchestrators became the standard pattern.
+
 #[derive(Default, Debug)]
 pub struct RolePermissionsResolver;
 
@@ -30,22 +33,30 @@ impl RolePermissionsResolver {
       .map_err(|e| async_graphql::Error::new(format!("Failed to get current user: {e}")))?
       .ok_or_else(|| async_graphql::Error::new("User not found"))?;
 
-    // Check base permission
-    let allowed = RoleService::check_user_permission(pool, &user, "can_manage_roles")
-      .await
-      .map_err(|e| async_graphql::Error::new(format!("Permission check failed: {e}")))?;
+    // Check permissions using scoped connection
+    let (allowed, can_manage_admin) = {
+      let mut conn = pool
+        .acquire()
+        .await
+        .map_err(|e| async_graphql::Error::new(format!("Failed to acquire connection: {e}")))?;
+
+      let allowed = RoleService::check_user_permission(&mut conn, &user, "can_manage_roles")
+        .await
+        .map_err(|e| async_graphql::Error::new(format!("Permission check failed: {e}")))?;
+
+      let can_manage_admin =
+        RoleService::check_user_permission(&mut conn, &user, "can_manage_admin_role_permission")
+          .await
+          .map_err(|e| async_graphql::Error::new(format!("Permission check failed: {e}")))?;
+
+      (allowed, can_manage_admin)
+    };
 
     if !allowed {
       return Err(async_graphql::Error::new(
         "Forbidden: Insufficient permissions",
       ));
     }
-
-    // Check if user can manage admin role permissions
-    let can_manage_admin =
-      RoleService::check_user_permission(pool, &user, "can_manage_admin_role_permission")
-        .await
-        .map_err(|e| async_graphql::Error::new(format!("Permission check failed: {e}")))?;
 
     // Filter permissions based on user's admin management rights
     let permissions: Vec<String> = ROLE_PERMISSIONS

@@ -5,7 +5,7 @@ use crate::queries::roles::{
   CreateRoleData, CreateRoleQuery, DeleteRoleQuery, GetAllRolesQuery, GetRoleByIdQuery,
   GetRoleByNameQuery, SetDefaultRoleQuery, UpdateRoleData, UpdateRoleQuery,
 };
-use sqlx::SqlitePool;
+use sqlx::{SqliteConnection, SqlitePool};
 use tracing::warn;
 
 /// Custom error type for user role operations
@@ -64,7 +64,9 @@ impl RoleService {
 
   /// Get a role by ID
   pub async fn get_role_by_id(pool: &SqlitePool, role_id: i64) -> Result<Option<Role>, RoleError> {
-    GetRoleByIdQuery::run(pool, role_id)
+    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+
+    GetRoleByIdQuery::run(&mut conn, role_id)
       .await
       .map_err(RoleError::DatabaseError)
   }
@@ -245,7 +247,7 @@ impl RoleService {
   /// * `Ok(false)` - User does not have the permission or permission is invalid
   /// * `Err(RoleError)` - Database error occurred
   pub async fn check_user_permission(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     user: &User,
     permission: &str,
   ) -> Result<bool, RoleError> {
@@ -255,7 +257,7 @@ impl RoleService {
       return Ok(false);
     }
 
-    let role = GetRoleByIdQuery::run(pool, user.role_id)
+    let role = GetRoleByIdQuery::run(&mut *conn, user.role_id)
       .await
       .map_err(RoleError::DatabaseError)?;
 
@@ -365,18 +367,19 @@ mod tests {
     };
 
     // Admin should have any valid permission
+    let mut conn = pool.acquire().await.unwrap();
     assert!(
-      RoleService::check_user_permission(&pool, &admin_user, "can_list_users")
+      RoleService::check_user_permission(&mut conn, &admin_user, "can_list_users")
         .await
         .unwrap()
     );
     assert!(
-      RoleService::check_user_permission(&pool, &admin_user, "can_create_site")
+      RoleService::check_user_permission(&mut conn, &admin_user, "can_create_site")
         .await
         .unwrap()
     );
     assert!(
-      RoleService::check_user_permission(&pool, &admin_user, "can_delete_user")
+      RoleService::check_user_permission(&mut conn, &admin_user, "can_delete_user")
         .await
         .unwrap()
     );
@@ -403,20 +406,21 @@ mod tests {
     };
 
     // User should have specific permissions
+    let mut conn = pool.acquire().await.unwrap();
     assert!(
-      RoleService::check_user_permission(&pool, &regular_user, "can_view_user_self")
+      RoleService::check_user_permission(&mut conn, &regular_user, "can_view_user_self")
         .await
         .unwrap()
     );
 
     // User should NOT have admin permissions
     assert!(
-      !RoleService::check_user_permission(&pool, &regular_user, "can_list_users")
+      !RoleService::check_user_permission(&mut conn, &regular_user, "can_list_users")
         .await
         .unwrap()
     );
     assert!(
-      !RoleService::check_user_permission(&pool, &regular_user, "is_admin")
+      !RoleService::check_user_permission(&mut conn, &regular_user, "is_admin")
         .await
         .unwrap()
     );
@@ -439,8 +443,9 @@ mod tests {
     };
 
     // User with no role should have no permissions
+    let mut conn = pool.acquire().await.unwrap();
     assert!(
-      !RoleService::check_user_permission(&pool, &user_no_role, "can_list_users")
+      !RoleService::check_user_permission(&mut conn, &user_no_role, "can_list_users")
         .await
         .unwrap()
     );
@@ -467,19 +472,24 @@ mod tests {
     };
 
     // Even admin users should get false for invalid permissions
+    let mut conn = pool.acquire().await.unwrap();
     assert!(
-      !RoleService::check_user_permission(&pool, &admin_user, "invalid_permission")
+      !RoleService::check_user_permission(&mut conn, &admin_user, "invalid_permission")
         .await
         .unwrap()
     );
-    assert!(!RoleService::check_user_permission(&pool, &admin_user, "")
-      .await
-      .unwrap());
     assert!(
-      !RoleService::check_user_permission(&pool, &admin_user, "nonexistent_can_permission")
+      !RoleService::check_user_permission(&mut conn, &admin_user, "")
         .await
         .unwrap()
     );
+    assert!(!RoleService::check_user_permission(
+      &mut conn,
+      &admin_user,
+      "nonexistent_can_permission"
+    )
+    .await
+    .unwrap());
   }
 
   #[tokio::test]
@@ -509,20 +519,33 @@ mod tests {
     };
 
     // User should have the new permissions
+    let mut conn = pool.acquire().await.unwrap();
+    assert!(RoleService::check_user_permission(
+      &mut conn,
+      &role_manager_user,
+      "can_edit_user_role"
+    )
+    .await
+    .unwrap());
     assert!(
-      RoleService::check_user_permission(&pool, &role_manager_user, "can_edit_user_role")
+      RoleService::check_user_permission(&mut conn, &role_manager_user, "can_manage_roles")
         .await
         .unwrap()
     );
     assert!(
-      RoleService::check_user_permission(&pool, &role_manager_user, "can_manage_roles")
+      !RoleService::check_user_permission(&mut conn, &role_manager_user, "can_list_users")
+        .await
+        .unwrap()
+    );
+    assert!(
+      RoleService::check_user_permission(&mut conn, &role_manager_user, "can_manage_roles")
         .await
         .unwrap()
     );
 
     // User should NOT have admin management permission
     assert!(!RoleService::check_user_permission(
-      &pool,
+      &mut conn,
       &role_manager_user,
       "can_manage_admin_role_permission"
     )
@@ -551,18 +574,19 @@ mod tests {
     };
 
     // Admin should have all valid permissions
+    let mut conn = pool.acquire().await.unwrap();
     assert!(
-      RoleService::check_user_permission(&pool, &admin_user, "can_edit_user_role")
+      RoleService::check_user_permission(&mut conn, &admin_user, "can_edit_user_role")
         .await
         .unwrap()
     );
     assert!(
-      RoleService::check_user_permission(&pool, &admin_user, "can_manage_roles")
+      RoleService::check_user_permission(&mut conn, &admin_user, "can_manage_roles")
         .await
         .unwrap()
     );
     assert!(RoleService::check_user_permission(
-      &pool,
+      &mut conn,
       &admin_user,
       "can_manage_admin_role_permission"
     )

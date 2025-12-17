@@ -223,11 +223,12 @@ mod tests {
     assert!(result2.errors.is_empty());
 
     // Verify only role2 is default now using the existing query utilities
-    let role1_check = GetRoleByIdQuery::run(&pool, role1_id)
+    let mut conn = pool.acquire().await.unwrap();
+    let role1_check = GetRoleByIdQuery::run(&mut conn, role1_id)
       .await
       .unwrap()
       .unwrap();
-    let role2_check = GetRoleByIdQuery::run(&pool, role2_id)
+    let role2_check = GetRoleByIdQuery::run(&mut conn, role2_id)
       .await
       .unwrap()
       .unwrap();

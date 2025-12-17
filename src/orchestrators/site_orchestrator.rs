@@ -39,7 +39,11 @@ impl SiteOrchestrator {
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = RoleService::check_user_permission(pool, &user, "can_create_site").await?;
+    let allowed = {
+      let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
+
+      RoleService::check_user_permission(&mut conn, &user, "can_create_site").await?
+    };
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
@@ -67,7 +71,11 @@ impl SiteOrchestrator {
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = RoleService::check_user_permission(pool, &user, "can_delete_site").await?;
+    let allowed = {
+      let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
+
+      RoleService::check_user_permission(&mut conn, &user, "can_delete_site").await?
+    };
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
@@ -96,7 +104,11 @@ impl SiteOrchestrator {
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = RoleService::check_user_permission(pool, &user, "can_update_site").await?;
+    let allowed = {
+      let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
+
+      RoleService::check_user_permission(&mut conn, &user, "can_update_site").await?
+    };
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
@@ -124,7 +136,11 @@ impl SiteOrchestrator {
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = RoleService::check_user_permission(pool, &user, "can_view_site_details").await?;
+    let allowed = {
+      let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
+
+      RoleService::check_user_permission(&mut conn, &user, "can_view_site_details").await?
+    };
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));

@@ -28,10 +28,16 @@ impl RoleOrchestrator {
       .await?
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
-    let can_manage_roles =
-      RoleService::check_user_permission(pool, &user, "can_manage_roles").await?;
-    let can_edit_user_role =
-      RoleService::check_user_permission(pool, &user, "can_edit_user_role").await?;
+    let (can_manage_roles, can_edit_user_role) = {
+      let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+
+      let can_manage_roles =
+        RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?;
+      let can_edit_user_role =
+        RoleService::check_user_permission(&mut conn, &user, "can_edit_user_role").await?;
+
+      (can_manage_roles, can_edit_user_role)
+    };
 
     if !can_manage_roles && !can_edit_user_role {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
@@ -62,8 +68,11 @@ impl RoleOrchestrator {
       .await?
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
-    let can_manage_roles =
-      RoleService::check_user_permission(pool, &user, "can_manage_roles").await?;
+    let can_manage_roles = {
+      let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+
+      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?
+    };
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
@@ -99,8 +108,11 @@ impl RoleOrchestrator {
       .await?
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
-    let can_manage_roles =
-      RoleService::check_user_permission(pool, &user, "can_manage_roles").await?;
+    let can_manage_roles = {
+      let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+
+      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?
+    };
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
@@ -131,8 +143,11 @@ impl RoleOrchestrator {
       .await?
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
-    let can_manage_roles =
-      RoleService::check_user_permission(pool, &user, "can_manage_roles").await?;
+    let can_manage_roles = {
+      let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+
+      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?
+    };
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
@@ -167,8 +182,11 @@ impl RoleOrchestrator {
       .await?
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
-    let can_manage_roles =
-      RoleService::check_user_permission(pool, &user, "can_manage_roles").await?;
+    let can_manage_roles = {
+      let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+
+      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?
+    };
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
@@ -181,7 +199,7 @@ impl RoleOrchestrator {
   /// Set a role as default with permission check
   ///
   /// Validates that user has `can_manage_roles` permission
-  /// before setting the specified role as the default.
+  /// before setting of specified role as default.
   pub async fn set_default_role_with_permission_check(
     pool: &SqlitePool,
     session_context: SessionContext,
@@ -199,8 +217,11 @@ impl RoleOrchestrator {
       .await?
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
-    let can_manage_roles =
-      RoleService::check_user_permission(pool, &user, "can_manage_roles").await?;
+    let can_manage_roles = {
+      let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+
+      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?
+    };
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));

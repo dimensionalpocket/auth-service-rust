@@ -41,7 +41,11 @@ impl UserOrchestrator {
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
 
-    let allowed = RoleService::check_user_permission(pool, &user, "can_list_users").await?;
+    let allowed = {
+      let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
+
+      RoleService::check_user_permission(&mut conn, &user, "can_list_users").await?
+    };
 
     if !allowed {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));
@@ -86,7 +90,11 @@ impl UserOrchestrator {
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
 
-    let allowed = RoleService::check_user_permission(pool, &user, "can_view_user_details").await?;
+    let allowed = {
+      let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
+
+      RoleService::check_user_permission(&mut conn, &user, "can_view_user_details").await?
+    };
 
     if !allowed {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));
@@ -133,7 +141,11 @@ impl UserOrchestrator {
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
 
-    let allowed = RoleService::check_user_permission(pool, &user, "can_delete_user").await?;
+    let allowed = {
+      let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
+
+      RoleService::check_user_permission(&mut conn, &user, "can_delete_user").await?
+    };
 
     if !allowed {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));
@@ -194,7 +206,11 @@ impl UserOrchestrator {
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
 
-    let allowed = RoleService::check_user_permission(pool, &user, "can_edit_user").await?;
+    let allowed = {
+      let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
+
+      RoleService::check_user_permission(&mut conn, &user, "can_edit_user").await?
+    };
 
     if !allowed {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));
