@@ -8,5 +8,11 @@
       "npm *": "deny",
       "node *": "deny"
     }
+  },
+  "lsp": {
+    "rust-analyzer": {
+      "command": ["/home/pauldps/.local/bin/mise", "exec", "--", "rust-analyzer"],
+      "extensions": [".rs"]
+    }
   }
 }
