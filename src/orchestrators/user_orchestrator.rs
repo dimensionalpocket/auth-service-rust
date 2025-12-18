@@ -52,7 +52,9 @@ impl UserOrchestrator {
     }
 
     // Business logic: Get all users
-    GetAllUsersWithRolesQuery::run(pool)
+    let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
+
+    GetAllUsersWithRolesQuery::run(&mut conn)
       .await
       .map_err(UserError::DatabaseError)
   }

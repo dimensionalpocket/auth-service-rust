@@ -1,5 +1,5 @@
 use crate::models::User;
-use sqlx::SqlitePool;
+use sqlx::SqliteConnection;
 
 /// Data structure for updating a user's password
 #[derive(Debug)]
@@ -30,7 +30,7 @@ impl UpdateUserPasswordQuery {
   /// * Returns error if user_id doesn't exist
   /// * Returns error if database operation fails
   pub async fn run(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     user_id: i64,
     data: UpdateUserPasswordData,
   ) -> Result<User, sqlx::Error> {
@@ -47,7 +47,7 @@ impl UpdateUserPasswordQuery {
       .bind(&data.password_hash)
       .bind(current_timestamp)
       .bind(user_id)
-      .fetch_one(pool)
+      .fetch_one(&mut *conn)
       .await?;
 
     Ok(user)
@@ -59,6 +59,7 @@ mod tests {
   use super::*;
   use crate::services::PasswordService;
   use crate::test_utils::{create_test_database, create_test_role_model, create_test_user_full};
+  use sqlx::SqlitePool;
 
   async fn setup_default_role(pool: &SqlitePool) {
     create_test_role_model(pool, "user", &["can_view_user_self"], true).await;
@@ -88,7 +89,8 @@ mod tests {
       password_hash: new_password_hash,
     };
 
-    let updated_user = UpdateUserPasswordQuery::run(&pool, user.id, update_data)
+    let mut conn = pool.acquire().await.unwrap();
+    let updated_user = UpdateUserPasswordQuery::run(&mut conn, user.id, update_data)
       .await
       .unwrap();
 
@@ -108,7 +110,8 @@ mod tests {
       password_hash: PasswordService::generate("newpassword").unwrap(),
     };
 
-    let result = UpdateUserPasswordQuery::run(&pool, 999, update_data).await;
+    let mut conn = pool.acquire().await.unwrap();
+    let result = UpdateUserPasswordQuery::run(&mut conn, 999, update_data).await;
 
     // Verify: Should return error
     assert!(result.is_err());
@@ -134,7 +137,8 @@ mod tests {
       password_hash: PasswordService::generate("newpassword").unwrap(),
     };
 
-    let updated_user = UpdateUserPasswordQuery::run(&pool, user.id, update_data)
+    let mut conn = pool.acquire().await.unwrap();
+    let updated_user = UpdateUserPasswordQuery::run(&mut conn, user.id, update_data)
       .await
       .unwrap();
 

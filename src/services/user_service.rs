@@ -238,7 +238,9 @@ impl UserService {
       password_hash: new_password_hash,
     };
 
-    let updated_user = UpdateUserPasswordQuery::run(pool, user_id, update_data)
+    let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
+
+    let updated_user = UpdateUserPasswordQuery::run(&mut conn, user_id, update_data)
       .await
       .map_err(UserError::DatabaseError)?;
 
@@ -255,7 +257,9 @@ impl UserService {
   /// * `Ok(bool)` - True if user was deleted, false if user was not found
   /// * `Err(UserError)` - Database error occurred
   pub async fn delete_user(pool: &SqlitePool, user_id: i64) -> Result<bool, UserError> {
-    DeleteUserByIdQuery::run(pool, user_id)
+    let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
+
+    DeleteUserByIdQuery::run(&mut conn, user_id)
       .await
       .map_err(UserError::DatabaseError)
   }

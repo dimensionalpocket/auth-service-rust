@@ -1,10 +1,10 @@
 use crate::models::{role::Role, user::User, user::UserWithRole};
-use sqlx::{Row, SqlitePool};
+use sqlx::{Row, SqliteConnection};
 
 pub struct GetAllUsersWithRolesQuery;
 
 impl GetAllUsersWithRolesQuery {
-  pub async fn run(pool: &SqlitePool) -> Result<Vec<UserWithRole>, sqlx::Error> {
+  pub async fn run(conn: &mut SqliteConnection) -> Result<Vec<UserWithRole>, sqlx::Error> {
     let rows = sqlx::query(
       r#"
       SELECT 
@@ -20,7 +20,7 @@ impl GetAllUsersWithRolesQuery {
       ORDER BY u.name
       "#
     )
-    .fetch_all(pool)
+    .fetch_all(&mut *conn)
     .await?;
 
     let mut users_with_roles = Vec::new();
@@ -63,8 +63,9 @@ mod tests {
   #[tokio::test]
   async fn test_get_all_users_with_roles_empty() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
-    let result = GetAllUsersWithRolesQuery::run(&pool).await.unwrap();
+    let result = GetAllUsersWithRolesQuery::run(&mut conn).await.unwrap();
     assert_eq!(result.len(), 0);
   }
 
@@ -76,6 +77,10 @@ mod tests {
     let admin_role = create_test_role_model(&pool, "admin", &[], false).await;
     let user_role = create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
 
+    // Only acquire connection after pool usage
+    // as this will empty the pool (size is 1 in tests)
+    let mut conn = pool.acquire().await.unwrap();
+
     // Insert test users
     sqlx::query("INSERT INTO users (uuid, name, role_id, password_hash, metadata_json, created_ts, updated_ts) VALUES (?, ?, ?, ?, ?, ?, ?)")
       .bind("user1-uuid")
@@ -85,7 +90,7 @@ mod tests {
       .bind(None::<String>)
       .bind(1234567890)
       .bind(1234567890)
-      .execute(&pool)
+      .execute(&mut *conn)
       .await
       .unwrap();
 
@@ -97,11 +102,11 @@ mod tests {
       .bind(None::<String>)
       .bind(1234567890)
       .bind(1234567890)
-      .execute(&pool)
+      .execute(&mut *conn)
       .await
       .unwrap();
 
-    let result = GetAllUsersWithRolesQuery::run(&pool).await.unwrap();
+    let result = GetAllUsersWithRolesQuery::run(&mut conn).await.unwrap();
     assert_eq!(result.len(), 2);
 
     // Verify ordering by name
@@ -118,6 +123,8 @@ mod tests {
     // Insert test role
     let test_role = create_test_role_model(&pool, "test_role", &[], false).await;
 
+    let mut conn = pool.acquire().await.unwrap();
+
     // Insert test user
     sqlx::query("INSERT INTO users (uuid, name, role_id, password_hash, metadata_json, created_ts, updated_ts) VALUES (?, ?, ?, ?, ?, ?, ?)")
       .bind("test-uuid")
@@ -127,11 +134,11 @@ mod tests {
       .bind("{\"test\": true}")
       .bind(1234567890)
       .bind(1234567890)
-      .execute(&pool)
+      .execute(&mut *conn)
       .await
       .unwrap();
 
-    let result = GetAllUsersWithRolesQuery::run(&pool).await.unwrap();
+    let result = GetAllUsersWithRolesQuery::run(&mut conn).await.unwrap();
     assert_eq!(result.len(), 1);
 
     let user_with_role = &result[0];
