@@ -147,7 +147,8 @@ impl SiteOrchestrator {
     }
 
     // Business logic: Get site details
-    GetSiteByIdQuery::run(pool, site_id)
+    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
+    GetSiteByIdQuery::run(&mut conn, site_id)
       .await
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::SiteNotFound(site_id))

@@ -78,7 +78,7 @@ Phases are organized to resolve pool-connection conflicts first, then by **calle
 
 ---
 
-## Phase 0: Critical Pool-Connection Conflict Resolution
+## Phase 0: Critical Pool-Connection Conflict Resolution ✅ COMPLETED
 
 ### Phase 0: Complete check_user_permission Connection Conversion
 
@@ -296,7 +296,7 @@ let result = RoleService::check_user_permission(&mut conn, &user, permission).aw
 
 ## Phase 1: Simple CRUD Queries (2 Callers Each)
 
-### Phase 1.1: Site Queries (Simplest Domain)
+### Phase 1.1: Site Queries (Simplest Domain) ✅ COMPLETED
 **Files to modify:**
 - `src/queries/sites/delete_site.rs`
 - `src/queries/sites/get_all_sites.rs` 
@@ -335,6 +335,22 @@ impl SiteService {
 - Update `site_service.rs` tests  
 - Verify connection release works correctly
 
+**Implementation Learnings & Plan Improvements:**
+
+1. **Add Dependency Analysis Step:** Check for direct query calls outside service layer (found in orchestrators)
+   - Discovery: `get_site_details_with_permission_check` called `GetSiteByIdQuery::run()` directly
+   - Impact: Required additional orchestrator fix beyond planned scope
+   - Future: Always verify orchestrator→service→query chain before implementation
+
+2. **Granular Test Scoping:** Count individual test functions, not just test files
+   - Discovery: 11 test functions across 4 files, not just "4 query tests"
+   - Impact: Higher update complexity than initially scoped
+   - Future: Analyze test function count for more accurate effort estimation
+
+3. **Connection Pattern Validation:** Linter behavior confirmed from Phase 0
+   - Confirmed: `&mut *conn` for SQLx queries, `&mut conn` for service calls
+   - Future: Pattern works consistently across all phases
+
 ### Phase 1.2: User Simple Queries
 **Files to modify:**
 - `src/queries/users/delete_user_by_id.rs`
@@ -344,6 +360,11 @@ impl SiteService {
 - `src/services/user_service.rs`
 - `src/orchestrators/user_orchestrator.rs`
 
+**Pre-implementation Analysis (Phase 1.1 Learnings):**
+- **Dependency Analysis:** Check orchestrator for direct query calls bypassing service layer
+- **Test Scoping:** Count individual test functions (expect ~10-15 tests across 4 query files)
+- **Pattern Verification:** Confirm `&mut *conn` for SQLx queries, `&mut conn` for service calls
+
 ### Phase 1.3: Role Simple Queries  
 **Files to modify:**
 - `src/queries/roles/delete_role.rs`
@@ -352,6 +373,12 @@ impl SiteService {
 - `src/queries/roles/set_default_role.rs` (already uses transactions)
 - `src/queries/roles/update_role.rs`
 - `src/services/role_service.rs`
+
+**Pre-implementation Analysis (Phase 1.1 Learnings):**
+- **Dependency Analysis:** Check orchestrator for direct query calls bypassing service layer
+- **Test Scoping:** Count individual test functions (expect ~8-12 tests across 5 query files)
+- **Pattern Verification:** Confirm `&mut *conn` for SQLx queries, `&mut conn` for service calls
+- **Transaction Handling:** `set_default_role.rs` needs special attention for connection vs transaction patterns
 
 **Special handling for `set_default_role.rs`:**
 - Change from `pool.begin()` to accepting `&mut SqliteConnection` 
@@ -370,6 +397,12 @@ impl SiteService {
 - `src/services/auth_service.rs` (uses multiple user queries)
 - `src/services/user_service.rs`
 - `src/orchestrators/user_orchestrator.rs`
+
+**Pre-implementation Analysis (Phase 1.1 Learnings):**
+- **Dependency Analysis:** Check all files for direct query calls (auth service likely to have complex patterns)
+- **Test Scoping:** Count individual test functions across 3 query files + auth service tests
+- **Connection Reuse:** Auth service will need single connection for multiple queries (validate pattern)
+- **Cross-service Impact:** Multiple services call these queries, verify all paths
 
 **Connection reuse patterns in AuthService:**
 ```rust
@@ -402,6 +435,13 @@ impl AuthService {
 - `src/services/role_service.rs`
 - `src/test_utils/mod.rs` (test utilities)
 - `src/graphql/resolvers/set_default_role.rs`
+
+**Pre-implementation Analysis (Phase 1.1 Learnings):**
+- **Dependency Analysis:** Check test utilities and resolvers for direct query calls
+- **Test Scoping:** Count individual test functions + test utility functions
+- **Test Utilities Impact:** `test_utils/mod.rs` changes affect all project tests - high impact
+- **GraphQL Resolver:** Verify resolver uses orchestrator/service layer correctly
+- **Get Role By ID:** Already converted in Phase 0 - ensure consistency
 
 **Cross-domain dependency handling:**
 ```rust
@@ -444,6 +484,13 @@ impl UserService {
 - `src/test_utils/mod.rs`
 - Multiple test files
 
+**Pre-implementation Analysis (Phase 1.1 Learnings):**
+- **Dependency Analysis:** High caller count requires comprehensive dependency mapping
+- **Test Scoping:** Count test functions across all affected test files
+- **Cross-query Dependencies:** `create_user.rs` calls `get_default_role` - needs coordinated changes
+- **Test Utilities Impact:** Will affect all test utilities usage patterns
+- **Service Coordination:** Ensure both role and user services handle connections consistently
+
 **Complex dependency chain:**
 - `CreateUserQuery` → `GetDefaultRoleQuery`
 - Test utilities → `GetDefaultRoleQuery`  
@@ -456,6 +503,13 @@ impl UserService {
 - `src/orchestrators/site_orchestrator.rs`
 - Multiple GraphQL resolvers (`SiteResolver`, `SitesResolver`, `UpdateSiteResolver`, `RemoveSiteResolver`)
 - Multiple test files
+
+**Pre-implementation Analysis (Phase 1.1 Learnings):**
+- **Dependency Analysis:** 9+ callers across multiple layers - extensive mapping required
+- **GraphQL Layer:** Verify all resolvers use orchestrator layer correctly
+- **Test Scoping:** Count test functions across all affected resolver and test files
+- **Site Service Impact:** Already converted Phase 1.1 - ensure consistency
+- **Cross-layer Impact:** Query → Service → Orchestrator → Resolver chain must be verified
 
 **Resolver pattern updates:**
 ```rust
@@ -513,6 +567,14 @@ async fn create_site(
 - `src/queries/users/update_user.rs` (internal call)
 - Multiple test files
 
+**Pre-implementation Analysis (Phase 1.1 Learnings):**
+- **Dependency Analysis:** 18+ callers - requires exhaustive dependency mapping
+- **Cross-layer Impact:** Affects all orchestrators, multiple services, resolvers, and test files
+- **Internal Query Dependencies:** `update_user.rs` calls this query - coordinated changes needed
+- **GraphQL Layer:** Verify resolver uses proper layered architecture
+- **Test Impact:** Massive - affects test utilities and multiple test domains
+- **Connection Coordination:** All orchestrators must use consistent connection patterns
+
 **Multi-orchestrator connection reuse:**
 ```rust
 // UserOrchestrator - same connection for permission check + data retrieval
@@ -556,6 +618,14 @@ impl UserOrchestrator {
 - `src/test_utils/mod.rs`
 - Multiple test files across different domains
 
+**Pre-implementation Analysis (Phase 1.1 Learnings):**
+- **Dependency Analysis:** 23+ callers - most complex dependency mapping
+- **Cross-domain Impact:** Affects authentication, user management, and testing infrastructure
+- **Test Utilities Impact:** Changes affect all project test patterns
+- **GraphQL Integration:** Verify resolver uses proper service/orchestrator layer
+- **Test Coordination:** Multiple test domains affected - systematic approach required
+- **Connection Strategy:** Complex service logic needs careful connection reuse planning
+
 **Complex dependency resolution:**
 ```rust
 // Service layer handles complex dependencies - queries remain simple
@@ -594,6 +664,13 @@ impl UserService {
 - `src/test_utils/mod.rs` 
 - Update all `create_test_*` functions to accept connections
 
+**Pre-implementation Analysis (Phase 1.1 Learnings):**
+- **Test Utility Impact:** Changes affect ALL project tests - highest impact phase
+- **Function Count Analysis:** Count all `create_test_*` functions for accurate scoping
+- **Backward Compatibility:** Plan wrapper functions for existing pool-based tests
+- **Dependency Chain:** Test utilities may call other utilities - verify chain
+- **Test Pattern Standardization:** Establish consistent connection acquisition for all tests
+
 **Test utility pattern:**
 ```rust
 // Before
@@ -619,12 +696,25 @@ pub async fn create_test_role(conn: &mut SqliteConnection, name: &str, permissio
 - Update `create_test_query_schema()` and `create_test_mutation_schema()` in test_utils
 - Ensure all resolver tests work with new connection patterns
 
+**Pre-implementation Analysis (Phase 1.1 Learnings):**
+- **Resolver Test Impact:** All resolver tests use schema building utilities
+- **Dependency Analysis:** Verify no direct query calls in resolvers (Phase 1.1 pattern)
+- **Connection Pattern Consistency:** Ensure schema builders use consistent patterns
+- **Test Integration:** Schema changes affect integration test patterns
+
 ### Phase 5.3: Final Integration Testing
 - Run full test suite with `cargo test --quiet`
 - Verify all resolver tests pass
 - Verify all service tests pass
 - Verify all orchestrator tests pass
 - Verify integration tests pass
+
+**Pre-implementation Analysis (Phase 1.1 Learnings):**
+- **Test Coverage:** 458+ tests expected - comprehensive validation
+- **Regression Testing:** Connection pattern changes may have subtle impacts
+- **Performance Validation:** Verify no connection leaks or pool exhaustion
+- **Cross-domain Validation:** Ensure all domains work together
+- **Linter Integration:** Final code quality verification
 
 ---
 
@@ -761,13 +851,17 @@ pub async fn complex_method(pool: &SqlitePool, params: Params) -> Result<ReturnT
 - **Risk**: Connection pool exhaustion
 - **Mitigation**: Proper connection release patterns
 
-**Scope Expansion Risk (New Category):**
+**Scope Expansion Risk (Updated with Phase 1.1 Learnings):**
 - **Risk**: Underestimated dependency impact (like Phase 0's 160% scope increase)
+- **Additional Discovery**: Direct query calls bypassing service layer (found in orchestrators)
 - **Mitigation**: 
   - Always perform full dependency analysis before phase planning
+  - Verify orchestrator→service→query chain for all phases
+  - Count individual test functions, not just test files
   - Expect cascading changes when touching core infrastructure
   - Plan for broader impact than initial analysis suggests
 - **Phase 0 Lesson**: `check_user_permission` was more central than anticipated
+- **Phase 1.1 Lesson**: Orchestrators may call queries directly, not just services
 
 ### Rollback Strategy
 

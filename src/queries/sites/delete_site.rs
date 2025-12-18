@@ -1,22 +1,22 @@
 use crate::models::Site;
-use sqlx::SqlitePool;
+use sqlx::SqliteConnection;
 
 pub struct DeleteSiteQuery;
 
 impl DeleteSiteQuery {
-  pub async fn run(pool: &SqlitePool, site_id: i64) -> Result<Site, sqlx::Error> {
+  pub async fn run(conn: &mut SqliteConnection, site_id: i64) -> Result<Site, sqlx::Error> {
     // First fetch the site to return its data
     let site = sqlx::query_as::<_, Site>(
       "SELECT id, created_ts, updated_ts, slug, subdomain, port, protocol, metadata_json FROM sites WHERE id = ?"
     )
     .bind(site_id)
-    .fetch_one(pool)
+    .fetch_one(&mut *conn)
     .await?;
 
     // Then delete the site
     let result = sqlx::query("DELETE FROM sites WHERE id = ?")
       .bind(site_id)
-      .execute(pool)
+      .execute(&mut *conn)
       .await?;
 
     if result.rows_affected() == 0 {
@@ -49,7 +49,8 @@ mod tests {
     let site = CreateSiteQuery::run(&pool, create_data).await.unwrap();
 
     // Delete the site and get returned data
-    let deleted_site = DeleteSiteQuery::run(&pool, site.id).await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let deleted_site = DeleteSiteQuery::run(&mut conn, site.id).await.unwrap();
 
     // Verify returned data matches original
     assert_eq!(deleted_site.id, site.id);
@@ -64,7 +65,7 @@ mod tests {
     // Verify site is deleted from database
     let result = sqlx::query("SELECT COUNT(*) FROM sites WHERE id = ?")
       .bind(site.id)
-      .fetch_one(&pool)
+      .fetch_one(&mut *conn)
       .await
       .unwrap();
     let count: i64 = result.get(0);
@@ -76,7 +77,8 @@ mod tests {
     let (pool, _tmp) = create_test_database().await;
 
     // Try to delete non-existent site
-    let result = DeleteSiteQuery::run(&pool, 999).await;
+    let mut conn = pool.acquire().await.unwrap();
+    let result = DeleteSiteQuery::run(&mut conn, 999).await;
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err(), sqlx::Error::RowNotFound));
   }

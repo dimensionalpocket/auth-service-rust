@@ -1,5 +1,5 @@
 use crate::models::Site;
-use sqlx::SqlitePool;
+use sqlx::SqliteConnection;
 
 #[derive(Debug)]
 pub struct UpdateSiteData {
@@ -14,7 +14,10 @@ pub struct UpdateSiteData {
 pub struct UpdateSiteQuery;
 
 impl UpdateSiteQuery {
-  pub async fn run(pool: &SqlitePool, data: UpdateSiteData) -> Result<Option<Site>, sqlx::Error> {
+  pub async fn run(
+    conn: &mut SqliteConnection,
+    data: UpdateSiteData,
+  ) -> Result<Option<Site>, sqlx::Error> {
     let now = chrono::Utc::now().timestamp();
 
     // Build the UPDATE query dynamically based on provided fields
@@ -70,7 +73,7 @@ impl UpdateSiteQuery {
 
     query = query.bind(data.id);
 
-    let result = query.execute(pool).await?;
+    let result = query.execute(&mut *conn).await?;
 
     if result.rows_affected() == 0 {
       return Ok(None);
@@ -81,7 +84,7 @@ impl UpdateSiteQuery {
             "SELECT id, created_ts, updated_ts, slug, subdomain, port, protocol, metadata_json FROM sites WHERE id = ?"
         )
         .bind(data.id)
-        .fetch_one(pool)
+        .fetch_one(&mut *conn)
         .await
         .map(Some)
   }
@@ -120,7 +123,8 @@ mod tests {
     // Add a delay to ensure different timestamps
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
-    let updated_site = UpdateSiteQuery::run(&pool, update_data)
+    let mut conn = pool.acquire().await.unwrap();
+    let updated_site = UpdateSiteQuery::run(&mut conn, update_data)
       .await
       .unwrap()
       .unwrap();
@@ -162,7 +166,8 @@ mod tests {
       metadata_json: None,
     };
 
-    let updated_site = UpdateSiteQuery::run(&pool, update_data)
+    let mut conn = pool.acquire().await.unwrap();
+    let updated_site = UpdateSiteQuery::run(&mut conn, update_data)
       .await
       .unwrap()
       .unwrap();
@@ -192,7 +197,8 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateSiteQuery::run(&pool, update_data).await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let result = UpdateSiteQuery::run(&mut conn, update_data).await.unwrap();
     assert!(result.is_none());
   }
 
@@ -223,7 +229,8 @@ mod tests {
       metadata_json: None,
     };
 
-    let updated_site = UpdateSiteQuery::run(&pool, update_data)
+    let mut conn = pool.acquire().await.unwrap();
+    let updated_site = UpdateSiteQuery::run(&mut conn, update_data)
       .await
       .unwrap()
       .unwrap();

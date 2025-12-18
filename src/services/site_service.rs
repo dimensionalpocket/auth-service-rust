@@ -138,7 +138,9 @@ impl SiteService {
   /// * `Ok(Vec<Site>)` - Vector of all sites
   /// * `Err(SiteError)` - Database operation failed
   pub async fn get_all_sites(pool: &SqlitePool) -> Result<Vec<Site>, SiteError> {
-    GetAllSitesQuery::run(pool)
+    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
+
+    GetAllSitesQuery::run(&mut conn)
       .await
       .map_err(SiteError::DatabaseError)
   }
@@ -159,6 +161,8 @@ impl SiteService {
     id: i64,
     data: UpdateSiteData,
   ) -> Result<Option<Site>, SiteError> {
+    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
+
     // Validate slug if provided
     if let Some(ref slug) = data.slug {
       Self::validate_slug(slug)?;
@@ -169,7 +173,7 @@ impl SiteService {
       )
       .bind(slug)
       .bind(id)
-      .fetch_optional(pool)
+      .fetch_optional(&mut *conn)
       .await
       .map_err(SiteError::DatabaseError)?;
 
@@ -179,7 +183,7 @@ impl SiteService {
     }
 
     // Delegate to query
-    match UpdateSiteQuery::run(pool, UpdateSiteData { id, ..data }).await {
+    match UpdateSiteQuery::run(&mut conn, UpdateSiteData { id, ..data }).await {
       Ok(Some(site)) => Ok(Some(site)),
       Ok(None) => Err(SiteError::SiteNotFound(id)),
       Err(err) => Err(SiteError::DatabaseError(err)),
@@ -196,7 +200,9 @@ impl SiteService {
   /// * `Ok(Site)` - Successfully deleted site data
   /// * `Err(SiteError)` - Deletion failed due to site not found or database error
   pub async fn delete_site(pool: &SqlitePool, site_id: i64) -> Result<Site, SiteError> {
-    DeleteSiteQuery::run(pool, site_id)
+    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
+
+    DeleteSiteQuery::run(&mut conn, site_id)
       .await
       .map_err(|e| match e {
         sqlx::Error::RowNotFound => SiteError::SiteNotFound(site_id),

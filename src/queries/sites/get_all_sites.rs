@@ -1,15 +1,15 @@
 use crate::models::Site;
-use sqlx::SqlitePool;
+use sqlx::SqliteConnection;
 
 pub struct GetAllSitesQuery;
 
 impl GetAllSitesQuery {
-  pub async fn run(pool: &SqlitePool) -> Result<Vec<Site>, sqlx::Error> {
+  pub async fn run(conn: &mut SqliteConnection) -> Result<Vec<Site>, sqlx::Error> {
     sqlx::query_as::<_, Site>(
       "SELECT id, created_ts, updated_ts, slug, subdomain, port, protocol, metadata_json 
        FROM sites",
     )
-    .fetch_all(pool)
+    .fetch_all(&mut *conn)
     .await
   }
 }
@@ -23,7 +23,8 @@ mod tests {
   #[tokio::test]
   async fn test_get_all_sites_empty() {
     let (pool, _tmp) = create_test_database().await;
-    let sites = GetAllSitesQuery::run(&pool).await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let sites = GetAllSitesQuery::run(&mut conn).await.unwrap();
     assert_eq!(sites.len(), 0);
   }
 
@@ -51,7 +52,8 @@ mod tests {
     CreateSiteQuery::run(&pool, site1_data).await.unwrap();
     CreateSiteQuery::run(&pool, site2_data).await.unwrap();
 
-    let sites = GetAllSitesQuery::run(&pool).await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let sites = GetAllSitesQuery::run(&mut conn).await.unwrap();
     assert_eq!(sites.len(), 2);
     assert_eq!(sites[0].slug, "site1");
     assert_eq!(sites[1].slug, "site2");
