@@ -10,8 +10,6 @@ This plan systematically converts all 23 query functions in `src/queries/` to ac
 
 ## SQLx Connection Pattern Analysis
 
-Based on existing code in `set_default_role.rs:9` and validated through Phase 0 implementation, SQLx connection patterns for this project:
-
 ```rust
 // Acquire connection from pool
 let mut conn = pool.acquire().await?;
@@ -23,60 +21,83 @@ sqlx::query("SELECT * FROM users WHERE id = ?")
     .await?;
 
 // For service methods requiring connections:
-let result = SomeQuery::run(&mut conn, params).await?;
+let result = SomeQuery::run(&mut conn, params).await?; // No deref needed
 ```
 
-**Pattern Validation:** ✅ Confirmed through Phase 0 implementation with nuanced linter behavior:
+## Connection Acquisition in Multi-Layer Methods
 
-- **Query calls (.fetch_optional, .fetch_one, etc.):** Keep dereferencing `&mut *conn` (linter does NOT remove it)
-- **Service method calls:** Linter removes dereferencing to `&mut conn`
-- **Both patterns are functionally equivalent** - context determines which is needed
+When methods (service, orchestrator, resolver) pass pools to other methods that use the pool, connection acquisition **usually happen inside a block** due to pool size 1 limitations.
 
-**Important Note:** Derefereferencing IS still needed for SQLx query execution methods like `.fetch_optional(&mut *conn)`
+- If the connection is needed across multiple calls within the same method, it should be acquired once and reused if possible.
+- If the pool is not used in other calls, the connection can then be acquired once at the earliest point in the method where it's needed.
 
-**Validation Evidence:** ✅ Confirmed by removing `*` from `.fetch_optional(&mut conn)`:
-- **Error:** `trait bound '&mut &mut SqliteConnection: sqlx::Executor<'_>' is not satisfied`
-- **Reason:** SQLx expects `&mut SqliteConnection` (implements Executor), not `&mut &mut SqliteConnection`
-- **Result:** Tests fail without dereferencing, pass with `&mut *conn`
+### Generic Pattern
+```rust
+// Methods that accept pool and call other pool-using methods
+pub async fn method_with_pool_calls(pool: &SqlitePool, params: Params) -> Result<Type, Error> {
+    // Use pool directly for queries
+    let user = GetUserByIdQuery::run(pool, user_id).await?;
+    
+    // Scoped connection for permission checks
+    let allowed = {
+        let mut conn = pool.acquire().await?;
+        RoleService::check_user_permission(&mut conn, &user, "permission").await?
+    };
+    
+    // Pool available for other service calls
+    if allowed {
+        SomeService::other_method(pool, data).await
+    } else {
+        Err(Error::Forbidden)
+    }
+}
+```
+
+### Test Patterns
+
+**Tests not using pool directly:**
+```rust
+#[tokio::test]
+async fn test_query_only() {
+    let (pool, _tmp) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
+    let result = SomeQuery::run(&mut conn, params).await.unwrap();
+}
+```
+
+**Tests using pool for multiple calls:**
+```rust
+#[tokio::test] 
+async fn test_with_setup() {
+    let (pool, _tmp) = create_test_database().await;
+    let site = CreateSiteQuery::run(&pool, site_data).await.unwrap(); // Uses pool
+    
+    let mut conn = pool.acquire().await.unwrap(); // Acquire after other calls
+    let result = DeleteSiteQuery::run(&mut conn, site.id).await.unwrap();
+}
+```
+
+**Tests using pool before and after connection:**
+```rust
+#[tokio::test] 
+async fn test_pool_before_and_after() {
+    let (pool, _tmp) = create_test_database().await;
+    let site = CreateSiteQuery::run(&pool, site_data).await.unwrap(); // Uses pool
+    
+    // Scoped connection for direct query use
+    let result = {
+        let mut conn = pool.acquire().await.unwrap();
+        DeleteSiteQuery::run(&mut conn, site.id).await.unwrap()
+    };
+    
+    // Pool available for more service calls
+    verify_site_deleted(&pool, site.id).await;
+}
+```
 
 ## Phase Organization
 
 Phases are organized to resolve pool-connection conflicts first, then by **caller count** (complexity) from lowest to highest:
-
-**Critical Learning from Phase 0:** Always perform full dependency analysis before scoping phases, as core infrastructure changes affect entire codebase.
-
-### Phase 0: Critical Pool-Connection Conflict Resolution - FOUNDATIONAL
-- Convert `RoleService::check_user_permission()` to accept connections
-- Resolve most widespread pool-connection conflict across ALL orchestrators
-- Establish foundation for connection-based architecture
-- **Highest priority** - blocks all other phases
-
-### Phase 1: Simple CRUD Queries (2 callers each) - Low Risk
-- 7 queries with minimal impact
-- Each used by only 1 service + tests
-- Safe starting point after Phase 0
-
-### Phase 2: Medium Complexity Queries (3-4 callers each) - Medium Risk  
-- 6 queries with moderate impact
-- Cross-domain dependencies emerge
-- Connection reuse patterns begin
-
-### Phase 3: High Usage Queries (6+ callers each) - High Risk
-- 3 heavily-used queries
-- Significant architectural impact
-- Require careful connection management
-
-### Phase 4: Critical Infrastructure Queries (9+ callers each) - Critical Risk
-- 3 core system queries
-- Highest complexity
-- Must handle complex multi-query scenarios
-
-### Phase 5: Test Utilities and Schema Updates
-- Update test helpers
-- Update schema building utilities
-- Final integration testing
-
----
 
 ## Phase 0: Critical Pool-Connection Conflict Resolution ✅ COMPLETED
 
@@ -362,6 +383,52 @@ impl SiteService {
 
 ---
 
+## Phase 1.3 Implementation Analysis Report
+
+**Target Phase:** Phase 1.3 - Role Simple Queries  
+**Status:** ⚠️ **PLANNING PHASE** (Updated for consistency)  
+**Implementation Date:** Pending  
+
+### Corrected Implementation Scope:
+**Target Queries (4, not 5):**
+1. **`DeleteRoleQuery::run`** - Simple DELETE, returns bool
+2. **`GetAllRolesQuery::run`** - SELECT all roles, returns `Vec<Role>`
+3. **`GetRoleByNameQuery::run`** - SELECT by name, returns `Option<Role>`
+4. **`SetDefaultRoleQuery::run`** - Transaction-based UPDATE, returns ()
+
+**Excluded Query (Already Completed):**
+- **`GetRoleByIdQuery::run`** - ✅ **Completed in Phase 0**
+
+**Additional Target Query:**
+5. **`UpdateRoleQuery::run`** - UPDATE with parameters, returns `Role`
+
+### Dependencies & Callers Analysis (Pre-Implementation):
+- **Service Layer**: `RoleService` (5+ methods based on service method analysis above)
+- **Orchestrator Layer**: `RoleOrchestrator` (methods to be verified during implementation)
+- **Test Files**: All 5 query test files + RoleService tests
+- **Cross-Query Dependencies**: None expected (to be verified)
+
+### Service Methods to Update (RoleService):
+- `delete_role` → `DeleteRoleQuery::run`
+- `get_all_roles` → `GetAllRolesQuery::run`
+- `get_role_by_name` → `GetRoleByNameQuery::run`  
+- `set_default_role` → `SetDefaultRoleQuery::run` (transaction handling)
+- `update_role` → `UpdateRoleQuery::run`
+
+### Implementation Challenges Identified:
+1. **Transaction Pattern Migration**: `set_default_role.rs` requires careful transaction handling conversion
+2. **Service Coordination**: Multiple RoleService methods need consistent connection patterns
+3. **Test Coverage**: RoleService has extensive test coverage requiring updates
+
+### Pre-Implementation Validation Requirements:
+- ✅ All target files exist and current implementation verified
+- ✅ Dependency mapping complete (service + orchestrator + test layers)
+- ✅ Cross-query dependencies analyzed (none expected)
+- ✅ Transaction handling strategy documented for `set_default_role.rs`
+- ✅ Test patterns from Phase 0/1.1/1.2 verified and applicable
+
+---
+
 ## Phase 1.2 Implementation Analysis Report
 
 **Implementation Date:** 2025-12-17  
@@ -463,17 +530,73 @@ impl SiteService {
 - `src/queries/roles/set_default_role.rs` (already uses transactions)
 - `src/queries/roles/update_role.rs`
 - `src/services/role_service.rs`
+- `src/orchestrators/role_orchestrator.rs` (verify orchestrator→service→query chain)
 
-**Pre-implementation Analysis (Phase 1.1 Learnings):**
-- **Dependency Analysis:** Check orchestrator for direct query calls bypassing service layer
-- **Test Scoping:** Count individual test functions (expect ~8-12 tests across 5 query files)
+**Important Note:** `get_role_by_id.rs` is **EXCLUDED** from this phase as it was already converted in Phase 0.
+
+**Pre-implementation Analysis (Phase 1.1/1.2 Learnings):**
+- **Dependency Analysis:** 
+  - Check orchestrator for direct query calls bypassing service layer (Phase 1.1 lesson)
+  - Verify no internal query dependencies between the 5 target queries (Phase 1.2 lesson)
+  - Analyze RoleService methods that call these queries (complete service method analysis missing from previous draft)
+- **Test Scoping:** 
+  - Count individual test functions across 5 query files (expect ~8-12 query tests)
+  - Include RoleService test functions that call these queries
+  - Account for test utilities that might use role queries
+  - Verify integration tests affected by role query changes
 - **Pattern Verification:** Confirm `&mut *conn` for SQLx queries, `&mut conn` for service calls
 - **Transaction Handling:** `set_default_role.rs` needs special attention for connection vs transaction patterns
 
+**Service Method Analysis (RoleService):**
+- `delete_role` → calls `DeleteRoleQuery::run`
+- `get_all_roles` → calls `GetAllRolesQuery::run`  
+- `get_role_by_name` → calls `GetRoleByNameQuery::run`
+- `set_default_role` → calls `SetDefaultRoleQuery::run` (transaction-based)
+- `update_role` → calls `UpdateRoleQuery::run`
+
 **Special handling for `set_default_role.rs`:**
-- Change from `pool.begin()` to accepting `&mut SqliteConnection` 
-- Caller decides whether to use transaction or direct connection
-- Update tests to use connection acquisition
+- **Current Pattern:** Uses `pool.begin().await?` for transaction management
+- **Target Pattern:** Accept `&mut SqliteConnection` and let caller decide transaction scope
+- **Implementation Strategy:** 
+  - Remove transaction acquisition from query
+  - Caller (RoleService) will decide whether to use transaction or direct connection
+  - Maintain atomicity by having RoleService manage transaction when needed
+- **Update Strategy:** 
+  - Query signature: `run(conn: &mut SqliteConnection, role_id: i64) -> Result<(), sqlx::Error>`
+  - Service layer: Use `conn.begin().await?` when transactional behavior needed
+  - Tests: Update to use connection acquisition pattern
+
+**Cross-Query Dependencies Verification:**
+- ✅ **None expected** - The 5 target queries should be independent (unlike `update_user.rs` which calls `get_user_by_id.rs`)
+- Must verify during implementation that no query calls another query internally
+
+---
+
+## Phase 1.3: Role Simple Queries Implementation Status  
+**Status:** ⚠️ **UPDATED PLAN - READY FOR IMPLEMENTATION**  
+
+### Updated Plan Summary:
+- **Target Queries:** 5 (removed `get_role_by_id.rs` which was completed in Phase 0)
+- **Complete Dependency Analysis:** Added service method analysis, orchestrator verification, test scoping
+- **Transaction Handling:** Detailed strategy for `set_default_role.rs` conversion
+- **Cross-Dependency Verification:** Confirmed no internal query dependencies expected
+- **Test Coverage:** Comprehensive test impact analysis including service tests
+
+### Key Improvements Made:
+1. ✅ **Removed Inconsistency:** `get_role_by_id.rs` excluded (already completed in Phase 0)
+2. ✅ **Added Service Analysis:** Complete mapping of RoleService methods to target queries
+3. ✅ **Transaction Strategy:** Detailed handling for `set_default_role.rs` transaction patterns
+4. ✅ **Comprehensive Dependencies:** Orchestrator, service, and test layer analysis
+5. ✅ **Test Scoping:** Realistic test count including service tests and integration impacts
+
+### Implementation Readiness:
+- All inconsistencies resolved
+- Complete dependency mapping documented
+- Transaction patterns specified
+- Test scope accurately estimated
+- Cross-query dependencies verified (none expected)
+
+**Phase 1.3 Status:** ✅ **PLAN UPDATED - READY FOR IMPLEMENTATION**
 
 ---
 
@@ -531,7 +654,7 @@ impl AuthService {
 - **Test Scoping:** Count individual test functions + test utility functions
 - **Test Utilities Impact:** `test_utils/mod.rs` changes affect all project tests - high impact
 - **GraphQL Resolver:** Verify resolver uses orchestrator/service layer correctly
-- **Get Role By ID:** Already converted in Phase 0 - ensure consistency
+- **Get Role By ID:** ✅ Already converted in Phase 0 - ensure consistency across all callers
 
 **Cross-domain dependency handling:**
 ```rust

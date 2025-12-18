@@ -75,10 +75,11 @@ mod tests {
   #[tokio::test]
   async fn test_delete_site_not_found() {
     let (pool, _tmp) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Try to delete non-existent site
-    let mut conn = pool.acquire().await.unwrap();
     let result = DeleteSiteQuery::run(&mut conn, 999).await;
+
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err(), sqlx::Error::RowNotFound));
   }
