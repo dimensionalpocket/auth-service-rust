@@ -203,6 +203,12 @@ export DPS_AUTH_API_MIGRATE_SKIP_SEEDS="false"
    - `--revert [N]` - Revert last N migrations (default: 1)
    - `--help` - Show all available options
 
+## Development
+
+- Use `mise` for managing Rust toolchains and dependencies. See `.tool-versions` file for required versions.
+- To install `rust-analyzer`: `rustup component add rust-analyzer`
+  - This is recommended for IDE support (e.g., VSCode with Rust Analyzer extension).
+
 ## License
 
 [MIT](./LICENSE)

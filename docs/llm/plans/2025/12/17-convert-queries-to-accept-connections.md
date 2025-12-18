@@ -2,7 +2,7 @@
 
 **Date:** 2025-12-17@21:22  
 **Author:** OpenCode Agent  
-**Version:** 0.1.0 (pre-1.0.0, backwards compatibility not required)
+**Version:** 0.1.0 (pre-1.0.0, no backwards compatibility)
 
 ## Executive Summary
 
@@ -270,7 +270,6 @@ let result = RoleService::check_user_permission(&mut conn, &user, permission).aw
 ### Performance & Architecture Impact
 - **✅ Connection Management:** Proper scoped acquisition prevents connection leaks
 - **✅ Pool Efficiency:** Connections released immediately after permission checks
-- **✅ Backward Compatibility:** Service layer maintains pool-based signatures for callers
 - **✅ Test Reliability:** All tests pass with connection-based architecture
 
 ### Lessons Learned
@@ -351,19 +350,32 @@ impl SiteService {
    - Confirmed: `&mut *conn` for SQLx queries, `&mut conn` for service calls
    - Future: Pattern works consistently across all phases
 
-### Phase 1.2: User Simple Queries
+### Phase 1.2: User Simple Queries (Reduced Scope)
 **Files to modify:**
 - `src/queries/users/delete_user_by_id.rs`
 - `src/queries/users/get_all_users_with_roles.rs`
-- `src/queries/users/update_user.rs`
 - `src/queries/users/update_user_password.rs`
 - `src/services/user_service.rs`
 - `src/orchestrators/user_orchestrator.rs`
 
-**Pre-implementation Analysis (Phase 1.1 Learnings):**
-- **Dependency Analysis:** Check orchestrator for direct query calls bypassing service layer
-- **Test Scoping:** Count individual test functions (expect ~10-15 tests across 4 query files)
-- **Pattern Verification:** Confirm `&mut *conn` for SQLx queries, `&mut conn` for service calls
+**Phase 1.2 Implementation Status:** ✅ **READY TO IMPLEMENT**
+
+**Dependency Resolution:**
+- **Cross-Query Internal Dependency:** `UpdateUserQuery::run` calls `GetUserByIdQuery::run` (line 66)
+- **Solution:** Move `UpdateUserQuery` to future phase to avoid dependency resolution now
+- **Service Layer Dependencies:** Service methods can use scoped connection patterns for mixed pool/connection usage
+- **Test Setup Dependencies:** Test utilities already handle connection acquisition properly
+
+**Phase Assessment:**
+- **Complexity:** Phase 1 level (simple CRUD)
+- **Total Queries:** 3 (reduced from 4 by deferring `update_user.rs`)
+- **Impact:** Limited to user domain queries and their direct callers
+
+**Implementation Approach:**
+1. Convert all 3 target queries to accept connections
+2. Update service methods to use scoped connections where needed  
+3. Update orchestrator methods for mixed pool/connection usage
+4. Update affected tests (reduced test count from 86 to ~60)
 
 ### Phase 1.3: Role Simple Queries  
 **Files to modify:**
@@ -555,7 +567,28 @@ async fn create_site(
 
 ## Phase 4: Critical Infrastructure Queries (9+ Callers Each)
 
+### Phase 4.2: Update User Query (with Internal Dependencies)
+**Files to modify:**
+- `src/queries/users/update_user.rs`
+- `src/services/user_service.rs`
+- `src/orchestrators/user_orchestrator.rs`
+- Multiple test files
+
+**Pre-implementation Analysis (Phase 1.1 Learnings):**
+- **Dependency Analysis:** Medium caller count but complex internal dependencies
+- **Internal Query Dependencies:** `UpdateUserQuery::run` calls `GetUserByIdQuery::run` (line 66)
+- **Cross-layer Impact:** Affects user service and orchestrator layers
+- **Test Impact:** 86+ test functions across update_user.rs tests
+- **Connection Strategy:** Requires coordination with Phase 4.1 for internal dependency
+
+**Implementation Approach:**
+- Convert `UpdateUserQuery` after Phase 4.1 completed
+- Update internal call to use connection parameter
+- Service methods use scoped connection patterns
+- Update all affected test functions
+
 ### Phase 4.1: Get User By ID Query (18+ callers)
+
 **Files to modify:**
 - `src/queries/users/get_user_by_id.rs`
 - `src/services/auth_service.rs`
@@ -564,13 +597,12 @@ async fn create_site(
 - `src/orchestrators/role_orchestrator.rs`
 - `src/orchestrators/auth_orchestrator.rs`
 - `src/graphql/resolvers/role_permissions.rs`
-- `src/queries/users/update_user.rs` (internal call)
 - Multiple test files
 
 **Pre-implementation Analysis (Phase 1.1 Learnings):**
 - **Dependency Analysis:** 18+ callers - requires exhaustive dependency mapping
 - **Cross-layer Impact:** Affects all orchestrators, multiple services, resolvers, and test files
-- **Internal Query Dependencies:** `update_user.rs` calls this query - coordinated changes needed
+- **Internal Query Dependencies:** `update_user.rs` calls this query - deferred to future phase
 - **GraphQL Layer:** Verify resolver uses proper layered architecture
 - **Test Impact:** Massive - affects test utilities and multiple test domains
 - **Connection Coordination:** All orchestrators must use consistent connection patterns
@@ -595,7 +627,7 @@ impl UserOrchestrator {
             .map_err(UserError::DatabaseError)?
             .ok_or(UserError::UserNotFound(session_user_id))?;
             
-        let allowed = RoleService::check_user_permission(pool, &requesting_user, "can_view_user_details").await
+        let allowed = RoleService::check_user_permission(&mut conn, &requesting_user, "can_view_user_details").await
             .map_err(UserError::RoleError)?;
         
         if allowed {
@@ -662,12 +694,11 @@ impl UserService {
 ### Phase 5.1: Update Test Utilities
 **Files to modify:**
 - `src/test_utils/mod.rs` 
-- Update all `create_test_*` functions to accept connections
+- Update all `create_test_*` functions to acquire connections and pass them to queries
 
 **Pre-implementation Analysis (Phase 1.1 Learnings):**
 - **Test Utility Impact:** Changes affect ALL project tests - highest impact phase
 - **Function Count Analysis:** Count all `create_test_*` functions for accurate scoping
-- **Backward Compatibility:** Plan wrapper functions for existing pool-based tests
 - **Dependency Chain:** Test utilities may call other utilities - verify chain
 - **Test Pattern Standardization:** Establish consistent connection acquisition for all tests
 
@@ -679,11 +710,6 @@ pub async fn create_test_user(pool: &SqlitePool, username: &str, role_id: i64) -
 // After
 pub async fn create_test_user(conn: &mut SqliteConnection, username: &str, role_id: i64) -> User
 
-// Wrapper for backward compatibility in tests
-pub async fn create_test_user_with_pool(pool: &SqlitePool, username: &str, role_id: i64) -> User {
-    let mut conn = pool.acquire().await.unwrap();
-    create_test_user(&mut *conn, username, role_id).await
-}
 
 // Create test role helper also needs connection
 pub async fn create_test_role(conn: &mut SqliteConnection, name: &str, permissions: &[&str]) -> i64 {
@@ -884,13 +910,13 @@ pub async fn complex_method(pool: &SqlitePool, params: Params) -> Result<ReturnT
 
 ## Timeline Estimation
 
-- **Phase 1**: 2-3 days (Simple CRUD)
+- **Phase 1**: 2-3 days (Simple CRUD - reduced scope)
 - **Phase 2**: 3-4 days (Medium complexity)  
 - **Phase 3**: 4-5 days (High usage)
-- **Phase 4**: 5-7 days (Critical infrastructure)
+- **Phase 4**: 6-8 days (Critical infrastructure + Update User dependencies)
 - **Phase 5**: 2-3 days (Test utilities and integration)
 
-**Total Estimated Time:** 16-22 days
+**Total Estimated Time:** 17-23 days
 
 ---
 
