@@ -1,16 +1,16 @@
 use crate::models::Role;
-use sqlx::{Row, SqlitePool};
+use sqlx::{Row, SqliteConnection};
 
 pub struct DeleteRoleQuery;
 
 impl DeleteRoleQuery {
-  pub async fn run(pool: &SqlitePool, role_id: i64) -> Result<Role, sqlx::Error> {
-    // First fetch the role to return its data
+  pub async fn run(conn: &mut SqliteConnection, role_id: i64) -> Result<Role, sqlx::Error> {
+    // First fetch of role to return its data
     let row = sqlx::query(
       "SELECT id, created_ts, updated_ts, name, permissions_json, is_default FROM roles WHERE id = ?"
     )
     .bind(role_id)
-    .fetch_one(pool)
+    .fetch_one(&mut *conn)
     .await?;
 
     let permissions_json: Option<String> = row.try_get("permissions_json")?;
@@ -28,7 +28,7 @@ impl DeleteRoleQuery {
     // Then delete the role
     let result = sqlx::query("DELETE FROM roles WHERE id = ?")
       .bind(role_id)
-      .execute(pool)
+      .execute(&mut *conn)
       .await?;
 
     if result.rows_affected() == 0 {
@@ -60,7 +60,8 @@ mod tests {
     let role = CreateRoleQuery::run(&pool, create_data).await.unwrap();
 
     // Delete the role and get returned data
-    let deleted_role = DeleteRoleQuery::run(&pool, role.id).await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let deleted_role = DeleteRoleQuery::run(&mut conn, role.id).await.unwrap();
 
     // Verify returned data matches original
     assert_eq!(deleted_role.id, role.id);
@@ -72,7 +73,7 @@ mod tests {
     // Verify role is deleted from database
     let result = sqlx::query("SELECT COUNT(*) FROM roles WHERE id = ?")
       .bind(role.id)
-      .fetch_one(&pool)
+      .fetch_one(&mut *conn)
       .await
       .unwrap();
     let count: i64 = result.get(0);
@@ -84,7 +85,8 @@ mod tests {
     let (pool, _tmp) = create_test_database().await;
 
     // Try to delete non-existent role
-    let result = DeleteRoleQuery::run(&pool, 999).await;
+    let mut conn = pool.acquire().await.unwrap();
+    let result = DeleteRoleQuery::run(&mut conn, 999).await;
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err(), sqlx::Error::RowNotFound));
   }
@@ -112,7 +114,8 @@ mod tests {
     CreateUserQuery::run(&pool, user_data).await.unwrap();
 
     // Try to delete the role while it's in use - should fail due to foreign key constraint
-    let result = DeleteRoleQuery::run(&pool, role.id).await;
+    let mut conn = pool.acquire().await.unwrap();
+    let result = DeleteRoleQuery::run(&mut conn, role.id).await;
     assert!(result.is_err());
     // The query should fail due to foreign key constraint
     match result.unwrap_err() {

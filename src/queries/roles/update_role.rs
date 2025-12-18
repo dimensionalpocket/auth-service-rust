@@ -1,5 +1,5 @@
 use crate::models::Role;
-use sqlx::{Row, SqlitePool};
+use sqlx::{Row, SqliteConnection};
 
 #[derive(Debug)]
 pub struct UpdateRoleData {
@@ -11,7 +11,10 @@ pub struct UpdateRoleData {
 pub struct UpdateRoleQuery;
 
 impl UpdateRoleQuery {
-  pub async fn run(pool: &SqlitePool, data: UpdateRoleData) -> Result<Option<Role>, sqlx::Error> {
+  pub async fn run(
+    conn: &mut SqliteConnection,
+    data: UpdateRoleData,
+  ) -> Result<Option<Role>, sqlx::Error> {
     let now = chrono::Utc::now().timestamp();
 
     // Build the UPDATE query dynamically based on provided fields
@@ -49,7 +52,7 @@ impl UpdateRoleQuery {
 
     query = query.bind(data.id);
 
-    let result = query.execute(pool).await?;
+    let result = query.execute(&mut *conn).await?;
 
     if result.rows_affected() == 0 {
       return Ok(None);
@@ -60,7 +63,7 @@ impl UpdateRoleQuery {
             "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?"
         )
         .bind(data.id)
-        .fetch_one(pool)
+        .fetch_one(&mut *conn)
         .await?;
 
     let permissions_json: Option<String> = row.try_get("permissions_json")?;
@@ -109,7 +112,8 @@ mod tests {
     // Add a delay to ensure different timestamps
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
-    let updated_role = UpdateRoleQuery::run(&pool, update_data)
+    let mut conn = pool.acquire().await.unwrap();
+    let updated_role = UpdateRoleQuery::run(&mut conn, update_data)
       .await
       .unwrap()
       .unwrap();
@@ -150,7 +154,8 @@ mod tests {
       permissions: None,
     };
 
-    let updated_role = UpdateRoleQuery::run(&pool, update_data)
+    let mut conn = pool.acquire().await.unwrap();
+    let updated_role = UpdateRoleQuery::run(&mut conn, update_data)
       .await
       .unwrap()
       .unwrap();
@@ -190,7 +195,8 @@ mod tests {
       permissions: Some(vec![]), // Set to empty array
     };
 
-    let updated_role = UpdateRoleQuery::run(&pool, update_data)
+    let mut conn = pool.acquire().await.unwrap();
+    let updated_role = UpdateRoleQuery::run(&mut conn, update_data)
       .await
       .unwrap()
       .unwrap();
@@ -211,7 +217,8 @@ mod tests {
       permissions: None,
     };
 
-    let result = UpdateRoleQuery::run(&pool, update_data).await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let result = UpdateRoleQuery::run(&mut conn, update_data).await.unwrap();
     assert!(result.is_none());
   }
 
@@ -233,7 +240,8 @@ mod tests {
       permissions: None,
     };
 
-    let updated_role = UpdateRoleQuery::run(&pool, update_data)
+    let mut conn = pool.acquire().await.unwrap();
+    let updated_role = UpdateRoleQuery::run(&mut conn, update_data)
       .await
       .unwrap()
       .unwrap();
@@ -269,7 +277,8 @@ mod tests {
       permissions: Some(all_permissions.clone()),
     };
 
-    let updated_role = UpdateRoleQuery::run(&pool, update_data)
+    let mut conn = pool.acquire().await.unwrap();
+    let updated_role = UpdateRoleQuery::run(&mut conn, update_data)
       .await
       .unwrap()
       .unwrap();

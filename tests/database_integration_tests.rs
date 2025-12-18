@@ -17,10 +17,13 @@ async fn test_complete_user_creation_flow() {
   let _user_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
 
   // Get user role
-  let role = GetRoleByNameQuery::run(&pool, "user")
-    .await
-    .unwrap()
-    .expect("Role should exist");
+  let role = {
+    let mut conn = pool.acquire().await.unwrap();
+    GetRoleByNameQuery::run(&mut conn, "user")
+      .await
+      .unwrap()
+      .expect("Role should exist")
+  };
 
   // Create user using test utility (this tests the complete flow)
   let created_user = create_test_user_full(
@@ -56,7 +59,8 @@ async fn test_default_roles_seeded() {
   create_test_role(&pool, "user", &["can_view_user_self"]).await;
 
   // Verify default roles exist
-  let roles = GetAllRolesQuery::run(&pool).await.unwrap();
+  let mut conn = pool.acquire().await.unwrap();
+  let roles = GetAllRolesQuery::run(&mut conn).await.unwrap();
 
   assert_eq!(roles.len(), 2);
 

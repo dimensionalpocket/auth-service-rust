@@ -522,17 +522,15 @@ impl SiteService {
 - Tests follow established connection acquisition patterns
 - Connection reuse works correctly within test scopes
 
-### Phase 1.3: Role Simple Queries  
+### Phase 1.3: Role Simple Queries
 **Files to modify:**
 - `src/queries/roles/delete_role.rs`
 - `src/queries/roles/get_all_roles.rs`
 - `src/queries/roles/get_role_by_name.rs`
-- `src/queries/roles/set_default_role.rs` (already uses transactions)
+- `src/queries/roles/set_default_role.rs` (uses transactions)
 - `src/queries/roles/update_role.rs`
 - `src/services/role_service.rs`
 - `src/orchestrators/role_orchestrator.rs` (verify orchestrator→service→query chain)
-
-**Important Note:** `get_role_by_id.rs` is **EXCLUDED** from this phase as it was already converted in Phase 0.
 
 **Pre-implementation Analysis (Phase 1.1/1.2 Learnings):**
 - **Dependency Analysis:** 
@@ -554,20 +552,30 @@ impl SiteService {
 - `set_default_role` → calls `SetDefaultRoleQuery::run` (transaction-based)
 - `update_role` → calls `UpdateRoleQuery::run`
 
-**Special handling for `set_default_role.rs`:**
-- **Current Pattern:** Uses `pool.begin().await?` for transaction management
-- **Target Pattern:** Accept `&mut SqliteConnection` and let caller decide transaction scope
-- **Implementation Strategy:** 
-  - Remove transaction acquisition from query
-  - Caller (RoleService) will decide whether to use transaction or direct connection
-  - Maintain atomicity by having RoleService manage transaction when needed
-- **Update Strategy:** 
-  - Query signature: `run(conn: &mut SqliteConnection, role_id: i64) -> Result<(), sqlx::Error>`
-  - Service layer: Use `conn.begin().await?` when transactional behavior needed
-  - Tests: Update to use connection acquisition pattern
+**SetDefaultRoleQuery transaction conversion:**
+
+The query is still atomic, but the transaction is retrieved from the connection instead of the pool.
+
+```rust
+// Before
+pub async fn run(pool: &SqlitePool, role_id: i64) -> Result<Option<Role>, sqlx::Error> {
+    // Use a transaction for atomic operation
+    let mut tx = pool.begin().await?;
+
+    // ... rest of the logic
+}
+
+// After
+pub async fn run(conn: &mut SqliteConnection, role_id: i64) -> Result<Option<Role>, sqlx::Error> {
+    // Create transaction from the connection
+    let mut tx = conn.begin().await?;
+
+    // ... rest of the logic
+}
+```
 
 **Cross-Query Dependencies Verification:**
-- ✅ **None expected** - The 5 target queries should be independent (unlike `update_user.rs` which calls `get_user_by_id.rs`)
+- ✅ **None expected** - The 5 target queries should be independent
 - Must verify during implementation that no query calls another query internally
 
 ---
@@ -576,18 +584,17 @@ impl SiteService {
 **Status:** ⚠️ **UPDATED PLAN - READY FOR IMPLEMENTATION**  
 
 ### Updated Plan Summary:
-- **Target Queries:** 5 (removed `get_role_by_id.rs` which was completed in Phase 0)
+- **Target Queries:** 5
 - **Complete Dependency Analysis:** Added service method analysis, orchestrator verification, test scoping
 - **Transaction Handling:** Detailed strategy for `set_default_role.rs` conversion
 - **Cross-Dependency Verification:** Confirmed no internal query dependencies expected
 - **Test Coverage:** Comprehensive test impact analysis including service tests
 
 ### Key Improvements Made:
-1. ✅ **Removed Inconsistency:** `get_role_by_id.rs` excluded (already completed in Phase 0)
-2. ✅ **Added Service Analysis:** Complete mapping of RoleService methods to target queries
-3. ✅ **Transaction Strategy:** Detailed handling for `set_default_role.rs` transaction patterns
-4. ✅ **Comprehensive Dependencies:** Orchestrator, service, and test layer analysis
-5. ✅ **Test Scoping:** Realistic test count including service tests and integration impacts
+- ✅ **Added Service Analysis:** Complete mapping of RoleService methods to target queries
+- ✅ **Transaction Strategy:** Detailed handling for `set_default_role.rs` transaction patterns
+- ✅ **Comprehensive Dependencies:** Orchestrator, service, and test layer analysis
+- ✅ **Test Scoping:** Realistic test count including service tests and integration impacts
 
 ### Implementation Readiness:
 - All inconsistencies resolved

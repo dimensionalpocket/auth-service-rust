@@ -57,7 +57,9 @@ pub struct RoleService;
 impl RoleService {
   /// Get all roles
   pub async fn get_all_roles(pool: &SqlitePool) -> Result<Vec<Role>, RoleError> {
-    GetAllRolesQuery::run(pool)
+    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+
+    GetAllRolesQuery::run(&mut conn)
       .await
       .map_err(RoleError::DatabaseError)
   }
@@ -73,7 +75,9 @@ impl RoleService {
 
   /// Get a role by name
   pub async fn get_role_by_name(pool: &SqlitePool, name: &str) -> Result<Option<Role>, RoleError> {
-    GetRoleByNameQuery::run(pool, name)
+    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+
+    GetRoleByNameQuery::run(&mut conn, name)
       .await
       .map_err(RoleError::DatabaseError)
   }
@@ -110,9 +114,12 @@ impl RoleService {
     }
 
     // Check if role name already exists
-    let existing_role = GetRoleByNameQuery::run(pool, &create_data.name)
-      .await
-      .map_err(RoleError::DatabaseError)?;
+    let existing_role = {
+      let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+      GetRoleByNameQuery::run(&mut conn, &create_data.name)
+        .await
+        .map_err(RoleError::DatabaseError)?
+    };
 
     if existing_role.is_some() {
       return Err(RoleError::RoleNameAlreadyExists(create_data.name));
@@ -155,8 +162,9 @@ impl RoleService {
       return Err(RoleError::RoleInUse(role_id));
     }
 
-    // Delete the role
-    match DeleteRoleQuery::run(pool, role_id).await {
+    // Delete role
+    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+    match DeleteRoleQuery::run(&mut conn, role_id).await {
       Ok(role) => Ok(role),
       Err(sqlx::Error::RowNotFound) => Err(RoleError::RoleNotFound(role_id)),
       Err(err) => Err(RoleError::DatabaseError(err)),
@@ -199,7 +207,8 @@ impl RoleService {
     };
 
     // Run the update query
-    let updated_role = UpdateRoleQuery::run(pool, update_data_with_id)
+    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+    let updated_role = UpdateRoleQuery::run(&mut conn, update_data_with_id)
       .await
       .map_err(RoleError::DatabaseError)?;
 
@@ -223,7 +232,8 @@ impl RoleService {
   /// * `Ok(Role)` - The updated role with is_default set to true
   /// * `Err(RoleError)` - Database error or role not found
   pub async fn set_default_role(pool: &SqlitePool, role_id: i64) -> Result<Role, RoleError> {
-    match SetDefaultRoleQuery::run(pool, role_id).await {
+    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+    match SetDefaultRoleQuery::run(&mut conn, role_id).await {
       Ok(Some(role)) => Ok(role),
       Ok(None) => Err(RoleError::RoleNotFound(role_id)),
       Err(err) => Err(RoleError::DatabaseError(err)),
