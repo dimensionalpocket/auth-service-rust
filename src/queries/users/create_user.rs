@@ -1,6 +1,6 @@
 use crate::models::User;
 use crate::queries::roles::GetDefaultRoleQuery;
-use sqlx::SqlitePool;
+use sqlx::SqliteConnection;
 
 #[derive(Debug)]
 pub struct CreateUserData {
@@ -14,7 +14,7 @@ pub struct CreateUserData {
 pub struct CreateUserQuery;
 
 impl CreateUserQuery {
-  pub async fn run(pool: &SqlitePool, data: CreateUserData) -> Result<User, sqlx::Error> {
+  pub async fn run(conn: &mut SqliteConnection, data: CreateUserData) -> Result<User, sqlx::Error> {
     let now = chrono::Utc::now().timestamp();
 
     // Determine the role_id to use
@@ -22,7 +22,7 @@ impl CreateUserQuery {
       Some(id) => id,
       None => {
         // Get the default role
-        let default_role = GetDefaultRoleQuery::run(pool).await?;
+        let default_role = GetDefaultRoleQuery::run(conn).await?;
         match default_role {
           Some(role) => role.id,
           None => {
@@ -46,7 +46,7 @@ impl CreateUserQuery {
     .bind(role_id)
     .bind(&data.password_hash)
     .bind(&data.metadata_json)
-    .execute(pool)
+    .execute(&mut *conn)
     .await?;
 
     let user_id = result.last_insert_rowid();
@@ -56,7 +56,7 @@ impl CreateUserQuery {
       "SELECT id, uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json FROM users WHERE id = ?"
     )
     .bind(user_id)
-    .fetch_one(pool)
+    .fetch_one(&mut *conn)
     .await
   }
 }
@@ -84,7 +84,8 @@ mod tests {
       metadata_json: Some(r#"{"test": true}"#.to_string()),
     };
 
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
 
     assert_eq!(user.uuid, user_uuid);
     assert_eq!(user.name, "Test User");
@@ -112,8 +113,9 @@ mod tests {
       metadata_json: None,
     };
 
+    let mut conn = pool.acquire().await.unwrap();
     // First user should succeed
-    CreateUserQuery::run(&pool, create_data1).await.unwrap();
+    CreateUserQuery::run(&mut conn, create_data1).await.unwrap();
 
     // Second user with same UUID should fail
     let create_data2 = CreateUserData {
@@ -124,7 +126,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = CreateUserQuery::run(&pool, create_data2).await;
+    let result = CreateUserQuery::run(&mut conn, create_data2).await;
     assert!(result.is_err());
   }
 
@@ -141,7 +143,8 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = CreateUserQuery::run(&pool, create_data).await;
+    let mut conn = pool.acquire().await.unwrap();
+    let result = CreateUserQuery::run(&mut conn, create_data).await;
     assert!(result.is_err()); // Should fail due to foreign key constraint
   }
 
@@ -162,12 +165,13 @@ mod tests {
       metadata_json: Some(r#"{"test": true}"#.to_string()),
     };
 
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
 
     assert_eq!(user.uuid, user_uuid);
     assert_eq!(user.name, "Test User");
     // Should have the default role (user role)
-    let default_role = GetDefaultRoleQuery::run(&pool).await.unwrap().unwrap();
+    let default_role = GetDefaultRoleQuery::run(&mut conn).await.unwrap().unwrap();
     assert_eq!(user.role_id, default_role.id);
   }
 
@@ -189,7 +193,8 @@ mod tests {
       metadata_json: None,
     };
 
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
 
     assert_eq!(user.uuid, user_uuid);
     assert_eq!(user.name, "Test Admin");
@@ -213,7 +218,8 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = CreateUserQuery::run(&pool, create_data).await;
+    let mut conn = pool.acquire().await.unwrap();
+    let result = CreateUserQuery::run(&mut conn, create_data).await;
     assert!(result.is_err()); // Should fail because no default role exists
   }
 }

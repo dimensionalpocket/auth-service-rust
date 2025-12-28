@@ -24,9 +24,12 @@ impl RoleOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
-      .await?
-      .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
+    let user = {
+      let mut conn = pool.acquire().await?;
+      GetUserByIdQuery::run(&mut conn, user_id)
+        .await?
+        .ok_or(RoleError::AuthenticationError("User not found".to_string()))?
+    };
 
     let (can_manage_roles, can_edit_user_role) = {
       let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
@@ -49,8 +52,10 @@ impl RoleOrchestrator {
 
   /// Get a role by ID with permission check
   ///
-  /// Validates that the user has `can_manage_roles` permission
-  /// before returning the requested role.
+  /// This method:
+  /// - Checks if user is authenticated
+  /// - Verifies user has "can_manage_roles" permission
+  /// - Returns the role with the given ID
   pub async fn get_role_by_id_with_permission_check(
     pool: &SqlitePool,
     session_context: SessionContext,
@@ -64,9 +69,12 @@ impl RoleOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
-      .await?
-      .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
+    let user = {
+      let mut conn = pool.acquire().await?;
+      GetUserByIdQuery::run(&mut conn, user_id)
+        .await?
+        .ok_or(RoleError::AuthenticationError("User not found".to_string()))?
+    };
 
     let can_manage_roles = {
       let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
@@ -88,8 +96,10 @@ impl RoleOrchestrator {
 
   /// Update a role with permission check
   ///
-  /// Validates that the user has `can_manage_roles` permission
-  /// before updating the requested role.
+  /// This method:
+  /// - Checks if user is authenticated
+  /// - Verifies user has "can_manage_roles" permission
+  /// - Updates the role with the given ID
   pub async fn update_role_with_permission_check(
     pool: &SqlitePool,
     session_context: SessionContext,
@@ -104,9 +114,12 @@ impl RoleOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
-      .await?
-      .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
+    let user = {
+      let mut conn = pool.acquire().await?;
+      GetUserByIdQuery::run(&mut conn, user_id)
+        .await?
+        .ok_or(RoleError::AuthenticationError("User not found".to_string()))?
+    };
 
     let can_manage_roles = {
       let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
@@ -124,8 +137,10 @@ impl RoleOrchestrator {
 
   /// Create a role with permission check
   ///
-  /// Validates that the user has `can_manage_roles` permission
-  /// before creating the new role.
+  /// This method:
+  /// - Checks if user is authenticated
+  /// - Verifies user has "can_manage_roles" permission
+  /// - Creates the role with is_default set to false
   pub async fn create_role_with_permission_check(
     pool: &SqlitePool,
     session_context: SessionContext,
@@ -139,9 +154,12 @@ impl RoleOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
-      .await?
-      .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
+    let user = {
+      let mut conn = pool.acquire().await?;
+      GetUserByIdQuery::run(&mut conn, user_id)
+        .await?
+        .ok_or(RoleError::AuthenticationError("User not found".to_string()))?
+    };
 
     let can_manage_roles = {
       let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
@@ -163,8 +181,10 @@ impl RoleOrchestrator {
 
   /// Delete a role with permission check
   ///
-  /// Validates that the user has `can_manage_roles` permission
-  /// before deleting the requested role.
+  /// This method:
+  /// - Checks if user is authenticated
+  /// - Verifies user has "can_manage_roles" permission
+  /// - Deletes the role with the given ID
   pub async fn delete_role_with_permission_check(
     pool: &SqlitePool,
     session_context: SessionContext,
@@ -178,9 +198,12 @@ impl RoleOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
-      .await?
-      .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
+    let user = {
+      let mut conn = pool.acquire().await?;
+      GetUserByIdQuery::run(&mut conn, user_id)
+        .await?
+        .ok_or(RoleError::AuthenticationError("User not found".to_string()))?
+    };
 
     let can_manage_roles = {
       let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
@@ -198,8 +221,10 @@ impl RoleOrchestrator {
 
   /// Set a role as default with permission check
   ///
-  /// Validates that user has `can_manage_roles` permission
-  /// before setting of specified role as default.
+  /// This method:
+  /// - Checks if user is authenticated
+  /// - Verifies user has "can_manage_roles" permission
+  /// - Sets the role with the given ID as default
   pub async fn set_default_role_with_permission_check(
     pool: &SqlitePool,
     session_context: SessionContext,
@@ -213,9 +238,12 @@ impl RoleOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
-      .await?
-      .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
+    let user = {
+      let mut conn = pool.acquire().await?;
+      GetUserByIdQuery::run(&mut conn, user_id)
+        .await?
+        .ok_or(RoleError::AuthenticationError("User not found".to_string()))?
+    };
 
     let can_manage_roles = {
       let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
@@ -1373,7 +1401,10 @@ mod tests {
     }
 
     // Verify the user still exists and has the role
-    let check_user = GetUserByIdQuery::run(&pool, user_with_role.id).await;
+    let check_user = {
+      let mut conn = pool.acquire().await.unwrap();
+      GetUserByIdQuery::run(&mut conn, user_with_role.id).await
+    };
     assert!(check_user.is_ok());
     assert!(check_user.unwrap().is_some());
 

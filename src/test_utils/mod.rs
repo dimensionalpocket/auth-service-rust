@@ -100,8 +100,17 @@ pub async fn create_test_user_full(
 ) -> User {
   // If no role_id specified, ensure a default role exists
   let final_role_id = if role_id.is_none() {
-    match GetDefaultRoleQuery::run(pool).await.unwrap() {
-      Some(default_role) => Some(default_role.id),
+    // Check if default role exists
+    let default_role_id = {
+      let mut conn = pool.acquire().await.unwrap();
+      GetDefaultRoleQuery::run(&mut conn)
+        .await
+        .unwrap()
+        .map(|r| r.id)
+    };
+
+    match default_role_id {
+      Some(id) => Some(id),
       None => {
         // Create a default role if none exists
         Some(
@@ -124,7 +133,8 @@ pub async fn create_test_user_full(
     password_hash,
     metadata_json: metadata_json_str,
   };
-  CreateUserQuery::run(pool, create_data).await.unwrap()
+  let mut conn = pool.acquire().await.unwrap();
+  CreateUserQuery::run(&mut conn, create_data).await.unwrap()
 }
 
 /// Create a test user with all parameters including specific UUID
@@ -138,8 +148,17 @@ pub async fn create_test_user_with_uuid(
 ) -> User {
   // If no role_id specified, ensure a default role exists
   let final_role_id = if role_id.is_none() {
-    match GetDefaultRoleQuery::run(pool).await.unwrap() {
-      Some(default_role) => Some(default_role.id),
+    // Check if default role exists
+    let default_role_id = {
+      let mut conn = pool.acquire().await.unwrap();
+      GetDefaultRoleQuery::run(&mut conn)
+        .await
+        .unwrap()
+        .map(|r| r.id)
+    };
+
+    match default_role_id {
+      Some(id) => Some(id),
       None => {
         // Create a default role if none exists
         Some(
@@ -162,7 +181,8 @@ pub async fn create_test_user_with_uuid(
     password_hash,
     metadata_json: metadata_json_str,
   };
-  CreateUserQuery::run(pool, create_data).await.unwrap()
+  let mut conn = pool.acquire().await.unwrap();
+  CreateUserQuery::run(&mut conn, create_data).await.unwrap()
 }
 
 /// Create a test role and return ID
@@ -183,7 +203,8 @@ pub async fn create_test_role_model(
     permissions: permissions.iter().map(|&p| p.to_string()).collect(),
     is_default,
   };
-  CreateRoleQuery::run(pool, create_data).await.unwrap()
+  let mut conn = pool.acquire().await.unwrap();
+  CreateRoleQuery::run(&mut conn, create_data).await.unwrap()
 }
 
 /// Create a test user via GraphQL mutation (for integration tests)
@@ -307,7 +328,8 @@ mod tests {
     assert!(user.role_id > 0);
 
     // Verify that default role is created automatically
-    let default_role = GetDefaultRoleQuery::run(&pool).await.unwrap().unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let default_role = GetDefaultRoleQuery::run(&mut conn).await.unwrap().unwrap();
     assert_eq!(user.role_id, default_role.id);
     assert_eq!(default_role.name, "user");
     assert!(default_role.is_default);
@@ -593,7 +615,8 @@ mod tests {
     assert_eq!(user.metadata_json, Some(test_metadata.to_string()));
 
     // Verify user can be retrieved by UUID
-    let retrieved_user = GetUserByUuidQuery::run(&pool, test_uuid).await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let retrieved_user = GetUserByUuidQuery::run(&mut conn, test_uuid).await.unwrap();
     assert!(retrieved_user.is_some());
     let retrieved_user = retrieved_user.unwrap();
     assert_eq!(retrieved_user.id, user.id);

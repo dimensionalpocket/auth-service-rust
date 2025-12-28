@@ -5,7 +5,7 @@ use crate::queries::roles::{
   CreateRoleData, CreateRoleQuery, DeleteRoleQuery, GetAllRolesQuery, GetRoleByIdQuery,
   GetRoleByNameQuery, SetDefaultRoleQuery, UpdateRoleData, UpdateRoleQuery,
 };
-use sqlx::{SqliteConnection, SqlitePool};
+use sqlx::{Row, SqliteConnection, SqlitePool};
 use tracing::warn;
 
 /// Custom error type for user role operations
@@ -113,13 +113,12 @@ impl RoleService {
       }
     }
 
-    // Check if role name already exists
-    let existing_role = {
-      let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
-      GetRoleByNameQuery::run(&mut conn, &create_data.name)
-        .await
-        .map_err(RoleError::DatabaseError)?
-    };
+    // Check if role name already exists and create role in one connection block
+    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+
+    let existing_role = GetRoleByNameQuery::run(&mut conn, &create_data.name)
+      .await
+      .map_err(RoleError::DatabaseError)?;
 
     if existing_role.is_some() {
       return Err(RoleError::RoleNameAlreadyExists(create_data.name));
@@ -130,7 +129,7 @@ impl RoleService {
       permissions: create_data.permissions,
       is_default: false,
     };
-    CreateRoleQuery::run(pool, create_data_with_default_false)
+    CreateRoleQuery::run(&mut conn, create_data_with_default_false)
       .await
       .map_err(RoleError::DatabaseError)
   }
@@ -148,12 +147,12 @@ impl RoleService {
   /// * `Ok(Role)` - The deleted role data
   /// * `Err(RoleError)` - Database error, role not found, or role in use
   pub async fn delete_role(pool: &SqlitePool, role_id: i64) -> Result<Role, RoleError> {
-    use sqlx::Row;
+    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
 
     // First check if any users are using this role
     let user_count = sqlx::query("SELECT COUNT(*) FROM users WHERE role_id = ?")
       .bind(role_id)
-      .fetch_one(pool)
+      .fetch_one(&mut *conn)
       .await
       .map_err(RoleError::DatabaseError)?;
 
@@ -163,7 +162,6 @@ impl RoleService {
     }
 
     // Delete role
-    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
     match DeleteRoleQuery::run(&mut conn, role_id).await {
       Ok(role) => Ok(role),
       Err(sqlx::Error::RowNotFound) => Err(RoleError::RoleNotFound(role_id)),
@@ -1039,7 +1037,10 @@ mod tests {
       role_id: Some(role.id),
       metadata_json: None,
     };
-    CreateUserQuery::run(&pool, user_data).await.unwrap();
+    {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, user_data).await.unwrap();
+    }
 
     // Try to delete the role while it's in use
     let result = RoleService::delete_role(&pool, role.id).await;
@@ -1083,7 +1084,10 @@ mod tests {
     assert!(updated_role1.updated_ts > role1.updated_ts);
 
     // Verify role1 is now default
-    let default_role = GetDefaultRoleQuery::run(&pool).await.unwrap();
+    let default_role = {
+      let mut conn = pool.acquire().await.unwrap();
+      GetDefaultRoleQuery::run(&mut conn).await.unwrap()
+    };
     assert!(default_role.is_some());
     assert_eq!(default_role.unwrap().id, role1.id);
 
@@ -1100,7 +1104,10 @@ mod tests {
     assert!(updated_role2.is_default);
 
     // Verify role2 is now default and role1 is not
-    let default_role = GetDefaultRoleQuery::run(&pool).await.unwrap();
+    let default_role = {
+      let mut conn = pool.acquire().await.unwrap();
+      GetDefaultRoleQuery::run(&mut conn).await.unwrap()
+    };
     assert!(default_role.is_some());
     assert_eq!(default_role.unwrap().id, role2.id);
 

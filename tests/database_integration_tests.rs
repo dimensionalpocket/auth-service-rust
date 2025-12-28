@@ -40,7 +40,8 @@ async fn test_complete_user_creation_flow() {
   assert_eq!(created_user.role_id, role.id);
 
   // Verify user can be retrieved by UUID
-  let retrieved_user = GetUserByUuidQuery::run(&pool, &created_user.uuid)
+  let mut conn = pool.acquire().await.unwrap();
+  let retrieved_user = GetUserByUuidQuery::run(&mut conn, &created_user.uuid)
     .await
     .unwrap()
     .expect("User should be found");
@@ -84,7 +85,8 @@ async fn test_foreign_key_constraint_enforced() {
     metadata_json: None,
   };
 
-  let result = CreateUserQuery::run(&pool, create_data).await;
+  let mut conn = pool.acquire().await.unwrap();
+  let result = CreateUserQuery::run(&mut conn, create_data).await;
 
   // Should fail due to foreign key constraint
   assert!(result.is_err());

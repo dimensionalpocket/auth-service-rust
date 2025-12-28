@@ -89,8 +89,10 @@ impl UserService {
     Self::validate_username(username)?;
     Self::validate_password(password)?;
 
+    let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
+
     // Check if username already exists
-    if let Some(_existing_user) = GetUserByNameQuery::run(pool, username).await? {
+    if let Some(_existing_user) = GetUserByNameQuery::run(&mut conn, username).await? {
       return Err(UserError::UsernameAlreadyExists(username.to_string()));
     }
 
@@ -110,16 +112,16 @@ impl UserService {
     };
 
     // Create the user
-    let user = CreateUserQuery::run(pool, create_data).await?;
-
-    Ok(user)
+    CreateUserQuery::run(&mut conn, create_data)
+      .await
+      .map_err(UserError::DatabaseError)
   }
 
   /// Retrieve a user by name (case-insensitive)
   ///
   /// # Arguments
   /// * `pool` - Database connection pool
-  /// * `name` - The name of the user to retrieve
+  /// * `name` - The name of user to retrieve
   ///
   /// # Returns
   /// * `Ok(Some(User))` - User found
@@ -129,7 +131,8 @@ impl UserService {
     pool: &SqlitePool,
     name: &str,
   ) -> Result<Option<User>, sqlx::Error> {
-    GetUserByNameQuery::run(pool, name).await
+    let mut conn = pool.acquire().await?;
+    GetUserByNameQuery::run(&mut conn, name).await
   }
 
   /// Retrieve a user by ID
@@ -146,7 +149,8 @@ impl UserService {
     pool: &SqlitePool,
     user_id: i64,
   ) -> Result<Option<User>, sqlx::Error> {
-    GetUserByIdQuery::run(pool, user_id).await
+    let mut conn = pool.acquire().await?;
+    GetUserByIdQuery::run(&mut conn, user_id).await
   }
 
   /// Validate username according to business rules
@@ -214,8 +218,10 @@ impl UserService {
       ));
     }
 
+    let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
+
     // Get current user to verify current password
-    let user = GetUserByIdQuery::run(pool, user_id)
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
       .await
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
@@ -230,15 +236,13 @@ impl UserService {
       ));
     }
 
-    // Hash the new password
+    // Hash new password
     let new_password_hash = PasswordService::generate(new_password)?;
 
-    // Update the password in database
+    // Update password in database
     let update_data = UpdateUserPasswordData {
       password_hash: new_password_hash,
     };
-
-    let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
 
     let updated_user = UpdateUserPasswordQuery::run(&mut conn, user_id, update_data)
       .await
@@ -307,8 +311,10 @@ impl UserService {
     mut update_data: UpdateUserData,
     password: Option<String>,
   ) -> Result<User, UserError> {
+    let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
+
     // Get current user for validation and comparison
-    let current_user = GetUserByIdQuery::run(pool, user_id)
+    let current_user = GetUserByIdQuery::run(&mut conn, user_id)
       .await
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
@@ -319,7 +325,7 @@ impl UserService {
 
       // Check username uniqueness if name is changing
       if name != &current_user.name {
-        if let Some(_existing_user) = GetUserByNameQuery::run(pool, name).await? {
+        if let Some(_existing_user) = GetUserByNameQuery::run(&mut conn, name).await? {
           return Err(UserError::UsernameAlreadyExists(name.to_string()));
         }
       }
@@ -333,7 +339,7 @@ impl UserService {
     }
 
     // Update user in database
-    UpdateUserQuery::run(pool, update_data)
+    UpdateUserQuery::run(&mut conn, update_data)
       .await
       .map_err(UserError::DatabaseError)
   }
@@ -508,7 +514,8 @@ mod tests {
       .await
       .unwrap();
 
-    let retrieved_user = GetUserByIdQuery::run(&pool, user.id).await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let retrieved_user = GetUserByIdQuery::run(&mut conn, user.id).await.unwrap();
 
     assert!(retrieved_user.is_some());
     let retrieved_user = retrieved_user.unwrap();
@@ -520,7 +527,8 @@ mod tests {
   async fn test_get_user_by_id_query_not_found() {
     let (pool, _temp_file) = create_test_database().await;
 
-    let user = GetUserByIdQuery::run(&pool, 999).await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let user = GetUserByIdQuery::run(&mut conn, 999).await.unwrap();
 
     assert!(user.is_none());
   }
@@ -739,7 +747,10 @@ mod tests {
       .unwrap();
 
     // Verify user exists before deletion
-    let user_before = GetUserByIdQuery::run(&pool, user.id).await.unwrap();
+    let user_before = {
+      let mut conn = pool.acquire().await.unwrap();
+      GetUserByIdQuery::run(&mut conn, user.id).await.unwrap()
+    };
     assert!(user_before.is_some());
 
     // Test: Delete user
@@ -747,7 +758,10 @@ mod tests {
     assert!(deleted);
 
     // Verify user is deleted
-    let user_after = GetUserByIdQuery::run(&pool, user.id).await.unwrap();
+    let user_after = {
+      let mut conn = pool.acquire().await.unwrap();
+      GetUserByIdQuery::run(&mut conn, user.id).await.unwrap()
+    };
     assert!(user_after.is_none());
   }
 
@@ -793,7 +807,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: Update only name
     let update_data = UpdateUserData {
@@ -830,7 +847,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: Update only role
     let update_data = UpdateUserData {
@@ -865,7 +885,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: Update only password
     let update_data = UpdateUserData {
@@ -906,7 +929,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: Update only metadata
     let update_data = UpdateUserData {
@@ -945,7 +971,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: Some(r#"{"old": "data"}"#.to_string()),
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: Set metadata to NULL
     let update_data = UpdateUserData {
@@ -982,7 +1011,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: Update multiple fields
     let update_data = UpdateUserData {
@@ -1026,7 +1058,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: No updates provided
     let update_data = UpdateUserData {
@@ -1084,7 +1119,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: Try to update with empty username
     let update_data = UpdateUserData {
@@ -1118,7 +1156,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: Try to update with too short username
     let update_data = UpdateUserData {
@@ -1152,7 +1193,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: Try to update with too long username
     let long_name = "a".repeat(21);
@@ -1187,7 +1231,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: Try to update with invalid characters
     let update_data = UpdateUserData {
@@ -1224,7 +1271,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user1 = CreateUserQuery::run(&pool, create_data1).await.unwrap();
+    let user1 = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data1).await.unwrap()
+    };
 
     let create_data2 = CreateUserData {
       uuid: "test-uuid-2".to_string(),
@@ -1233,7 +1283,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let _user2 = CreateUserQuery::run(&pool, create_data2).await.unwrap();
+    let _user2 = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data2).await.unwrap()
+    };
 
     // Test: Try to update user1 with user2's username
     let update_data = UpdateUserData {
@@ -1267,7 +1320,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: Try to update with too short password
     let update_data = UpdateUserData {
@@ -1302,7 +1358,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: Try to update with too long password
     let long_password = "a".repeat(129);
@@ -1337,7 +1396,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: Update user with same username (should not conflict)
     let update_data = UpdateUserData {

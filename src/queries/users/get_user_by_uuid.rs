@@ -1,15 +1,15 @@
 use crate::models::User;
-use sqlx::SqlitePool;
+use sqlx::SqliteConnection;
 
 pub struct GetUserByUuidQuery;
 
 impl GetUserByUuidQuery {
-  pub async fn run(pool: &SqlitePool, uuid: &str) -> Result<Option<User>, sqlx::Error> {
+  pub async fn run(conn: &mut SqliteConnection, uuid: &str) -> Result<Option<User>, sqlx::Error> {
     sqlx::query_as::<_, User>(
       "SELECT id, uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json FROM users WHERE uuid = ?"
     )
     .bind(uuid)
-    .fetch_optional(pool)
+    .fetch_optional(&mut *conn)
     .await
   }
 }
@@ -42,7 +42,10 @@ mod tests {
       .await
       .unwrap();
 
-    let user = GetUserByUuidQuery::run(&pool, &user_uuid).await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let user = GetUserByUuidQuery::run(&mut conn, &user_uuid)
+      .await
+      .unwrap();
 
     assert!(user.is_some());
     let user = user.unwrap();
@@ -58,7 +61,10 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     let user_uuid = Uuid::new_v4().to_string();
-    let user = GetUserByUuidQuery::run(&pool, &user_uuid).await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let user = GetUserByUuidQuery::run(&mut conn, &user_uuid)
+      .await
+      .unwrap();
 
     assert!(user.is_none());
   }

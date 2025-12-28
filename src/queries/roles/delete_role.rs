@@ -57,9 +57,12 @@ mod tests {
       permissions: vec!["can_manage_roles".to_string()],
       is_default: false,
     };
-    let role = CreateRoleQuery::run(&pool, create_data).await.unwrap();
+    let role = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateRoleQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
-    // Delete the role and get returned data
+    // Delete role and get returned data
     let mut conn = pool.acquire().await.unwrap();
     let deleted_role = DeleteRoleQuery::run(&mut conn, role.id).await.unwrap();
 
@@ -101,7 +104,10 @@ mod tests {
       permissions: vec!["can_manage_roles".to_string()],
       is_default: false,
     };
-    let role = CreateRoleQuery::run(&pool, role_data).await.unwrap();
+    let role = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateRoleQuery::run(&mut conn, role_data).await.unwrap()
+    };
 
     // Create a user with this role (this will create a foreign key constraint)
     let user_data = CreateUserData {
@@ -111,7 +117,10 @@ mod tests {
       role_id: Some(role.id),
       metadata_json: None,
     };
-    CreateUserQuery::run(&pool, user_data).await.unwrap();
+    {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, user_data).await.unwrap();
+    }
 
     // Try to delete the role while it's in use - should fail due to foreign key constraint
     let mut conn = pool.acquire().await.unwrap();

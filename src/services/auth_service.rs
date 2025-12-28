@@ -72,9 +72,15 @@ impl AuthService {
     session_secret: &[u8],
   ) -> Result<AuthResult, SessionError> {
     // Find user by username with role information first
-    let user_with_role = GetUserByNameWithRoleQuery::run(pool, username)
-      .await
-      .map_err(|e| SessionError::DatabaseError(e.to_string()))?;
+    let user_with_role = {
+      let mut conn = pool
+        .acquire()
+        .await
+        .map_err(|e| SessionError::DatabaseError(e.to_string()))?;
+      GetUserByNameWithRoleQuery::run(&mut conn, username)
+        .await
+        .map_err(|e| SessionError::DatabaseError(e.to_string()))?
+    };
 
     // Check if user exists
     let user_with_role = user_with_role
@@ -128,10 +134,13 @@ impl AuthService {
     // Create user which includes validation and password hashing
     let user = UserService::create_user(pool, username, password).await?;
 
+    let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
+
     // Get user with role information
-    let user_with_role = GetUserByNameWithRoleQuery::run(pool, username)
-      .await?
-      .ok_or(UserError::UserNotFound(user.id))?;
+    let user_with_role = GetUserByNameWithRoleQuery::run(&mut conn, username)
+      .await
+      .map_err(UserError::DatabaseError)?
+      .ok_or_else(|| UserError::UserNotFound(user.id))?;
 
     // Create session for the newly created user
     let session_token = SessionService::create_session_for_user(&user, session_secret)
@@ -174,8 +183,13 @@ impl AuthService {
       .as_ref()
       .ok_or_else(|| SessionError::AuthenticationError("No valid session".to_string()))?;
 
+    let mut conn = pool
+      .acquire()
+      .await
+      .map_err(|e| SessionError::DatabaseError(e.to_string()))?;
+
     // Get user details from database with role information
-    let user_with_role = GetUserByIdWithRoleQuery::run(pool, session_payload.sub)
+    let user_with_role = GetUserByIdWithRoleQuery::run(&mut conn, session_payload.sub)
       .await
       .map_err(|e| SessionError::DatabaseError(e.to_string()))?
       .ok_or_else(|| SessionError::AuthenticationError("User not found".to_string()))?;

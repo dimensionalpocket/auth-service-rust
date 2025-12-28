@@ -28,10 +28,16 @@ impl RolePermissionsResolver {
       .as_ref()
       .ok_or_else(|| async_graphql::Error::new("Authentication required"))?;
 
-    let user = GetUserByIdQuery::run(pool, session_payload.sub)
-      .await
-      .map_err(|e| async_graphql::Error::new(format!("Failed to get current user: {e}")))?
-      .ok_or_else(|| async_graphql::Error::new("User not found"))?;
+    let user = {
+      let mut conn = pool
+        .acquire()
+        .await
+        .map_err(|e| async_graphql::Error::new(format!("Failed to acquire connection: {e}")))?;
+      GetUserByIdQuery::run(&mut conn, session_payload.sub)
+        .await
+        .map_err(|e| async_graphql::Error::new(format!("Failed to get current user: {e}")))?
+        .ok_or_else(|| async_graphql::Error::new("User not found"))?
+    };
 
     // Check permissions using scoped connection
     let (allowed, can_manage_admin) = {

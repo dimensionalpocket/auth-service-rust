@@ -99,6 +99,7 @@ mod tests {
   #[tokio::test]
   async fn test_update_site_success() {
     let (pool, _tmp) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -108,7 +109,7 @@ mod tests {
       protocol: Some("https".to_string()),
       metadata_json: Some(r#"{"description": "test"}"#.to_string()),
     };
-    let site = CreateSiteQuery::run(&pool, create_data).await.unwrap();
+    let site = CreateSiteQuery::run(&mut conn, create_data).await.unwrap();
 
     // Update the site
     let update_data = UpdateSiteData {
@@ -123,7 +124,6 @@ mod tests {
     // Add a delay to ensure different timestamps
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
-    let mut conn = pool.acquire().await.unwrap();
     let updated_site = UpdateSiteQuery::run(&mut conn, update_data)
       .await
       .unwrap()
@@ -142,6 +142,7 @@ mod tests {
   #[tokio::test]
   async fn test_update_site_partial_update() {
     let (pool, _tmp) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -151,7 +152,7 @@ mod tests {
       protocol: Some("https".to_string()),
       metadata_json: Some(r#"{"description": "test"}"#.to_string()),
     };
-    let site = CreateSiteQuery::run(&pool, create_data).await.unwrap();
+    let site = CreateSiteQuery::run(&mut conn, create_data).await.unwrap();
 
     // Add a delay to ensure different timestamps
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -166,7 +167,6 @@ mod tests {
       metadata_json: None,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
     let updated_site = UpdateSiteQuery::run(&mut conn, update_data)
       .await
       .unwrap()
@@ -205,6 +205,7 @@ mod tests {
   #[tokio::test]
   async fn test_update_site_no_changes() {
     let (pool, _tmp) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -214,7 +215,7 @@ mod tests {
       protocol: Some("https".to_string()),
       metadata_json: Some(r#"{"description": "test"}"#.to_string()),
     };
-    let site = CreateSiteQuery::run(&pool, create_data).await.unwrap();
+    let site = CreateSiteQuery::run(&mut conn, create_data).await.unwrap();
 
     // Add a delay to ensure different timestamps
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -229,7 +230,6 @@ mod tests {
       metadata_json: None,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
     let updated_site = UpdateSiteQuery::run(&mut conn, update_data)
       .await
       .unwrap()

@@ -1,6 +1,6 @@
 use crate::models::Role;
 use serde_json;
-use sqlx::SqlitePool;
+use sqlx::SqliteConnection;
 
 #[derive(Debug)]
 pub struct CreateRoleData {
@@ -12,7 +12,7 @@ pub struct CreateRoleData {
 pub struct CreateRoleQuery;
 
 impl CreateRoleQuery {
-  pub async fn run(pool: &SqlitePool, data: CreateRoleData) -> Result<Role, sqlx::Error> {
+  pub async fn run(conn: &mut SqliteConnection, data: CreateRoleData) -> Result<Role, sqlx::Error> {
     let now = chrono::Utc::now().timestamp();
     let permissions_json = if data.permissions.is_empty() {
       "[]".to_string()
@@ -36,7 +36,7 @@ impl CreateRoleQuery {
     .bind(now)
     .bind(data.is_default)
     .bind(permissions_json)
-    .execute(pool)
+    .execute(&mut *conn)
     .await?;
 
     let role_id = result.last_insert_rowid();
@@ -70,7 +70,8 @@ mod tests {
       is_default: false,
     };
 
-    let role = CreateRoleQuery::run(&pool, data).await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let role = CreateRoleQuery::run(&mut conn, data).await.unwrap();
 
     assert_eq!(role.name, "test_role");
     assert!(!role.is_default);
@@ -92,7 +93,8 @@ mod tests {
       is_default: true,
     };
 
-    let role = CreateRoleQuery::run(&pool, data).await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let role = CreateRoleQuery::run(&mut conn, data).await.unwrap();
 
     assert_eq!(role.name, "empty_permissions_role");
     assert!(role.is_default);
@@ -109,7 +111,10 @@ mod tests {
       is_default: false,
     };
 
-    CreateRoleQuery::run(&pool, data1).await.unwrap();
+    {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateRoleQuery::run(&mut conn, data1).await.unwrap();
+    }
 
     let data2 = CreateRoleData {
       name: "duplicate".to_string(),
@@ -117,7 +122,8 @@ mod tests {
       is_default: false,
     };
 
-    let result = CreateRoleQuery::run(&pool, data2).await;
+    let mut conn = pool.acquire().await.unwrap();
+    let result = CreateRoleQuery::run(&mut conn, data2).await;
     assert!(result.is_err());
   }
 
@@ -131,7 +137,8 @@ mod tests {
       is_default: true,
     };
 
-    let role = CreateRoleQuery::run(&pool, data).await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let role = CreateRoleQuery::run(&mut conn, data).await.unwrap();
 
     assert_eq!(role.name, "default_test_role");
     assert!(role.is_default);
@@ -166,7 +173,8 @@ mod tests {
       is_default: false,
     };
 
-    let role = CreateRoleQuery::run(&pool, data).await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let role = CreateRoleQuery::run(&mut conn, data).await.unwrap();
 
     assert_eq!(role.name, "many_permissions_role");
     assert!(!role.is_default);

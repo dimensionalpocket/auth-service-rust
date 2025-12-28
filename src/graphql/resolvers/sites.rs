@@ -102,8 +102,11 @@ mod tests {
       metadata_json: None,
     };
 
-    CreateSiteQuery::run(&pool, site1_data).await.unwrap();
-    CreateSiteQuery::run(&pool, site2_data).await.unwrap();
+    {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateSiteQuery::run(&mut conn, site1_data).await.unwrap();
+      CreateSiteQuery::run(&mut conn, site2_data).await.unwrap();
+    }
 
     let query = SitesResolver;
     let schema = create_test_query_schema(query, Some(pool), None, None);

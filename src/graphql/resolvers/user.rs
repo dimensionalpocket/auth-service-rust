@@ -121,7 +121,10 @@ mod tests {
       password_hash: "hashed_password".to_string(),
       metadata_json: None,
     };
-    let target_user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let target_user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    }; // Connection released before schema.execute()
 
     // Create session context for admin user
     let session_payload = ServiceSessionPayload {

@@ -1,6 +1,6 @@
 use crate::models::User;
 use crate::queries::users::GetUserByIdQuery;
-use sqlx::SqlitePool;
+use sqlx::SqliteConnection;
 
 /// Data structure for updating user details with partial update support
 #[derive(Debug)]
@@ -23,7 +23,7 @@ impl UpdateUserQuery {
   /// It automatically updates the updated_ts timestamp.
   ///
   /// # Arguments
-  /// * `pool` - Database connection pool
+  /// * `conn` - Database connection
   /// * `update_data` - The user data to update (partial fields only)
   ///
   /// # Returns
@@ -33,7 +33,10 @@ impl UpdateUserQuery {
   /// # Errors
   /// * Returns error if user_id doesn't exist
   /// * Returns error if database operation fails
-  pub async fn run(pool: &SqlitePool, update_data: UpdateUserData) -> Result<User, sqlx::Error> {
+  pub async fn run(
+    conn: &mut SqliteConnection,
+    update_data: UpdateUserData,
+  ) -> Result<User, sqlx::Error> {
     let current_timestamp = chrono::Utc::now().timestamp();
 
     // Start with base query
@@ -63,7 +66,7 @@ impl UpdateUserQuery {
 
     // No updates requested
     if !has_updates {
-      return GetUserByIdQuery::run(pool, update_data.id)
+      return GetUserByIdQuery::run(conn, update_data.id)
         .await?
         .ok_or(sqlx::Error::RowNotFound);
     }
@@ -93,7 +96,7 @@ impl UpdateUserQuery {
 
     query = query.bind(update_data.id);
 
-    query.fetch_one(pool).await
+    query.fetch_one(&mut *conn).await
   }
 }
 
@@ -104,11 +107,11 @@ mod tests {
   use crate::services::PasswordService;
   use crate::test_utils::{create_test_database, create_test_role_model};
 
-  async fn setup_default_role(pool: &SqlitePool) {
+  async fn setup_default_role(pool: &sqlx::SqlitePool) {
     create_test_role_model(pool, "user", &["can_view_user_self"], true).await;
   }
 
-  async fn setup_admin_role_for_update(pool: &SqlitePool) -> i64 {
+  async fn setup_admin_role_for_update(pool: &sqlx::SqlitePool) -> i64 {
     let admin_role = create_test_role_model(pool, "admin", &["is_admin"], false).await;
     admin_role.id
   }
@@ -126,7 +129,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: Update only name
     let update_data = UpdateUserData {
@@ -137,7 +143,10 @@ mod tests {
       metadata_json: None,
     };
 
-    let updated_user = UpdateUserQuery::run(&pool, update_data).await.unwrap();
+    let updated_user = {
+      let mut conn = pool.acquire().await.unwrap();
+      UpdateUserQuery::run(&mut conn, update_data).await.unwrap()
+    };
 
     // Verify: Name changed, other fields unchanged
     assert_eq!(updated_user.id, user.id);
@@ -161,7 +170,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: Update only role
     let update_data = UpdateUserData {
@@ -172,7 +184,10 @@ mod tests {
       metadata_json: None,
     };
 
-    let updated_user = UpdateUserQuery::run(&pool, update_data).await.unwrap();
+    let updated_user = {
+      let mut conn = pool.acquire().await.unwrap();
+      UpdateUserQuery::run(&mut conn, update_data).await.unwrap()
+    };
 
     // Verify: Role changed, other fields unchanged
     assert_eq!(updated_user.id, user.id);
@@ -195,7 +210,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: Update only password
     let new_password_hash = PasswordService::generate("newpassword456").unwrap();
@@ -207,7 +225,10 @@ mod tests {
       metadata_json: None,
     };
 
-    let updated_user = UpdateUserQuery::run(&pool, update_data).await.unwrap();
+    let updated_user = {
+      let mut conn = pool.acquire().await.unwrap();
+      UpdateUserQuery::run(&mut conn, update_data).await.unwrap()
+    };
 
     // Verify: Password hash changed, other fields unchanged
     assert_eq!(updated_user.id, user.id);
@@ -232,7 +253,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: Update multiple fields
     let new_password_hash = PasswordService::generate("newpassword456").unwrap();
@@ -244,7 +268,10 @@ mod tests {
       metadata_json: None,
     };
 
-    let updated_user = UpdateUserQuery::run(&pool, update_data).await.unwrap();
+    let updated_user = {
+      let mut conn = pool.acquire().await.unwrap();
+      UpdateUserQuery::run(&mut conn, update_data).await.unwrap()
+    };
 
     // Verify: All specified fields changed
     assert_eq!(updated_user.id, user.id);
@@ -268,7 +295,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: Change role to admin
     let update_data = UpdateUserData {
@@ -279,7 +309,10 @@ mod tests {
       metadata_json: None,
     };
 
-    let updated_user = UpdateUserQuery::run(&pool, update_data).await.unwrap();
+    let updated_user = {
+      let mut conn = pool.acquire().await.unwrap();
+      UpdateUserQuery::run(&mut conn, update_data).await.unwrap()
+    };
 
     // Verify: Role changed to admin
     assert_eq!(updated_user.id, user.id);
@@ -302,7 +335,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: Update with no fields
     let update_data = UpdateUserData {
@@ -313,7 +349,10 @@ mod tests {
       metadata_json: None,
     };
 
-    let updated_user = UpdateUserQuery::run(&pool, update_data).await.unwrap();
+    let updated_user = {
+      let mut conn = pool.acquire().await.unwrap();
+      UpdateUserQuery::run(&mut conn, update_data).await.unwrap()
+    };
 
     // Verify: User unchanged (except possibly timestamp)
     assert_eq!(updated_user.id, user.id);
@@ -336,7 +375,10 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserQuery::run(&pool, update_data).await;
+    let result = {
+      let mut conn = pool.acquire().await.unwrap();
+      UpdateUserQuery::run(&mut conn, update_data).await
+    };
 
     // Verify: Should return error
     assert!(result.is_err());
@@ -355,7 +397,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: Some(r#"{"key": "value"}"#.to_string()),
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: Update only name
     let update_data = UpdateUserData {
@@ -366,7 +411,10 @@ mod tests {
       metadata_json: None,
     };
 
-    let updated_user = UpdateUserQuery::run(&pool, update_data).await.unwrap();
+    let updated_user = {
+      let mut conn = pool.acquire().await.unwrap();
+      UpdateUserQuery::run(&mut conn, update_data).await.unwrap()
+    };
 
     // Verify: Only name changed, metadata preserved
     assert_eq!(updated_user.name, "newname");
@@ -389,7 +437,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: Some(r#"{"key": "value"}"#.to_string()),
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: Update only metadata
     let update_data = UpdateUserData {
@@ -400,7 +451,10 @@ mod tests {
       metadata_json: Some(Some(r#"{"updated": true}"#.to_string())),
     };
 
-    let updated_user = UpdateUserQuery::run(&pool, update_data).await.unwrap();
+    let updated_user = {
+      let mut conn = pool.acquire().await.unwrap();
+      UpdateUserQuery::run(&mut conn, update_data).await.unwrap()
+    };
 
     // Verify: Only metadata changed, other fields preserved
     assert_eq!(updated_user.id, user.id);
@@ -427,7 +481,10 @@ mod tests {
       password_hash: PasswordService::generate("password123").unwrap(),
       metadata_json: Some(r#"{"key": "value"}"#.to_string()),
     };
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let user = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Test: Set metadata to NULL
     let update_data = UpdateUserData {
@@ -438,7 +495,10 @@ mod tests {
       metadata_json: Some(None), // Explicitly set to NULL
     };
 
-    let updated_user = UpdateUserQuery::run(&pool, update_data).await.unwrap();
+    let updated_user = {
+      let mut conn = pool.acquire().await.unwrap();
+      UpdateUserQuery::run(&mut conn, update_data).await.unwrap()
+    };
 
     // Verify: Metadata is now NULL
     assert_eq!(updated_user.id, user.id);

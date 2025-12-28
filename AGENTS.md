@@ -1,5 +1,10 @@
 # AGENTS.md
 
+## General Instructions
+
+- Be concise and direct.
+- Treat all questions as genuine inquiries for information; don't interpret questions as implying mistakes.
+
 ## Build/Lint/Test Commands
 
 - **Build**: `cargo build`

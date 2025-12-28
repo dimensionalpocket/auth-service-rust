@@ -161,7 +161,10 @@ mod tests {
       protocol: Some("https".to_string()),
       metadata_json: Some(r#"{"description": "Test site"}"#.to_string()),
     };
-    let site = CreateSiteQuery::run(&pool, create_data).await.unwrap();
+    let site = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateSiteQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Create session context for admin user
     let session_payload = ServiceSessionPayload {
@@ -331,7 +334,10 @@ mod tests {
       protocol: None,
       metadata_json: None,
     };
-    let site = CreateSiteQuery::run(&pool, create_data).await.unwrap();
+    let site = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateSiteQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Create session context for admin user
     let session_payload = ServiceSessionPayload {

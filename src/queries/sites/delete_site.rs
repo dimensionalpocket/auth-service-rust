@@ -37,6 +37,7 @@ mod tests {
   #[tokio::test]
   async fn test_delete_site_success() {
     let (pool, _tmp) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -46,10 +47,9 @@ mod tests {
       protocol: None,
       metadata_json: None,
     };
-    let site = CreateSiteQuery::run(&pool, create_data).await.unwrap();
+    let site = CreateSiteQuery::run(&mut conn, create_data).await.unwrap();
 
     // Delete the site and get returned data
-    let mut conn = pool.acquire().await.unwrap();
     let deleted_site = DeleteSiteQuery::run(&mut conn, site.id).await.unwrap();
 
     // Verify returned data matches original

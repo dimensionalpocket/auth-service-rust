@@ -34,10 +34,13 @@ impl SiteOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
-      .await
-      .map_err(SiteError::DatabaseError)?
-      .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
+    let user = {
+      let mut conn = pool.acquire().await?;
+      GetUserByIdQuery::run(&mut conn, user_id)
+        .await
+        .map_err(SiteError::DatabaseError)?
+        .ok_or(SiteError::AuthenticationError("User not found".to_string()))?
+    };
 
     let allowed = {
       let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
@@ -66,10 +69,13 @@ impl SiteOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
-      .await
-      .map_err(SiteError::DatabaseError)?
-      .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
+    let user = {
+      let mut conn = pool.acquire().await?;
+      GetUserByIdQuery::run(&mut conn, user_id)
+        .await
+        .map_err(SiteError::DatabaseError)?
+        .ok_or(SiteError::AuthenticationError("User not found".to_string()))?
+    };
 
     let allowed = {
       let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
@@ -99,10 +105,13 @@ impl SiteOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
-      .await
-      .map_err(SiteError::DatabaseError)?
-      .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
+    let user = {
+      let mut conn = pool.acquire().await?;
+      GetUserByIdQuery::run(&mut conn, user_id)
+        .await
+        .map_err(SiteError::DatabaseError)?
+        .ok_or(SiteError::AuthenticationError("User not found".to_string()))?
+    };
 
     let allowed = {
       let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
@@ -130,24 +139,22 @@ impl SiteOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
+    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
+
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
       .await
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = {
-      let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
-
-      RoleService::check_user_permission(&mut conn, &user, "can_view_site_details").await?
-    };
+    let allowed =
+      RoleService::check_user_permission(&mut conn, &user, "can_view_site_details").await?;
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Get site details
-    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
     GetSiteByIdQuery::run(&mut conn, site_id)
       .await
       .map_err(SiteError::DatabaseError)?
@@ -314,7 +321,10 @@ mod tests {
       protocol: None,
       metadata_json: None,
     };
-    let site = CreateSiteQuery::run(&pool, create_data).await.unwrap();
+    let site = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateSiteQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -350,7 +360,10 @@ mod tests {
       protocol: None,
       metadata_json: None,
     };
-    let site = CreateSiteQuery::run(&pool, create_data).await.unwrap();
+    let site = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateSiteQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -389,7 +402,10 @@ mod tests {
       protocol: None,
       metadata_json: None,
     };
-    let site = CreateSiteQuery::run(&pool, create_data).await.unwrap();
+    let site = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateSiteQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -443,7 +459,10 @@ mod tests {
       protocol: None,
       metadata_json: None,
     };
-    let site = CreateSiteQuery::run(&pool, create_data).await.unwrap();
+    let site = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateSiteQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -496,7 +515,10 @@ mod tests {
       protocol: Some("https".to_string()),
       metadata_json: Some("{\"description\": \"Test site\"}".to_string()),
     };
-    let site = CreateSiteQuery::run(&pool, create_data).await.unwrap();
+    let site = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateSiteQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -536,7 +558,10 @@ mod tests {
       protocol: None,
       metadata_json: None,
     };
-    let site = CreateSiteQuery::run(&pool, create_data).await.unwrap();
+    let site = {
+      let mut conn = pool.acquire().await.unwrap();
+      CreateSiteQuery::run(&mut conn, create_data).await.unwrap()
+    };
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {

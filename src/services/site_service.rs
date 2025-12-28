@@ -68,7 +68,8 @@ impl SiteService {
     let slug_clone = data.slug.clone();
 
     // Delegate to query
-    CreateSiteQuery::run(pool, data).await.map_err(|err| {
+    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
+    CreateSiteQuery::run(&mut conn, data).await.map_err(|err| {
       // Check if this is a unique constraint violation
       if let Some(sqlite_err) = err.as_database_error() {
         if let Some(code) = sqlite_err.code() {

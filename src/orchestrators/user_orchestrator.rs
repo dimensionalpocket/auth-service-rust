@@ -35,25 +35,21 @@ impl UserOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
+    let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
+
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
       .await
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
 
-    let allowed = {
-      let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
-
-      RoleService::check_user_permission(&mut conn, &user, "can_list_users").await?
-    };
+    let allowed = RoleService::check_user_permission(&mut conn, &user, "can_list_users").await?;
 
     if !allowed {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Get all users
-    let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
-
     GetAllUsersWithRolesQuery::run(&mut conn)
       .await
       .map_err(UserError::DatabaseError)
@@ -86,24 +82,23 @@ impl UserOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
+    let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
+
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
       .await
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
 
-    let allowed = {
-      let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
-
-      RoleService::check_user_permission(&mut conn, &user, "can_view_user_details").await?
-    };
+    let allowed =
+      RoleService::check_user_permission(&mut conn, &user, "can_view_user_details").await?;
 
     if !allowed {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));
     }
 
-    // Business logic: Get the target user with role information
-    GetUserByIdWithRoleQuery::run(pool, target_user_id)
+    // Business logic: Get target user with role information
+    GetUserByIdWithRoleQuery::run(&mut conn, target_user_id)
       .await
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(target_user_id))
@@ -138,10 +133,13 @@ impl UserOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
-      .await
-      .map_err(UserError::DatabaseError)?
-      .ok_or(UserError::UserNotFound(user_id))?;
+    let user = {
+      let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
+      GetUserByIdQuery::run(&mut conn, user_id)
+        .await
+        .map_err(UserError::DatabaseError)?
+        .ok_or(UserError::UserNotFound(user_id))?
+    };
 
     let allowed = {
       let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
@@ -203,10 +201,13 @@ impl UserOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(pool, user_id)
-      .await
-      .map_err(UserError::DatabaseError)?
-      .ok_or(UserError::UserNotFound(user_id))?;
+    let user = {
+      let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
+      GetUserByIdQuery::run(&mut conn, user_id)
+        .await
+        .map_err(UserError::DatabaseError)?
+        .ok_or(UserError::UserNotFound(user_id))?
+    };
 
     let allowed = {
       let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
@@ -580,7 +581,12 @@ mod tests {
     assert!(result.is_ok());
 
     // Verify user is deleted
-    let deleted_user = GetUserByIdQuery::run(&pool, target_user.id).await.unwrap();
+    let deleted_user = {
+      let mut conn = pool.acquire().await.unwrap();
+      GetUserByIdQuery::run(&mut conn, target_user.id)
+        .await
+        .unwrap()
+    };
     assert!(deleted_user.is_none());
   }
 
@@ -670,7 +676,12 @@ mod tests {
     }
 
     // Verify user still exists
-    let user_still_exists = GetUserByIdQuery::run(&pool, admin_user.id).await.unwrap();
+    let user_still_exists = {
+      let mut conn = pool.acquire().await.unwrap();
+      GetUserByIdQuery::run(&mut conn, admin_user.id)
+        .await
+        .unwrap()
+    };
     assert!(user_still_exists.is_some());
   }
 
