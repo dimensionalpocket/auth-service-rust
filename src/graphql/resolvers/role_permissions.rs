@@ -80,7 +80,8 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_database, create_test_query_schema, create_test_role_with_pool, create_test_user_with_pool,
+    create_test_database, create_test_query_schema, create_test_role_with_pool,
+    create_test_user_with_pool,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
@@ -116,8 +117,10 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create role manager role
-    let role_manager_id = create_test_role_with_pool(&pool, "role_manager", &["can_manage_roles"]).await;
-    let role_manager_user = create_test_user_with_pool(&pool, "role_manager", role_manager_id).await;
+    let role_manager_id =
+      create_test_role_with_pool(&pool, "role_manager", &["can_manage_roles"]).await;
+    let role_manager_user =
+      create_test_user_with_pool(&pool, "role_manager", role_manager_id).await;
 
     // Create session context for role manager
     let session_payload = DpsAuthSessionPayload {
@@ -159,7 +162,8 @@ mod tests {
       &["can_manage_roles", "can_manage_admin_role_permission"],
     )
     .await;
-    let admin_manager_user = create_test_user_with_pool(&pool, "admin_manager", admin_manager_id).await;
+    let admin_manager_user =
+      create_test_user_with_pool(&pool, "admin_manager", admin_manager_id).await;
 
     // Create session context for admin manager
     let session_payload = DpsAuthSessionPayload {

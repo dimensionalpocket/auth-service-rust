@@ -350,8 +350,8 @@ mod tests {
   use super::*;
   use crate::queries::users::{CreateUserData, CreateUserQuery, GetUserByIdQuery, UpdateUserData};
   use crate::test_utils::{
-    create_test_database, create_test_database_with_pool_size, create_test_role_with_pool,
-    create_test_role_model_with_pool,
+    create_test_database, create_test_database_with_pool_size, create_test_role_model_with_pool,
+    create_test_role_with_pool,
   };
 
   #[tokio::test]

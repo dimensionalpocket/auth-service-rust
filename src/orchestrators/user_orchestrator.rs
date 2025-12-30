@@ -230,7 +230,8 @@ mod tests {
   use crate::middleware::session::SessionContext;
   use crate::queries::users::UpdateUserData;
   use crate::test_utils::{
-    create_test_database, create_test_database_with_pool_size, create_test_role_with_pool, create_test_user_with_pool,
+    create_test_database, create_test_database_with_pool_size, create_test_role_with_pool,
+    create_test_user_with_pool,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
@@ -374,7 +375,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create roles
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_view_user_details"]).await;
+    let admin_role_id =
+      create_test_role_with_pool(&pool, "admin", &["can_view_user_details"]).await;
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
 
     // Create users
@@ -465,7 +467,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role and user
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_view_user_details"]).await;
+    let admin_role_id =
+      create_test_role_with_pool(&pool, "admin", &["can_view_user_details"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
@@ -527,7 +530,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role and user
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_view_user_details"]).await;
+    let admin_role_id =
+      create_test_role_with_pool(&pool, "admin", &["can_view_user_details"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user

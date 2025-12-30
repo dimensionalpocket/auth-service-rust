@@ -75,7 +75,8 @@ mod tests {
 
     // Insert test roles
     let admin_role = create_test_role_model_with_pool(&pool, "admin", &[], false).await;
-    let user_role = create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    let user_role =
+      create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     // Only acquire connection after pool usage
     // as this will empty the pool (size is 1 in tests)

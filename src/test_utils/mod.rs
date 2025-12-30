@@ -136,7 +136,11 @@ pub async fn create_test_user_full(
       Some(id) => Some(id),
       None => {
         // Create a default role if none exists
-        Some(create_test_role_model(conn, "user", &["can_view_user_self"], true).await.id)
+        Some(
+          create_test_role_model(conn, "user", &["can_view_user_self"], true)
+            .await
+            .id,
+        )
       }
     }
   } else {
@@ -186,7 +190,11 @@ pub async fn create_test_user_with_uuid(
       Some(id) => Some(id),
       None => {
         // Create a default role if none exists
-        Some(create_test_role_model(conn, "user", &["can_view_user_self"], true).await.id)
+        Some(
+          create_test_role_model(conn, "user", &["can_view_user_self"], true)
+            .await
+            .id,
+        )
       }
     }
   } else {
@@ -206,13 +214,21 @@ pub async fn create_test_user_with_uuid(
 }
 
 /// Create a test role and return ID
-pub async fn create_test_role_with_pool(pool: &SqlitePool, name: &str, permissions: &[&str]) -> i64 {
+pub async fn create_test_role_with_pool(
+  pool: &SqlitePool,
+  name: &str,
+  permissions: &[&str],
+) -> i64 {
   let role = create_test_role_model_with_pool(pool, name, permissions, false).await;
   role.id
 }
 
 /// Create a test role and return ID (takes connection)
-pub async fn create_test_role(conn: &mut SqliteConnection, name: &str, permissions: &[&str]) -> i64 {
+pub async fn create_test_role(
+  conn: &mut SqliteConnection,
+  name: &str,
+  permissions: &[&str],
+) -> i64 {
   let role = create_test_role_model(conn, name, permissions, false).await;
   role.id
 }
@@ -378,7 +394,8 @@ mod tests {
     let role_id = create_test_role_with_pool(&pool, "test_role", &["can_view_user_self"]).await;
 
     // Create user with custom password
-    let user = create_test_user_with_pool_and_password(&pool, "testuser", role_id, "custompass").await;
+    let user =
+      create_test_user_with_pool_and_password(&pool, "testuser", role_id, "custompass").await;
 
     assert_eq!(user.name, "testuser");
     assert_eq!(user.role_id, role_id);

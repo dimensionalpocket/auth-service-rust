@@ -72,7 +72,9 @@ impl GetUserByNameWithRoleQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::{create_test_database, create_test_role_with_pool, create_test_user_with_pool};
+  use crate::test_utils::{
+    create_test_database, create_test_role_with_pool, create_test_user_with_pool,
+  };
 
   #[tokio::test]
   async fn test_get_user_by_name_with_role_success() {
@@ -143,7 +145,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create role with permissions and user
-    let role_id = create_test_role_with_pool(&pool, "admin", &["is_admin", "can_view_user_details"]).await;
+    let role_id =
+      create_test_role_with_pool(&pool, "admin", &["is_admin", "can_view_user_details"]).await;
     let _user = create_test_user_with_pool(&pool, "adminuser", role_id).await;
 
     // Query user with role

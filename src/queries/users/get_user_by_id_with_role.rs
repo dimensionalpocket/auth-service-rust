@@ -72,7 +72,9 @@ impl GetUserByIdWithRoleQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::{create_test_database, create_test_role_with_pool, create_test_user_with_pool};
+  use crate::test_utils::{
+    create_test_database, create_test_role_with_pool, create_test_user_with_pool,
+  };
 
   #[tokio::test]
   async fn test_get_user_by_id_with_role_success() {

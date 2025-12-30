@@ -100,7 +100,8 @@ mod tests {
   use crate::middleware::session::SessionContext;
   use crate::queries::roles::GetRoleByIdQuery;
   use crate::test_utils::{
-    create_test_database, create_test_mutation_schema, create_test_role_with_pool, create_test_user_with_pool,
+    create_test_database, create_test_mutation_schema, create_test_role_with_pool,
+    create_test_user_with_pool,
   };
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
@@ -109,7 +110,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role with can_manage_roles permission
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_role_id =
+      create_test_role_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
 
     // Create admin user
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -173,7 +175,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role with can_manage_roles permission
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_role_id =
+      create_test_role_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
 
     // Create admin user
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -305,7 +308,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role with can_manage_roles permission
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_role_id =
+      create_test_role_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
 
     // Create admin user
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;

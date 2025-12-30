@@ -82,7 +82,8 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_database, create_test_query_schema, create_test_role_with_pool, create_test_user_with_pool,
+    create_test_database, create_test_query_schema, create_test_role_with_pool,
+    create_test_user_with_pool,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 

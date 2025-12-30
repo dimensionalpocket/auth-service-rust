@@ -58,7 +58,9 @@ impl UpdateUserPasswordQuery {
 mod tests {
   use super::*;
   use crate::services::PasswordService;
-  use crate::test_utils::{create_test_database, create_test_role_model_with_pool, create_test_user_full_with_pool};
+  use crate::test_utils::{
+    create_test_database, create_test_role_model_with_pool, create_test_user_full_with_pool,
+  };
   use sqlx::SqlitePool;
 
   async fn setup_default_role(pool: &SqlitePool) {

@@ -228,7 +228,8 @@ mod tests {
 
     // Create a role first
     let role =
-      create_test_role_model_with_pool(&pool, "no-changes-role", &["can_view_user_self"], false).await;
+      create_test_role_model_with_pool(&pool, "no-changes-role", &["can_view_user_self"], false)
+        .await;
 
     // Add a delay to ensure different timestamps
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;

@@ -167,7 +167,9 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::queries::sites::{CreateSiteData, CreateSiteQuery, UpdateSiteData};
-  use crate::test_utils::{create_test_database, create_test_role_with_pool, create_test_user_with_pool};
+  use crate::test_utils::{
+    create_test_database, create_test_role_with_pool, create_test_user_with_pool,
+  };
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[tokio::test]
@@ -504,7 +506,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role and user
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_view_site_details"]).await;
+    let admin_role_id =
+      create_test_role_with_pool(&pool, "admin", &["can_view_site_details"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create a site first
@@ -590,7 +593,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role and user
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_view_site_details"]).await;
+    let admin_role_id =
+      create_test_role_with_pool(&pool, "admin", &["can_view_site_details"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user

@@ -82,7 +82,8 @@ mod tests {
   use crate::graphql::resolvers::RolesResolver;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_database, create_test_query_schema, create_test_role_with_pool, create_test_user_with_pool,
+    create_test_database, create_test_query_schema, create_test_role_with_pool,
+    create_test_user_with_pool,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
@@ -91,7 +92,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role and user
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_role_id =
+      create_test_role_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create some roles to retrieve
@@ -134,7 +136,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create role editor role and user
-    let role_editor_id = create_test_role_with_pool(&pool, "role_editor", &["can_edit_user_role"]).await;
+    let role_editor_id =
+      create_test_role_with_pool(&pool, "role_editor", &["can_edit_user_role"]).await;
     let role_editor_user = create_test_user_with_pool(&pool, "role_editor", role_editor_id).await;
 
     // Create some roles to retrieve
@@ -222,7 +225,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role and user
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_role_id =
+      create_test_role_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
