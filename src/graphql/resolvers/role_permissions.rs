@@ -1,13 +1,9 @@
 use crate::middleware::session::SessionContext;
-use crate::models::role::ROLE_PERMISSIONS;
-use crate::queries::users::GetUserByIdQuery;
-use crate::services::role_service::RoleService;
+use crate::orchestrators::role_orchestrator::RoleOrchestrator;
+use crate::services::role_service::RoleError;
 use async_graphql::{Context, Object, Result};
 use sqlx::SqlitePool;
 use tracing::instrument;
-
-// TODO: Migrate this resolver to use orchestrator pattern like other resolvers.
-// This resolver was implemented before orchestrators became the standard pattern.
 
 #[derive(Default, Debug)]
 pub struct RolePermissionsResolver;
@@ -22,56 +18,22 @@ impl RolePermissionsResolver {
     let pool = ctx.data::<SqlitePool>()?;
     let session_context = ctx.data::<SessionContext>()?;
 
-    // Get current user
-    let session_payload = session_context
-      .payload
-      .as_ref()
-      .ok_or_else(|| async_graphql::Error::new("Authentication required"))?;
-
-    let user = {
-      let mut conn = pool
-        .acquire()
-        .await
-        .map_err(|e| async_graphql::Error::new(format!("Failed to acquire connection: {e}")))?;
-      GetUserByIdQuery::run(&mut conn, session_payload.sub)
-        .await
-        .map_err(|e| async_graphql::Error::new(format!("Failed to get current user: {e}")))?
-        .ok_or_else(|| async_graphql::Error::new("User not found"))?
-    };
-
-    // Check permissions using scoped connection
-    let (allowed, can_manage_admin) = {
-      let mut conn = pool
-        .acquire()
-        .await
-        .map_err(|e| async_graphql::Error::new(format!("Failed to acquire connection: {e}")))?;
-
-      let allowed = RoleService::check_user_permission(&mut conn, &user, "can_manage_roles")
-        .await
-        .map_err(|e| async_graphql::Error::new(format!("Permission check failed: {e}")))?;
-
-      let can_manage_admin =
-        RoleService::check_user_permission(&mut conn, &user, "can_manage_admin_role_permission")
-          .await
-          .map_err(|e| async_graphql::Error::new(format!("Permission check failed: {e}")))?;
-
-      (allowed, can_manage_admin)
-    };
-
-    if !allowed {
-      return Err(async_graphql::Error::new(
-        "Forbidden: Insufficient permissions",
-      ));
+    match RoleOrchestrator::get_all_role_permissions_with_permission_check(
+      pool,
+      session_context.clone(),
+    )
+    .await
+    {
+      Ok(permissions) => Ok(permissions),
+      Err(RoleError::AuthenticationError(msg)) => Err(async_graphql::Error::new(msg)),
+      Err(RoleError::AuthorizationError(msg)) => Err(async_graphql::Error::new(msg)),
+      Err(err) => {
+        tracing::error!("Failed to get role permissions: {}", err);
+        Err(async_graphql::Error::new(
+          "Failed to retrieve role permissions",
+        ))
+      }
     }
-
-    // Filter permissions based on user's admin management rights
-    let permissions: Vec<String> = ROLE_PERMISSIONS
-      .iter()
-      .filter(|&&perm| can_manage_admin || perm != "is_admin")
-      .map(|s| s.to_string())
-      .collect();
-
-    Ok(permissions)
   }
 }
 
@@ -79,6 +41,7 @@ impl RolePermissionsResolver {
 mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
+  use crate::models::role::ROLE_PERMISSIONS;
   use crate::test_utils::{
     create_test_database, create_test_query_schema, create_test_role_with_pool,
     create_test_user_with_pool,
