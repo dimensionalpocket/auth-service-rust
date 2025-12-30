@@ -76,7 +76,7 @@ pub async fn create_test_database_with_config_and_pool_size(
 }
 
 /// Create a test user with default password
-pub async fn create_test_user(pool: &SqlitePool, username: &str, role_id: i64) -> User {
+pub async fn create_test_user_with_pool(pool: &SqlitePool, username: &str, role_id: i64) -> User {
   create_test_user_with_password(pool, username, role_id, "password123").await
 }
 

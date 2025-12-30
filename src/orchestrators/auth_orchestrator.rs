@@ -47,7 +47,7 @@ impl AuthOrchestrator {
 mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{create_test_database, create_test_role, create_test_user};
+  use crate::test_utils::{create_test_database, create_test_role, create_test_user_with_pool};
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[tokio::test]
@@ -56,7 +56,7 @@ mod tests {
 
     // Create role and user
     let user_role_id = create_test_role(&pool, "user", &[]).await;
-    let user = create_test_user(&pool, "testuser", user_role_id).await;
+    let user = create_test_user_with_pool(&pool, "testuser", user_role_id).await;
 
     // Create session context for user
     let session_payload = DpsAuthSessionPayload {
@@ -146,7 +146,7 @@ mod tests {
 
     // Create role and user
     let user_role_id = create_test_role(&pool, "user", &[]).await;
-    let user = create_test_user(&pool, "testuser", user_role_id).await;
+    let user = create_test_user_with_pool(&pool, "testuser", user_role_id).await;
 
     // Create session context for user
     let session_payload = DpsAuthSessionPayload {
@@ -181,7 +181,7 @@ mod tests {
 
     // Create role and user
     let user_role_id = create_test_role(&pool, "user", &[]).await;
-    let user = create_test_user(&pool, "testuser", user_role_id).await;
+    let user = create_test_user_with_pool(&pool, "testuser", user_role_id).await;
 
     // Create session context for user
     let session_payload = DpsAuthSessionPayload {
@@ -216,7 +216,7 @@ mod tests {
 
     // Create role and user
     let user_role_id = create_test_role(&pool, "user", &[]).await;
-    let user = create_test_user(&pool, "testuser", user_role_id).await;
+    let user = create_test_user_with_pool(&pool, "testuser", user_role_id).await;
 
     // Create session context for user
     let session_payload = DpsAuthSessionPayload {

@@ -122,7 +122,7 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_database, create_test_mutation_schema, create_test_role, create_test_user,
+    create_test_database, create_test_mutation_schema, create_test_role, create_test_user_with_pool,
   };
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
@@ -134,7 +134,7 @@ mod tests {
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
 
     // Create admin user
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
     let admin_user_id = admin_user.id;
 
     // Create session context for admin user
@@ -195,7 +195,7 @@ mod tests {
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
 
     // Create admin user
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
     let admin_user_id = admin_user.id;
 
     // Create session context for admin user
@@ -249,7 +249,7 @@ mod tests {
     let user_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
 
     // Create regular user
-    let user = create_test_user(&pool, "user", user_role_id).await;
+    let user = create_test_user_with_pool(&pool, "user", user_role_id).await;
     let user_id = user.id;
 
     // Create session context for regular user
@@ -315,7 +315,7 @@ mod tests {
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
 
     // Create admin user
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
     let admin_user_id = admin_user.id;
 
     // Create session context for admin user
@@ -359,7 +359,7 @@ mod tests {
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
 
     // Create admin user
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
     let admin_user_id = admin_user.id;
 
     // Create session context for admin user
@@ -398,7 +398,7 @@ mod tests {
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
 
     // Create admin user
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
     let admin_user_id = admin_user.id;
 
     // Create session context for admin user

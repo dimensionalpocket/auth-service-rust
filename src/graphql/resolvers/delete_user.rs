@@ -64,7 +64,7 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_database, create_test_mutation_schema, create_test_role, create_test_user,
+    create_test_database, create_test_mutation_schema, create_test_role, create_test_user_with_pool,
   };
   use dps_auth_session::DpsAuthSessionPayload;
   use sqlx::Row;
@@ -78,8 +78,8 @@ mod tests {
     let user_role_id = create_test_role(&pool, "user", &[]).await;
 
     // Create users
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
-    let target_user = create_test_user(&pool, "target_user", user_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let target_user = create_test_user_with_pool(&pool, "target_user", user_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -131,8 +131,8 @@ mod tests {
     let user_role_id = create_test_role(&pool, "user", &[]).await;
 
     // Create regular user
-    let regular_user = create_test_user(&pool, "user1", user_role_id).await;
-    let target_user = create_test_user(&pool, "target_user", user_role_id).await;
+    let regular_user = create_test_user_with_pool(&pool, "user1", user_role_id).await;
+    let target_user = create_test_user_with_pool(&pool, "target_user", user_role_id).await;
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -188,7 +188,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["can_delete_user"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -233,7 +233,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["can_delete_user"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -266,7 +266,7 @@ mod tests {
 
     // Create target user
     let user_role_id = create_test_role(&pool, "user", &[]).await;
-    let target_user = create_test_user(&pool, "target_user", user_role_id).await;
+    let target_user = create_test_user_with_pool(&pool, "target_user", user_role_id).await;
 
     // Create session context for non-existent user
     let session_payload = DpsAuthSessionPayload {

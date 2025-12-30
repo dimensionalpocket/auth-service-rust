@@ -167,7 +167,7 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::queries::sites::{CreateSiteData, CreateSiteQuery, UpdateSiteData};
-  use crate::test_utils::{create_test_database, create_test_role, create_test_user};
+  use crate::test_utils::{create_test_database, create_test_role, create_test_user_with_pool};
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[tokio::test]
@@ -176,7 +176,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["can_create_site"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -274,7 +274,7 @@ mod tests {
 
     // Create user role without can_create_site permission
     let user_role_id = create_test_role(&pool, "user", &[]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    let regular_user = create_test_user_with_pool(&pool, "user", user_role_id).await;
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -311,7 +311,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["can_delete_site"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -350,7 +350,7 @@ mod tests {
 
     // Create user role without can_delete_site permission
     let user_role_id = create_test_role(&pool, "user", &[]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    let regular_user = create_test_user_with_pool(&pool, "user", user_role_id).await;
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -392,7 +392,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["can_update_site"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -449,7 +449,7 @@ mod tests {
 
     // Create user role without can_update_site permission
     let user_role_id = create_test_role(&pool, "user", &[]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    let regular_user = create_test_user_with_pool(&pool, "user", user_role_id).await;
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -505,7 +505,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["can_view_site_details"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -548,7 +548,7 @@ mod tests {
 
     // Create user role without can_view_site_details permission
     let user_role_id = create_test_role(&pool, "user", &[]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    let regular_user = create_test_user_with_pool(&pool, "user", user_role_id).await;
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -591,7 +591,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["can_view_site_details"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {

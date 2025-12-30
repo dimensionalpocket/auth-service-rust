@@ -82,7 +82,7 @@ mod tests {
   use crate::graphql::resolvers::RolesResolver;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_database, create_test_query_schema, create_test_role, create_test_user,
+    create_test_database, create_test_query_schema, create_test_role, create_test_user_with_pool,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
@@ -92,7 +92,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create some roles to retrieve
     create_test_role(&pool, "user", &["can_view_user_self"]).await;
@@ -135,7 +135,7 @@ mod tests {
 
     // Create role editor role and user
     let role_editor_id = create_test_role(&pool, "role_editor", &["can_edit_user_role"]).await;
-    let role_editor_user = create_test_user(&pool, "role_editor", role_editor_id).await;
+    let role_editor_user = create_test_user_with_pool(&pool, "role_editor", role_editor_id).await;
 
     // Create some roles to retrieve
     create_test_role(&pool, "user", &["can_view_user_self"]).await;
@@ -196,7 +196,7 @@ mod tests {
 
     // Create user role without required permissions
     let user_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    let regular_user = create_test_user_with_pool(&pool, "user", user_role_id).await;
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -223,7 +223,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {

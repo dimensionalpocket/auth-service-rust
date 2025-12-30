@@ -72,7 +72,7 @@ impl GetUserByNameWithRoleQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::{create_test_database, create_test_role, create_test_user};
+  use crate::test_utils::{create_test_database, create_test_role, create_test_user_with_pool};
 
   #[tokio::test]
   async fn test_get_user_by_name_with_role_success() {
@@ -80,7 +80,7 @@ mod tests {
 
     // Create role and user
     let role_id = create_test_role(&pool, "admin", &["can_view_user_details"]).await;
-    let user = create_test_user(&pool, "testuser", role_id).await;
+    let user = create_test_user_with_pool(&pool, "testuser", role_id).await;
 
     // Query user with role
     let mut conn = pool.acquire().await.unwrap();
@@ -115,7 +115,7 @@ mod tests {
 
     // Create role and user
     let role_id = create_test_role(&pool, "user", &[]).await;
-    create_test_user(&pool, "TestUser", role_id).await;
+    create_test_user_with_pool(&pool, "TestUser", role_id).await;
 
     // Query with different cases
     let mut conn = pool.acquire().await.unwrap();
@@ -144,7 +144,7 @@ mod tests {
 
     // Create role with permissions and user
     let role_id = create_test_role(&pool, "admin", &["is_admin", "can_view_user_details"]).await;
-    let _user = create_test_user(&pool, "adminuser", role_id).await;
+    let _user = create_test_user_with_pool(&pool, "adminuser", role_id).await;
 
     // Query user with role
     let mut conn = pool.acquire().await.unwrap();

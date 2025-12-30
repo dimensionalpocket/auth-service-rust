@@ -80,7 +80,7 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_database, create_test_query_schema, create_test_role, create_test_user,
+    create_test_database, create_test_query_schema, create_test_role, create_test_user_with_pool,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
@@ -90,7 +90,7 @@ mod tests {
 
     // Create regular user role
     let user_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    let regular_user = create_test_user_with_pool(&pool, "user", user_role_id).await;
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -117,7 +117,7 @@ mod tests {
 
     // Create role manager role
     let role_manager_id = create_test_role(&pool, "role_manager", &["can_manage_roles"]).await;
-    let role_manager_user = create_test_user(&pool, "role_manager", role_manager_id).await;
+    let role_manager_user = create_test_user_with_pool(&pool, "role_manager", role_manager_id).await;
 
     // Create session context for role manager
     let session_payload = DpsAuthSessionPayload {
@@ -159,7 +159,7 @@ mod tests {
       &["can_manage_roles", "can_manage_admin_role_permission"],
     )
     .await;
-    let admin_manager_user = create_test_user(&pool, "admin_manager", admin_manager_id).await;
+    let admin_manager_user = create_test_user_with_pool(&pool, "admin_manager", admin_manager_id).await;
 
     // Create session context for admin manager
     let session_payload = DpsAuthSessionPayload {
@@ -196,7 +196,7 @@ mod tests {
 
     // Create admin role
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin
     let session_payload = DpsAuthSessionPayload {

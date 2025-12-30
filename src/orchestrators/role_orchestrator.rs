@@ -264,7 +264,7 @@ impl RoleOrchestrator {
 mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{create_test_database, create_test_role, create_test_user};
+  use crate::test_utils::{create_test_database, create_test_role, create_test_user_with_pool};
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[tokio::test]
@@ -273,7 +273,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create some roles to retrieve
     create_test_role(&pool, "user", &["can_view_user_self"]).await;
@@ -304,7 +304,7 @@ mod tests {
 
     // Create role editor role and user
     let role_editor_id = create_test_role(&pool, "role_editor", &["can_edit_user_role"]).await;
-    let role_editor_user = create_test_user(&pool, "role_editor", role_editor_id).await;
+    let role_editor_user = create_test_user_with_pool(&pool, "role_editor", role_editor_id).await;
 
     // Create some roles to retrieve
     create_test_role(&pool, "user", &["can_view_user_self"]).await;
@@ -378,7 +378,7 @@ mod tests {
 
     // Create user role without required permissions
     let user_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    let regular_user = create_test_user_with_pool(&pool, "user", user_role_id).await;
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -406,7 +406,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -432,7 +432,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create a role to retrieve
     let test_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
@@ -513,7 +513,7 @@ mod tests {
 
     // Create user role without required permissions
     let user_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    let regular_user = create_test_user_with_pool(&pool, "user", user_role_id).await;
 
     // Create a role to try to retrieve
     let test_role_id = create_test_role(&pool, "editor", &["can_edit_content"]).await;
@@ -545,7 +545,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -573,7 +573,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create a role to update
     let test_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
@@ -620,7 +620,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create a role to update
     let test_role_id =
@@ -736,7 +736,7 @@ mod tests {
 
     // Create user role without required permissions
     let user_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    let regular_user = create_test_user_with_pool(&pool, "user", user_role_id).await;
 
     // Create a role to try to update
     let test_role_id = create_test_role(&pool, "editor", &["can_edit_content"]).await;
@@ -778,7 +778,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -813,7 +813,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create a role to update
     let test_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
@@ -856,7 +856,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create a role to update
     let test_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
@@ -898,7 +898,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -941,7 +941,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -1032,7 +1032,7 @@ mod tests {
 
     // Create user role without required permissions
     let user_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    let regular_user = create_test_user_with_pool(&pool, "user", user_role_id).await;
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -1067,7 +1067,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -1103,7 +1103,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -1139,7 +1139,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create an existing role first
     create_test_role(&pool, "existing_role", &["can_view_user_self"]).await;
@@ -1178,7 +1178,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -1227,7 +1227,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create a role to delete
     let test_role_id = create_test_role(&pool, "test_role", &["can_view_user_self"]).await;
@@ -1312,7 +1312,7 @@ mod tests {
 
     // Create user role without required permissions
     let user_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    let regular_user = create_test_user_with_pool(&pool, "user", user_role_id).await;
 
     // Create a role to try to delete
     let test_role_id = create_test_role(&pool, "test_role", &["can_edit_content"]).await;
@@ -1344,7 +1344,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -1372,13 +1372,13 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create a role to delete
     let test_role_id = create_test_role(&pool, "test_role", &["can_view_user_self"]).await;
 
     // Create a user with the role to be deleted
-    let user_with_role = create_test_user(&pool, "user_with_role", test_role_id).await;
+    let user_with_role = create_test_user_with_pool(&pool, "user_with_role", test_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -1420,7 +1420,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create a role with specific data to delete
     let test_role_id = create_test_role(
@@ -1472,7 +1472,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create a role to set as default
     let test_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
@@ -1563,7 +1563,7 @@ mod tests {
 
     // Create user role without required permissions
     let user_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
-    let regular_user = create_test_user(&pool, "user", user_role_id).await;
+    let regular_user = create_test_user_with_pool(&pool, "user", user_role_id).await;
 
     // Create a role to try to set as default
     let test_role_id = create_test_role(&pool, "editor", &["can_edit_content"]).await;
@@ -1598,7 +1598,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -1630,7 +1630,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create multiple roles
     let role1_id = create_test_role(&pool, "role1", &["can_view_user_self"]).await;
@@ -1716,7 +1716,7 @@ mod tests {
 
     // Create admin role and user
     let admin_role_id = create_test_role(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create a role to set as default
     let test_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
