@@ -290,14 +290,14 @@ mod tests {
   use crate::models::ROLE_PERMISSIONS;
   use crate::queries::roles::GetDefaultRoleQuery;
   use crate::queries::users::{CreateUserData, CreateUserQuery};
-  use crate::test_utils::{create_test_database, create_test_role_model};
+  use crate::test_utils::{create_test_database, create_test_role_model_with_pool};
 
   #[tokio::test]
   async fn test_get_role_by_id_delegates_to_query() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test role with permissions
-    let role = create_test_role_model(&pool, "admin", &["is_admin"], false).await;
+    let role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
     let role_id = role.id;
     let role = RoleService::get_role_by_id(&pool, role_id).await.unwrap();
 
@@ -312,7 +312,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test role with permissions
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     let role = RoleService::get_role_by_name(&pool, "user").await.unwrap();
 
@@ -327,8 +327,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test roles with different permissions
-    create_test_role_model(&pool, "admin", &["is_admin", "can_manage_roles"], false).await;
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"], false).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     let roles = RoleService::get_all_roles(&pool).await.unwrap();
 
@@ -359,7 +359,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role
-    let admin_role = create_test_role_model(&pool, "admin", &["is_admin"], false).await;
+    let admin_role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
     let admin_role_id = admin_role.id;
 
     // Create admin user
@@ -398,7 +398,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create user role
-    let user_role = create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    let user_role = create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let user_role_id = user_role.id;
 
     // Create regular user
@@ -464,7 +464,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role
-    let admin_role = create_test_role_model(&pool, "admin", &["is_admin"], false).await;
+    let admin_role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
     let admin_role_id = admin_role.id;
 
     // Create admin user
@@ -505,7 +505,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create role with new permissions
-    let role = create_test_role_model(
+    let role = create_test_role_model_with_pool(
       &pool,
       "role_manager",
       &["can_edit_user_role", "can_manage_roles"],
@@ -566,7 +566,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role
-    let admin_role = create_test_role_model(&pool, "admin", &["is_admin"], false).await;
+    let admin_role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
     let admin_role_id = admin_role.id;
 
     // Create admin user
@@ -607,7 +607,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create a role first
-    let role = create_test_role_model(&pool, "test-role", &["can_view_user_self"], false).await;
+    let role = create_test_role_model_with_pool(&pool, "test-role", &["can_view_user_self"], false).await;
     let role_id = role.id;
 
     // Update the role
@@ -637,7 +637,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create a role first
-    let role = create_test_role_model(
+    let role = create_test_role_model_with_pool(
       &pool,
       "test-role",
       &["can_view_user_self", "can_list_users"],
@@ -688,7 +688,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create a role first
-    let role = create_test_role_model(&pool, "test-role", &["can_view_user_self"], false).await;
+    let role = create_test_role_model_with_pool(&pool, "test-role", &["can_view_user_self"], false).await;
     let role_id = role.id;
 
     // Update with invalid permission
@@ -711,7 +711,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create a role first
-    let role = create_test_role_model(
+    let role = create_test_role_model_with_pool(
       &pool,
       "empty-permissions-role",
       &["can_view_user_self"],
@@ -742,7 +742,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create a role first
-    let role = create_test_role_model(
+    let role = create_test_role_model_with_pool(
       &pool,
       "all-permissions-role",
       &["can_view_user_self"],

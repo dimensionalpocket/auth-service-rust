@@ -68,8 +68,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create test roles
-    let role1_id = create_test_role(&pool, "role1", &[]).await;
-    let role2_id = create_test_role(&pool, "role2", &[]).await;
+    let role1_id = create_test_role_with_pool(&pool, "role1", &[]).await;
+    let role2_id = create_test_role_with_pool(&pool, "role2", &[]).await;
 
     // Set role1 as default
     let mut conn = pool.acquire().await.unwrap();
@@ -109,8 +109,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create test roles
-    let role1_id = create_test_role(&pool, "role1", &[]).await;
-    let role2_id = create_test_role(&pool, "role2", &[]).await;
+    let role1_id = create_test_role_with_pool(&pool, "role1", &[]).await;
+    let role2_id = create_test_role_with_pool(&pool, "role2", &[]).await;
 
     // Set role1 as default first
     let mut conn = pool.acquire().await.unwrap();
@@ -172,7 +172,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create test role
-    let role_id = create_test_role(&pool, "role1", &[]).await;
+    let role_id = create_test_role_with_pool(&pool, "role1", &[]).await;
 
     // Get original role to check timestamp
     let original_role_row = sqlx::query(

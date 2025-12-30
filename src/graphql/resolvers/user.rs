@@ -86,7 +86,7 @@ mod tests {
   use crate::middleware::session::SessionContext;
   use crate::queries::users::{CreateUserData, CreateUserQuery};
   use crate::test_utils::{
-    create_test_database, create_test_query_schema, create_test_role_model, create_test_user_full,
+    create_test_database, create_test_query_schema, create_test_role_model_with_pool, create_test_user_full_with_pool,
   };
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
@@ -95,7 +95,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert admin role with can_view_user_details permission
-    let admin_role = create_test_role_model(
+    let admin_role = create_test_role_model_with_pool(
       &pool,
       "admin",
       &["is_admin", "can_view_user_details"],
@@ -105,12 +105,12 @@ mod tests {
     let admin_role_id = admin_role.id;
 
     // Insert user role without special permissions
-    let user_role = create_test_role_model(&pool, "user", &[], true).await;
+    let user_role = create_test_role_model_with_pool(&pool, "user", &[], true).await;
     let user_role_id = user_role.id;
 
     // Insert admin user
     let admin_user =
-      create_test_user_full(&pool, "admin", Some(admin_role_id), "test_password", None).await;
+      create_test_user_full_with_pool(&pool, "admin", Some(admin_role_id), "test_password", None).await;
     let admin_user_id = admin_user.id;
 
     // Create test user
@@ -176,12 +176,12 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert user role without can_view_user_details permission
-    let user_role = create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    let user_role = create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let user_role_id = user_role.id;
 
     // Insert regular user
     let user =
-      create_test_user_full(&pool, "user", Some(user_role_id), "test_password", None).await;
+      create_test_user_full_with_pool(&pool, "user", Some(user_role_id), "test_password", None).await;
     let user_id = user.id;
 
     // Create session context for regular user
@@ -238,7 +238,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert admin role with can_view_user_details permission
-    let admin_role = create_test_role_model(
+    let admin_role = create_test_role_model_with_pool(
       &pool,
       "admin",
       &["is_admin", "can_view_user_details"],
@@ -249,7 +249,7 @@ mod tests {
 
     // Insert admin user
     let admin_user =
-      create_test_user_full(&pool, "admin", Some(admin_role_id), "test_password", None).await;
+      create_test_user_full_with_pool(&pool, "admin", Some(admin_role_id), "test_password", None).await;
     let admin_user_id = admin_user.id;
 
     // Create session context for admin user

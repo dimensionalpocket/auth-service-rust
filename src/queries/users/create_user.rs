@@ -64,7 +64,7 @@ impl CreateUserQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::{create_test_database, create_test_role_model};
+  use crate::test_utils::{create_test_database, create_test_role_model_with_pool};
   use uuid::Uuid;
 
   #[tokio::test]
@@ -72,7 +72,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test role first
-    let role = create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    let role = create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let role_id = role.id;
 
     let user_uuid = Uuid::new_v4().to_string();
@@ -101,7 +101,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test role first
-    let role = create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    let role = create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let role_id = role.id;
 
     let user_uuid = Uuid::new_v4().to_string();
@@ -153,8 +153,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test roles with one default
-    create_test_role_model(&pool, "admin", &["is_admin"], false).await;
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {
@@ -180,9 +180,9 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test roles with one default
-    let admin_role = create_test_role_model(&pool, "admin", &["is_admin"], false).await;
+    let admin_role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
     let admin_role_id = admin_role.id;
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {
@@ -206,8 +206,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test roles with no default
-    create_test_role_model(&pool, "admin", &["is_admin"], false).await;
-    create_test_role_model(&pool, "moderator", &["can_moderate"], false).await;
+    create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
+    create_test_role_model_with_pool(&pool, "moderator", &["can_moderate"], false).await;
 
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {

@@ -105,14 +105,14 @@ mod tests {
   use super::*;
   use crate::queries::users::{CreateUserData, CreateUserQuery};
   use crate::services::PasswordService;
-  use crate::test_utils::{create_test_database, create_test_role_model};
+  use crate::test_utils::{create_test_database, create_test_role_model_with_pool};
 
   async fn setup_default_role(pool: &sqlx::SqlitePool) {
-    create_test_role_model(pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(pool, "user", &["can_view_user_self"], true).await;
   }
 
   async fn setup_admin_role_for_update(pool: &sqlx::SqlitePool) -> i64 {
-    let admin_role = create_test_role_model(pool, "admin", &["is_admin"], false).await;
+    let admin_role = create_test_role_model_with_pool(pool, "admin", &["is_admin"], false).await;
     admin_role.id
   }
 

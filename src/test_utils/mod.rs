@@ -77,21 +77,21 @@ pub async fn create_test_database_with_config_and_pool_size(
 
 /// Create a test user with default password
 pub async fn create_test_user_with_pool(pool: &SqlitePool, username: &str, role_id: i64) -> User {
-  create_test_user_with_password(pool, username, role_id, "password123").await
+  create_test_user_with_pool_and_password(pool, username, role_id, "password123").await
 }
 
 /// Create a test user with custom password
-pub async fn create_test_user_with_password(
+pub async fn create_test_user_with_pool_and_password(
   pool: &SqlitePool,
   username: &str,
   role_id: i64,
   password: &str,
 ) -> User {
-  create_test_user_full(pool, username, Some(role_id), password, None).await
+  create_test_user_full_with_pool(pool, username, Some(role_id), password, None).await
 }
 
 /// Create a test user with all parameters
-pub async fn create_test_user_full(
+pub async fn create_test_user_full_with_pool(
   pool: &SqlitePool,
   username: &str,
   role_id: Option<i64>,
@@ -114,7 +114,7 @@ pub async fn create_test_user_full(
       None => {
         // Create a default role if none exists
         Some(
-          create_test_role_model(pool, "user", &["can_view_user_self"], true)
+          create_test_role_model_with_pool(pool, "user", &["can_view_user_self"], true)
             .await
             .id,
         )
@@ -138,7 +138,7 @@ pub async fn create_test_user_full(
 }
 
 /// Create a test user with all parameters including specific UUID
-pub async fn create_test_user_with_uuid(
+pub async fn create_test_user_with_pool_and_uuid(
   pool: &SqlitePool,
   uuid: &str,
   username: &str,
@@ -162,7 +162,7 @@ pub async fn create_test_user_with_uuid(
       None => {
         // Create a default role if none exists
         Some(
-          create_test_role_model(pool, "user", &["can_view_user_self"], true)
+          create_test_role_model_with_pool(pool, "user", &["can_view_user_self"], true)
             .await
             .id,
         )
@@ -186,13 +186,13 @@ pub async fn create_test_user_with_uuid(
 }
 
 /// Create a test role and return ID
-pub async fn create_test_role(pool: &SqlitePool, name: &str, permissions: &[&str]) -> i64 {
-  let role = create_test_role_model(pool, name, permissions, false).await;
+pub async fn create_test_role_with_pool(pool: &SqlitePool, name: &str, permissions: &[&str]) -> i64 {
+  let role = create_test_role_model_with_pool(pool, name, permissions, false).await;
   role.id
 }
 
 /// Create a test role and return full Role model
-pub async fn create_test_role_model(
+pub async fn create_test_role_model_with_pool(
   pool: &SqlitePool,
   name: &str,
   permissions: &[&str],
@@ -321,7 +321,7 @@ mod tests {
     let (pool, _tmp) = create_test_database().await;
 
     // Create user without role (will create and use default role automatically)
-    let user = create_test_user_full(&pool, "testuser", None, "password123", None).await;
+    let user = create_test_user_full_with_pool(&pool, "testuser", None, "password123", None).await;
 
     assert_eq!(user.name, "testuser");
     // Should have the default role ID (created automatically)
@@ -339,10 +339,10 @@ mod tests {
   async fn test_create_test_user_custom_password() {
     let (pool, _tmp) = create_test_database().await;
 
-    let role_id = create_test_role(&pool, "test_role", &["can_view_user_self"]).await;
+    let role_id = create_test_role_with_pool(&pool, "test_role", &["can_view_user_self"]).await;
 
     // Create user with custom password
-    let user = create_test_user_with_password(&pool, "testuser", role_id, "custompass").await;
+    let user = create_test_user_with_pool_and_password(&pool, "testuser", role_id, "custompass").await;
 
     assert_eq!(user.name, "testuser");
     assert_eq!(user.role_id, role_id);
@@ -352,11 +352,11 @@ mod tests {
   async fn test_create_test_user_full() {
     let (pool, _tmp) = create_test_database().await;
 
-    let role_id = create_test_role(&pool, "test_role", &["can_view_user_self"]).await;
+    let role_id = create_test_role_with_pool(&pool, "test_role", &["can_view_user_self"]).await;
     let metadata = serde_json::json!({"key": "value"});
 
     // Create user with all parameters
-    let user = create_test_user_full(
+    let user = create_test_user_full_with_pool(
       &pool,
       "testuser",
       Some(role_id),
@@ -375,7 +375,7 @@ mod tests {
     let (pool, _tmp) = create_test_database().await;
 
     // Create role and get ID
-    let role_id = create_test_role(
+    let role_id = create_test_role_with_pool(
       &pool,
       "test_role",
       &["can_view_user_self", "can_list_users"],
@@ -390,7 +390,7 @@ mod tests {
     let (pool, _tmp) = create_test_database().await;
 
     // Create role and get full model
-    let role = create_test_role_model(
+    let role = create_test_role_model_with_pool(
       &pool,
       "test_role",
       &["can_view_user_self", "can_list_users"],
@@ -410,7 +410,7 @@ mod tests {
     let (pool, _tmp) = create_test_database().await;
 
     // Create role with no permissions
-    let role = create_test_role_model(&pool, "empty_role", &[], false).await;
+    let role = create_test_role_model_with_pool(&pool, "empty_role", &[], false).await;
 
     assert_eq!(role.name, "empty_role");
     assert!(!role.is_default);
@@ -422,7 +422,7 @@ mod tests {
     let (pool, _tmp) = create_test_database().await;
 
     // Create role with all available permissions
-    let role = create_test_role_model(&pool, "admin_role", ROLE_PERMISSIONS, false).await;
+    let role = create_test_role_model_with_pool(&pool, "admin_role", ROLE_PERMISSIONS, false).await;
 
     assert_eq!(role.name, "admin_role");
     assert_eq!(role.permissions.len(), ROLE_PERMISSIONS.len());
@@ -597,7 +597,7 @@ mod tests {
     let test_metadata = serde_json::json!({"key": "value"});
 
     // Create user with specific UUID
-    let user = create_test_user_with_uuid(
+    let user = create_test_user_with_pool_and_uuid(
       &pool,
       test_uuid,
       test_username,

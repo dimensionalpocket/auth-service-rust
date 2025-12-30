@@ -58,11 +58,11 @@ impl UpdateUserPasswordQuery {
 mod tests {
   use super::*;
   use crate::services::PasswordService;
-  use crate::test_utils::{create_test_database, create_test_role_model, create_test_user_full};
+  use crate::test_utils::{create_test_database, create_test_role_model_with_pool, create_test_user_full_with_pool};
   use sqlx::SqlitePool;
 
   async fn setup_default_role(pool: &SqlitePool) {
-    create_test_role_model(pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(pool, "user", &["can_view_user_self"], true).await;
   }
 
   #[tokio::test]
@@ -71,7 +71,7 @@ mod tests {
 
     // Setup: Create a user
     setup_default_role(&pool).await;
-    let user = create_test_user_full(
+    let user = create_test_user_full_with_pool(
       &pool,
       "test-uuid",
       None,
@@ -123,7 +123,7 @@ mod tests {
 
     // Setup: Create a user
     setup_default_role(&pool).await;
-    let user = create_test_user_full(
+    let user = create_test_user_full_with_pool(
       &pool,
       "test-uuid",
       None,

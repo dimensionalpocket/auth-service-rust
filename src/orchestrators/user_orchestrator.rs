@@ -230,7 +230,7 @@ mod tests {
   use crate::middleware::session::SessionContext;
   use crate::queries::users::UpdateUserData;
   use crate::test_utils::{
-    create_test_database, create_test_database_with_pool_size, create_test_role, create_test_user_with_pool,
+    create_test_database, create_test_database_with_pool_size, create_test_role_with_pool, create_test_user_with_pool,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
@@ -239,8 +239,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create roles
-    let admin_role_id = create_test_role(&pool, "admin", &["can_list_users"]).await;
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
+    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_list_users"]).await;
+    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
 
     // Create users
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -295,7 +295,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create role without can_list_users permission
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
+    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
 
     // Create regular user
     let regular_user = create_test_user_with_pool(&pool, "user1", user_role_id).await;
@@ -349,7 +349,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["can_list_users"]).await;
+    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_list_users"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
@@ -374,8 +374,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create roles
-    let admin_role_id = create_test_role(&pool, "admin", &["can_view_user_details"]).await;
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
+    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_view_user_details"]).await;
+    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
 
     // Create users
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -430,7 +430,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create role without can_view_user_details permission
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
+    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
 
     // Create regular user
     let regular_user = create_test_user_with_pool(&pool, "user1", user_role_id).await;
@@ -465,7 +465,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["can_view_user_details"]).await;
+    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_view_user_details"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
@@ -494,7 +494,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create target user
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
+    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let target_user = create_test_user_with_pool(&pool, "target_user", user_role_id).await;
 
     // Create session context for non-existent user
@@ -527,7 +527,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["can_view_user_details"]).await;
+    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_view_user_details"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
@@ -558,8 +558,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create roles
-    let admin_role_id = create_test_role(&pool, "admin", &["can_delete_user"]).await;
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
+    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
+    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
 
     // Create users
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -615,7 +615,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create role without can_delete_user permission
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
+    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
 
     // Create regular user
     let regular_user = create_test_user_with_pool(&pool, "user1", user_role_id).await;
@@ -648,7 +648,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["can_delete_user"]).await;
+    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
@@ -690,7 +690,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create admin role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["can_delete_user"]).await;
+    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
@@ -723,7 +723,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create target user
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
+    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let target_user = create_test_user_with_pool(&pool, "target_user", user_role_id).await;
 
     // Create session context for non-existent user
@@ -1108,10 +1108,10 @@ mod tests {
 
   // Helper functions for orchestrator tests
   async fn create_admin_role(pool: &SqlitePool) -> i64 {
-    create_test_role(pool, "admin", &["can_edit_user"]).await
+    create_test_role_with_pool(pool, "admin", &["can_edit_user"]).await
   }
 
   async fn create_user_role(pool: &SqlitePool) -> i64 {
-    create_test_role(pool, "user", &[]).await
+    create_test_role_with_pool(pool, "user", &[]).await
   }
 }

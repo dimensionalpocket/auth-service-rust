@@ -350,8 +350,8 @@ mod tests {
   use super::*;
   use crate::queries::users::{CreateUserData, CreateUserQuery, GetUserByIdQuery, UpdateUserData};
   use crate::test_utils::{
-    create_test_database, create_test_database_with_pool_size, create_test_role,
-    create_test_role_model,
+    create_test_database, create_test_database_with_pool_size, create_test_role_with_pool,
+    create_test_role_model_with_pool,
   };
 
   #[tokio::test]
@@ -359,7 +359,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert default role first
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     let user = UserService::create_user(&pool, "testuser", "password123")
       .await
@@ -379,7 +379,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert default role first
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     // Create first user
     UserService::create_user(&pool, "testuser", "password123")
@@ -401,7 +401,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert default role first
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     // Create first user with lowercase
     UserService::create_user(&pool, "testuser", "password123")
@@ -507,7 +507,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert default role first
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     // Create a user first
     let user = UserService::create_user(&pool, "testuser", "password123")
@@ -538,7 +538,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert default role first
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     // Create a user first
     let user = UserService::create_user(&pool, "testuser", "password123")
@@ -561,7 +561,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert default role first
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     // Create a user first
     let user = UserService::create_user(&pool, "TestUser", "password123")
@@ -595,7 +595,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create default role and user
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let user = UserService::create_user(&pool, "testuser", "oldpassword123")
       .await
       .unwrap();
@@ -633,7 +633,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create default role and user
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let user = UserService::create_user(&pool, "testuser", "correctpassword")
       .await
       .unwrap();
@@ -663,7 +663,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create default role and user
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let user = UserService::create_user(&pool, "testuser", "currentpassword")
       .await
       .unwrap();
@@ -693,7 +693,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create default role and user
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let user = UserService::create_user(&pool, "testuser", "currentpassword")
       .await
       .unwrap();
@@ -741,7 +741,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create default role and user
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let user = UserService::create_user(&pool, "testuser", "password123")
       .await
       .unwrap();
@@ -1419,10 +1419,10 @@ mod tests {
 
   // Helper functions for tests
   async fn setup_default_role(pool: &SqlitePool) {
-    create_test_role_model(pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(pool, "user", &["can_view_user_self"], true).await;
   }
 
   async fn create_admin_role(pool: &SqlitePool) -> i64 {
-    create_test_role(pool, "admin", &["is_admin"]).await
+    create_test_role_with_pool(pool, "admin", &["is_admin"]).await
   }
 }

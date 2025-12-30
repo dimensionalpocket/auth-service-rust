@@ -151,7 +151,7 @@ fn map_session_error_to_user_message(error: &SessionError) -> &'static str {
 mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{create_test_database, create_test_query_schema, create_test_user_full};
+  use crate::test_utils::{create_test_database, create_test_query_schema, create_test_user_full_with_pool};
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
   #[tokio::test]
@@ -159,7 +159,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a test user
-    let user = create_test_user_full(
+    let user = create_test_user_full_with_pool(
       &pool,
       "testuser",
       None, // Will create and use default role

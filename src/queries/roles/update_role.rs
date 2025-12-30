@@ -84,14 +84,14 @@ impl UpdateRoleQuery {
 mod tests {
   use super::*;
   use crate::models::ROLE_PERMISSIONS;
-  use crate::test_utils::{create_test_database, create_test_role_model};
+  use crate::test_utils::{create_test_database, create_test_role_model_with_pool};
 
   #[tokio::test]
   async fn test_update_role_success() {
     let (pool, _tmp) = create_test_database().await;
 
     // Create a role first
-    let role = create_test_role_model(
+    let role = create_test_role_model_with_pool(
       &pool,
       "test-role",
       &["can_view_user_self", "can_list_users"],
@@ -136,7 +136,7 @@ mod tests {
     let (pool, _tmp) = create_test_database().await;
 
     // Create a role first
-    let role = create_test_role_model(
+    let role = create_test_role_model_with_pool(
       &pool,
       "partial-role",
       &["can_view_user_self", "can_list_users"],
@@ -177,7 +177,7 @@ mod tests {
     let (pool, _tmp) = create_test_database().await;
 
     // Create a role first
-    let role = create_test_role_model(
+    let role = create_test_role_model_with_pool(
       &pool,
       "empty-permissions-role",
       &["can_view_user_self"],
@@ -228,7 +228,7 @@ mod tests {
 
     // Create a role first
     let role =
-      create_test_role_model(&pool, "no-changes-role", &["can_view_user_self"], false).await;
+      create_test_role_model_with_pool(&pool, "no-changes-role", &["can_view_user_self"], false).await;
 
     // Add a delay to ensure different timestamps
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -257,7 +257,7 @@ mod tests {
     let (pool, _tmp) = create_test_database().await;
 
     // Create a role first
-    let role = create_test_role_model(
+    let role = create_test_role_model_with_pool(
       &pool,
       "all-permissions-role",
       &["can_view_user_self"],

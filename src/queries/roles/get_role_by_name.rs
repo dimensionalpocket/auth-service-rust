@@ -33,7 +33,7 @@ impl GetRoleByNameQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::{create_test_database, create_test_role_model};
+  use crate::test_utils::{create_test_database, create_test_role_model_with_pool};
 
   #[tokio::test]
   async fn test_get_role_by_name_found() {
@@ -72,7 +72,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test role
-    create_test_role_model(&pool, "admin", &["is_admin"], false).await;
+    create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
 
     // Should not find with different case
     let mut conn = pool.acquire().await.unwrap();

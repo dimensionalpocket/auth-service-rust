@@ -95,7 +95,7 @@ mod tests {
   use super::*;
   use crate::services::UserService;
   use crate::test_utils::{
-    create_test_database, create_test_mutation_schema, create_test_role_model,
+    create_test_database, create_test_mutation_schema, create_test_role_model_with_pool,
   };
 
   // Test secret - 32 bytes for AES-256 (base64-decoded from QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=)
@@ -109,7 +109,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     UserService::create_user(&pool, "testuser", "password123")
       .await
       .unwrap();

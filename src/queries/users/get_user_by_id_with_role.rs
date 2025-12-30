@@ -72,14 +72,14 @@ impl GetUserByIdWithRoleQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::{create_test_database, create_test_role, create_test_user_with_pool};
+  use crate::test_utils::{create_test_database, create_test_role_with_pool, create_test_user_with_pool};
 
   #[tokio::test]
   async fn test_get_user_by_id_with_role_success() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create role and user
-    let role_id = create_test_role(&pool, "admin", &["can_view_user_details"]).await;
+    let role_id = create_test_role_with_pool(&pool, "admin", &["can_view_user_details"]).await;
     let user = create_test_user_with_pool(&pool, "testuser", role_id).await;
 
     // Query user with role
@@ -112,8 +112,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create different roles
-    let admin_role_id = create_test_role(&pool, "admin", &[]).await;
-    let user_role_id = create_test_role(&pool, "user", &[]).await;
+    let admin_role_id = create_test_role_with_pool(&pool, "admin", &[]).await;
+    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
 
     // Create users with different roles
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -140,7 +140,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Create role
-    let role_id = create_test_role(&pool, "test_role", &[]).await;
+    let role_id = create_test_role_with_pool(&pool, "test_role", &[]).await;
 
     // Create user
     let user = create_test_user_with_pool(&pool, "test_user", role_id).await;

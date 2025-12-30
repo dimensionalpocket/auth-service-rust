@@ -213,7 +213,7 @@ mod tests {
   use crate::middleware::session::SessionContext;
   use crate::services::UserService;
   use crate::test_utils::{
-    create_test_database, create_test_role, create_test_role_model, create_test_user_full,
+    create_test_database, create_test_role_with_pool, create_test_role_model_with_pool, create_test_user_full_with_pool,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
@@ -228,7 +228,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     UserService::create_user(&pool, "testuser", "password123")
       .await
       .unwrap();
@@ -248,7 +248,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     UserService::create_user(&pool, "testuser", "password123")
       .await
       .unwrap();
@@ -274,8 +274,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a role and user
-    let admin_role_id = create_test_role(&pool, "admin", &["can_manage_users"]).await;
-    let user = create_test_user_full(
+    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_manage_users"]).await;
+    let user = create_test_user_full_with_pool(
       &pool,
       "testuser",
       Some(admin_role_id),

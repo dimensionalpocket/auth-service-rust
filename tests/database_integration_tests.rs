@@ -3,7 +3,7 @@ use dps_auth_api::{
     roles::{GetAllRolesQuery, GetRoleByNameQuery},
     users::{CreateUserData, CreateUserQuery, GetUserByUuidQuery},
   },
-  test_utils::{create_test_database, create_test_role, create_test_user_full},
+  test_utils::{create_test_database, create_test_role_with_pool, create_test_user_full_with_pool},
 };
 use uuid::Uuid;
 
@@ -13,8 +13,8 @@ async fn test_complete_user_creation_flow() {
   let (pool, _temp_file) = create_test_database().await;
 
   // Create test roles using test utilities
-  let _admin_role_id = create_test_role(&pool, "admin", &[]).await;
-  let _user_role_id = create_test_role(&pool, "user", &["can_view_user_self"]).await;
+  let _admin_role_id = create_test_role_with_pool(&pool, "admin", &[]).await;
+  let _user_role_id = create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
 
   // Get user role
   let role = {
@@ -26,7 +26,7 @@ async fn test_complete_user_creation_flow() {
   };
 
   // Create user using test utility (this tests the complete flow)
-  let created_user = create_test_user_full(
+  let created_user = create_test_user_full_with_pool(
     &pool,
     "Test User",
     Some(role.id),
@@ -56,8 +56,8 @@ async fn test_default_roles_seeded() {
   let (pool, _temp_file) = create_test_database().await;
 
   // Create test roles using test utilities to simulate seeding
-  create_test_role(&pool, "admin", &[]).await;
-  create_test_role(&pool, "user", &["can_view_user_self"]).await;
+  create_test_role_with_pool(&pool, "admin", &[]).await;
+  create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
 
   // Verify default roles exist
   let mut conn = pool.acquire().await.unwrap();

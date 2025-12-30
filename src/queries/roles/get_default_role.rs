@@ -32,15 +32,15 @@ impl GetDefaultRoleQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::{create_test_database, create_test_role_model};
+  use crate::test_utils::{create_test_database, create_test_role_model_with_pool};
 
   #[tokio::test]
   async fn test_get_default_role_found() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test roles with one default
-    create_test_role_model(&pool, "admin", &["is_admin"], false).await;
-    create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     let mut conn = pool.acquire().await.unwrap();
     let role = GetDefaultRoleQuery::run(&mut conn).await.unwrap();
@@ -56,8 +56,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test roles with no default
-    create_test_role_model(&pool, "admin", &["is_admin"], false).await;
-    create_test_role_model(&pool, "moderator", &["can_moderate"], false).await;
+    create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
+    create_test_role_model_with_pool(&pool, "moderator", &["can_moderate"], false).await;
 
     let mut conn = pool.acquire().await.unwrap();
     let role = GetDefaultRoleQuery::run(&mut conn).await.unwrap();

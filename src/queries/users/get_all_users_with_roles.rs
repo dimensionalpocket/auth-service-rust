@@ -58,7 +58,7 @@ impl GetAllUsersWithRolesQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::{create_test_database, create_test_role_model};
+  use crate::test_utils::{create_test_database, create_test_role_model_with_pool};
 
   #[tokio::test]
   async fn test_get_all_users_with_roles_empty() {
@@ -74,8 +74,8 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test roles
-    let admin_role = create_test_role_model(&pool, "admin", &[], false).await;
-    let user_role = create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    let admin_role = create_test_role_model_with_pool(&pool, "admin", &[], false).await;
+    let user_role = create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     // Only acquire connection after pool usage
     // as this will empty the pool (size is 1 in tests)
@@ -121,7 +121,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test role
-    let test_role = create_test_role_model(&pool, "test_role", &[], false).await;
+    let test_role = create_test_role_model_with_pool(&pool, "test_role", &[], false).await;
 
     let mut conn = pool.acquire().await.unwrap();
 

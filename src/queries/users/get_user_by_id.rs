@@ -17,7 +17,7 @@ impl GetUserByIdQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::{create_test_database, create_test_role_model};
+  use crate::test_utils::{create_test_database, create_test_role_model_with_pool};
   use uuid::Uuid;
 
   #[tokio::test]
@@ -25,7 +25,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert test role first
-    let role = create_test_role_model(&pool, "user", &["can_view_user_self"], true).await;
+    let role = create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let role_id = role.id;
 
     // Insert test user

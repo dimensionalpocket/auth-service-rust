@@ -91,7 +91,7 @@ mod tests {
   use crate::middleware::session::{SessionContext, SessionPayload};
   use crate::services::{AuthService, UserService};
   use crate::test_utils::{
-    create_test_database, create_test_mutation_schema, create_test_role_model,
+    create_test_database, create_test_mutation_schema, create_test_role_model_with_pool,
   };
 
   // Test secret - 32 bytes for AES-256
@@ -106,7 +106,7 @@ mod tests {
     password: &str,
   ) -> (SessionContext, i64) {
     // Create default role
-    create_test_role_model(pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(pool, "user", &["can_view_user_self"], true).await;
 
     // Create user
     let user = UserService::create_user(pool, username, password)
