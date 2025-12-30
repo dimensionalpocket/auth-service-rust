@@ -13,7 +13,7 @@ use crate::models::{Role, User};
 use crate::queries::roles::{CreateRoleData, CreateRoleQuery, GetDefaultRoleQuery};
 use crate::queries::users::{CreateUserData, CreateUserQuery};
 use crate::services::password_service::PasswordService;
-use sqlx::SqlitePool;
+use sqlx::{SqliteConnection, SqlitePool};
 use tempfile::NamedTempFile;
 use uuid::Uuid;
 
@@ -77,7 +77,13 @@ pub async fn create_test_database_with_config_and_pool_size(
 
 /// Create a test user with default password
 pub async fn create_test_user_with_pool(pool: &SqlitePool, username: &str, role_id: i64) -> User {
-  create_test_user_with_pool_and_password(pool, username, role_id, "password123").await
+  let mut conn = pool.acquire().await.unwrap();
+  create_test_user(&mut conn, username, role_id).await
+}
+
+/// Create a test user with default password (takes connection)
+pub async fn create_test_user(conn: &mut SqliteConnection, username: &str, role_id: i64) -> User {
+  create_test_user_with_password(conn, username, role_id, "password123").await
 }
 
 /// Create a test user with custom password
@@ -87,7 +93,18 @@ pub async fn create_test_user_with_pool_and_password(
   role_id: i64,
   password: &str,
 ) -> User {
-  create_test_user_full_with_pool(pool, username, Some(role_id), password, None).await
+  let mut conn = pool.acquire().await.unwrap();
+  create_test_user_with_password(&mut conn, username, role_id, password).await
+}
+
+/// Create a test user with custom password (takes connection)
+pub async fn create_test_user_with_password(
+  conn: &mut SqliteConnection,
+  username: &str,
+  role_id: i64,
+  password: &str,
+) -> User {
+  create_test_user_full(conn, username, Some(role_id), password, None).await
 }
 
 /// Create a test user with all parameters
@@ -98,26 +115,28 @@ pub async fn create_test_user_full_with_pool(
   password: &str,
   metadata_json: Option<serde_json::Value>,
 ) -> User {
+  let mut conn = pool.acquire().await.unwrap();
+  create_test_user_full(&mut conn, username, role_id, password, metadata_json).await
+}
+
+/// Create a test user with all parameters (takes connection)
+pub async fn create_test_user_full(
+  conn: &mut SqliteConnection,
+  username: &str,
+  role_id: Option<i64>,
+  password: &str,
+  metadata_json: Option<serde_json::Value>,
+) -> User {
   // If no role_id specified, ensure a default role exists
   let final_role_id = if role_id.is_none() {
     // Check if default role exists
-    let default_role_id = {
-      let mut conn = pool.acquire().await.unwrap();
-      GetDefaultRoleQuery::run(&mut conn)
-        .await
-        .unwrap()
-        .map(|r| r.id)
-    };
+    let default_role_id = GetDefaultRoleQuery::run(conn).await.unwrap().map(|r| r.id);
 
     match default_role_id {
       Some(id) => Some(id),
       None => {
         // Create a default role if none exists
-        Some(
-          create_test_role_model_with_pool(pool, "user", &["can_view_user_self"], true)
-            .await
-            .id,
-        )
+        Some(create_test_role_model(conn, "user", &["can_view_user_self"], true).await.id)
       }
     }
   } else {
@@ -133,8 +152,7 @@ pub async fn create_test_user_full_with_pool(
     password_hash,
     metadata_json: metadata_json_str,
   };
-  let mut conn = pool.acquire().await.unwrap();
-  CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+  CreateUserQuery::run(conn, create_data).await.unwrap()
 }
 
 /// Create a test user with all parameters including specific UUID
@@ -146,26 +164,29 @@ pub async fn create_test_user_with_pool_and_uuid(
   password: &str,
   metadata_json: Option<serde_json::Value>,
 ) -> User {
+  let mut conn = pool.acquire().await.unwrap();
+  create_test_user_with_uuid(&mut conn, uuid, username, role_id, password, metadata_json).await
+}
+
+/// Create a test user with all parameters including specific UUID (takes connection)
+pub async fn create_test_user_with_uuid(
+  conn: &mut SqliteConnection,
+  uuid: &str,
+  username: &str,
+  role_id: Option<i64>,
+  password: &str,
+  metadata_json: Option<serde_json::Value>,
+) -> User {
   // If no role_id specified, ensure a default role exists
   let final_role_id = if role_id.is_none() {
     // Check if default role exists
-    let default_role_id = {
-      let mut conn = pool.acquire().await.unwrap();
-      GetDefaultRoleQuery::run(&mut conn)
-        .await
-        .unwrap()
-        .map(|r| r.id)
-    };
+    let default_role_id = GetDefaultRoleQuery::run(conn).await.unwrap().map(|r| r.id);
 
     match default_role_id {
       Some(id) => Some(id),
       None => {
         // Create a default role if none exists
-        Some(
-          create_test_role_model_with_pool(pool, "user", &["can_view_user_self"], true)
-            .await
-            .id,
-        )
+        Some(create_test_role_model(conn, "user", &["can_view_user_self"], true).await.id)
       }
     }
   } else {
@@ -181,13 +202,18 @@ pub async fn create_test_user_with_pool_and_uuid(
     password_hash,
     metadata_json: metadata_json_str,
   };
-  let mut conn = pool.acquire().await.unwrap();
-  CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+  CreateUserQuery::run(conn, create_data).await.unwrap()
 }
 
 /// Create a test role and return ID
 pub async fn create_test_role_with_pool(pool: &SqlitePool, name: &str, permissions: &[&str]) -> i64 {
   let role = create_test_role_model_with_pool(pool, name, permissions, false).await;
+  role.id
+}
+
+/// Create a test role and return ID (takes connection)
+pub async fn create_test_role(conn: &mut SqliteConnection, name: &str, permissions: &[&str]) -> i64 {
+  let role = create_test_role_model(conn, name, permissions, false).await;
   role.id
 }
 
@@ -198,13 +224,23 @@ pub async fn create_test_role_model_with_pool(
   permissions: &[&str],
   is_default: bool,
 ) -> Role {
+  let mut conn = pool.acquire().await.unwrap();
+  create_test_role_model(&mut conn, name, permissions, is_default).await
+}
+
+/// Create a test role and return full Role model (takes connection)
+pub async fn create_test_role_model(
+  conn: &mut SqliteConnection,
+  name: &str,
+  permissions: &[&str],
+  is_default: bool,
+) -> Role {
   let create_data = CreateRoleData {
     name: name.to_string(),
     permissions: permissions.iter().map(|&p| p.to_string()).collect(),
     is_default,
   };
-  let mut conn = pool.acquire().await.unwrap();
-  CreateRoleQuery::run(&mut conn, create_data).await.unwrap()
+  CreateRoleQuery::run(conn, create_data).await.unwrap()
 }
 
 /// Create a test user via GraphQL mutation (for integration tests)
