@@ -1,12 +1,30 @@
 use crate::middleware::session::SessionContext;
 use crate::models::User;
 use crate::queries::users::GetUserByIdQuery;
-use crate::services::{UserError, UserService};
+use crate::services::{AuthService, SessionError, UserError, UserService};
 use sqlx::SqlitePool;
 
 pub struct AuthOrchestrator;
 
 impl AuthOrchestrator {
+  pub async fn get_authenticated_user(
+    pool: &SqlitePool,
+    session_context: SessionContext,
+  ) -> Result<Option<crate::services::AuthMeResult>, SessionError> {
+    match &session_context.payload {
+      Some(_payload) => {
+        let mut conn = pool
+          .acquire()
+          .await
+          .map_err(|e| SessionError::DatabaseError(e.to_string()))?;
+        AuthService::get_current_user(&mut conn, &session_context)
+          .await
+          .map(Some)
+      }
+      None => Ok(None),
+    }
+  }
+
   pub async fn change_authenticated_user_password(
     pool: &SqlitePool,
     session_context: SessionContext,
@@ -14,7 +32,6 @@ impl AuthOrchestrator {
     new_password: &str,
     new_password_confirmation: &str,
   ) -> Result<User, UserError> {
-    // Authentication: Check if user is authenticated
     let session_payload = session_context
       .payload
       .ok_or(UserError::AuthenticationError(
@@ -25,12 +42,10 @@ impl AuthOrchestrator {
 
     let mut conn = pool.acquire().await?;
 
-    // Authorization: Verify user exists
     let _user = GetUserByIdQuery::run(&mut conn, user_id)
       .await?
       .ok_or(UserError::UserNotFound(user_id))?;
 
-    // Business logic: Update password
     UserService::update_password(
       &mut conn,
       user_id,
@@ -47,19 +62,19 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_database, create_test_role_with_pool, create_test_user_with_pool,
+    create_test_database, create_test_role_with_pool, create_test_user_full_with_pool,
+    create_test_user_with_pool,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[tokio::test]
-  async fn test_change_authenticated_user_password_success() {
+  async fn test_get_authenticated_user_success() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create role and user
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
-    let user = create_test_user_with_pool(&pool, "testuser", user_role_id).await;
+    let _user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
+    let user =
+      create_test_user_full_with_pool(&pool, "testuser", Some(1), "password123", None).await;
 
-    // Create session context for user
     let session_payload = DpsAuthSessionPayload {
       sub: user.id,
       iat: 1000,
@@ -67,7 +82,44 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    // Test password change
+    let result = AuthOrchestrator::get_authenticated_user(&pool, session_context).await;
+
+    assert!(result.is_ok());
+    let auth_me_result = result.unwrap();
+    assert!(auth_me_result.is_some());
+    let result_data = auth_me_result.unwrap();
+    assert_eq!(result_data.user_id, user.id);
+    assert_eq!(result_data.username, "testuser");
+    assert_eq!(result_data.session_iat, 1000);
+    assert_eq!(result_data.session_exp, 2000);
+  }
+
+  #[tokio::test]
+  async fn test_get_authenticated_user_unauthenticated() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    let session_context = SessionContext::new(None);
+
+    let result = AuthOrchestrator::get_authenticated_user(&pool, session_context).await;
+
+    assert!(result.is_ok());
+    assert!(result.unwrap().is_none());
+  }
+
+  #[tokio::test]
+  async fn test_change_authenticated_user_password_success() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
+    let user = create_test_user_with_pool(&pool, "testuser", user_role_id).await;
+
+    let session_payload = DpsAuthSessionPayload {
+      sub: user.id,
+      iat: 1000,
+      exp: 2000,
+    };
+    let session_context = SessionContext::new(Some(session_payload));
+
     let result = AuthOrchestrator::change_authenticated_user_password(
       &pool,
       session_context,
@@ -88,10 +140,8 @@ mod tests {
   async fn test_change_authenticated_user_password_unauthenticated() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create session context without user (not authenticated)
     let session_context = SessionContext::new(None);
 
-    // Test password change
     let result = AuthOrchestrator::change_authenticated_user_password(
       &pool,
       session_context,
@@ -114,7 +164,6 @@ mod tests {
   async fn test_change_authenticated_user_password_nonexistent_user() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create session context for non-existent user
     let session_payload = DpsAuthSessionPayload {
       sub: 999,
       iat: 1000,
@@ -122,7 +171,6 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    // Test password change
     let result = AuthOrchestrator::change_authenticated_user_password(
       &pool,
       session_context,
@@ -145,11 +193,9 @@ mod tests {
   async fn test_change_authenticated_user_password_wrong_current_password() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create role and user
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let user = create_test_user_with_pool(&pool, "testuser", user_role_id).await;
 
-    // Create session context for user
     let session_payload = DpsAuthSessionPayload {
       sub: user.id,
       iat: 1000,
@@ -157,7 +203,6 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    // Test password change with wrong current password
     let result = AuthOrchestrator::change_authenticated_user_password(
       &pool,
       session_context,
@@ -180,11 +225,9 @@ mod tests {
   async fn test_change_authenticated_user_password_password_mismatch() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create role and user
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let user = create_test_user_with_pool(&pool, "testuser", user_role_id).await;
 
-    // Create session context for user
     let session_payload = DpsAuthSessionPayload {
       sub: user.id,
       iat: 1000,
@@ -192,7 +235,6 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    // Test password change with mismatched confirmation
     let result = AuthOrchestrator::change_authenticated_user_password(
       &pool,
       session_context,
@@ -215,11 +257,9 @@ mod tests {
   async fn test_change_authenticated_user_password_invalid_new_password() {
     let (pool, _temp_file) = create_test_database().await;
 
-    // Create role and user
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let user = create_test_user_with_pool(&pool, "testuser", user_role_id).await;
 
-    // Create session context for user
     let session_payload = DpsAuthSessionPayload {
       sub: user.id,
       iat: 1000,
@@ -227,7 +267,6 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    // Test password change with invalid new password (too short)
     let result = AuthOrchestrator::change_authenticated_user_password(
       &pool,
       session_context,

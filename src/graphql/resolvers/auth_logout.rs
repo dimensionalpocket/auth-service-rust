@@ -1,4 +1,4 @@
-use crate::middleware::session::SESSION_COOKIE_NAME;
+use crate::services::CookieService;
 use crate::DpsAuthApiConfig;
 use async_graphql::{Context, Object, Result, SimpleObject};
 use tracing::instrument;
@@ -21,17 +21,9 @@ impl AuthLogoutResolver {
   #[graphql(name = "authLogout")]
   async fn auth_logout(&self, ctx: &Context<'_>) -> Result<AuthLogoutResponse> {
     let config = ctx.data::<DpsAuthApiConfig>()?;
-    let cookie_domain = config.cookie_domain.clone();
-    let insecure_cookie = config.insecure_cookie;
 
     // Set cookie to expire in the past to effectively delete it
-    let cookie_value = format!(
-      "{}=; Domain={}; Path={}; HttpOnly; SameSite=Lax{}; Expires=Thu, 01 Jan 1970 00:00:00 GMT",
-      SESSION_COOKIE_NAME,
-      cookie_domain,
-      config.api_path,
-      if insecure_cookie { "" } else { "; Secure" }
-    );
+    let cookie_value = CookieService::generate_logout_cookie(config);
 
     // Use append to set the expired cookie
     let _ = ctx.append_http_header("set-cookie", cookie_value);

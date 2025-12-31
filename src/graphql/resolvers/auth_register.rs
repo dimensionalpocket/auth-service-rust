@@ -1,6 +1,5 @@
 use crate::graphql::types::{UserRole, UserWithRoleResponse};
-use crate::middleware::session::SESSION_COOKIE_NAME;
-use crate::services::{AuthService, UserError};
+use crate::services::{AuthService, CookieService, UserError};
 use crate::DpsAuthApiConfig;
 use async_graphql::{Context, Object, Result};
 use sqlx::SqlitePool;
@@ -56,9 +55,6 @@ impl AuthRegisterResolver {
   ) -> Result<AuthRegisterResponse> {
     let pool = ctx.data::<SqlitePool>()?;
     let config = ctx.data::<DpsAuthApiConfig>()?;
-    let session_secret = config.session_secret.clone();
-    let cookie_domain = config.cookie_domain.clone();
-    let insecure_cookie = config.insecure_cookie;
 
     let mut conn = pool
       .acquire()
@@ -70,21 +66,14 @@ impl AuthRegisterResolver {
       &username,
       &password,
       &password_confirmation,
-      &session_secret,
+      &config.session_secret,
     )
     .await
     {
       Ok(register_result) => {
         // Set session cookie
-        let cookie_value = format!(
-          "{}={}; Domain={}; Path={}; HttpOnly; SameSite=Lax{}; Max-Age={}",
-          SESSION_COOKIE_NAME,
-          register_result.session_token,
-          cookie_domain,
-          config.api_path,
-          if insecure_cookie { "" } else { "; Secure" },
-          config.session_ttl_seconds
-        );
+        let cookie_value =
+          CookieService::generate_session_cookie(config, &register_result.session_token);
 
         // Use append to allow multiple cookies; ignore the return value
         let _ = ctx.append_http_header("set-cookie", cookie_value);
