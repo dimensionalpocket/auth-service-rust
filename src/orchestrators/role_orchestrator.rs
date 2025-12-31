@@ -23,31 +23,24 @@ impl RoleOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
+    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+
     // Authorization: Get user and check permissions
-    let user = {
-      let mut conn = pool.acquire().await?;
-      GetUserByIdQuery::run(&mut conn, user_id)
-        .await?
-        .ok_or(RoleError::AuthenticationError("User not found".to_string()))?
-    };
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
+      .await?
+      .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
-    let (can_manage_roles, can_edit_user_role) = {
-      let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
-
-      let can_manage_roles =
-        RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?;
-      let can_edit_user_role =
-        RoleService::check_user_permission(&mut conn, &user, "can_edit_user_role").await?;
-
-      (can_manage_roles, can_edit_user_role)
-    };
+    let can_manage_roles =
+      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?;
+    let can_edit_user_role =
+      RoleService::check_user_permission(&mut conn, &user, "can_edit_user_role").await?;
 
     if !can_manage_roles && !can_edit_user_role {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Get all roles
-    RoleService::get_all_roles(pool).await
+    RoleService::get_all_roles(&mut conn).await
   }
 
   /// Get a role by ID with permission check
@@ -68,26 +61,22 @@ impl RoleOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
+    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+
     // Authorization: Get user and check permissions
-    let user = {
-      let mut conn = pool.acquire().await?;
-      GetUserByIdQuery::run(&mut conn, user_id)
-        .await?
-        .ok_or(RoleError::AuthenticationError("User not found".to_string()))?
-    };
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
+      .await?
+      .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
-    let can_manage_roles = {
-      let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
-
-      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?
-    };
+    let can_manage_roles =
+      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?;
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Get role by ID
-    let role = RoleService::get_role_by_id(pool, role_id).await?;
+    let role = RoleService::get_role_by_id(&mut conn, role_id).await?;
     match role {
       Some(role) => Ok(role),
       None => Err(RoleError::RoleNotFound(role_id)),
@@ -113,26 +102,23 @@ impl RoleOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
+    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+
     // Authorization: Get user and check permissions
-    let user = {
-      let mut conn = pool.acquire().await?;
-      GetUserByIdQuery::run(&mut conn, user_id)
-        .await?
-        .ok_or(RoleError::AuthenticationError("User not found".to_string()))?
-    };
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
+      .await
+      .map_err(RoleError::DatabaseError)?
+      .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
-    let can_manage_roles = {
-      let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
-
-      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?
-    };
+    let can_manage_roles =
+      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?;
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Update role
-    RoleService::update_role(pool, role_id, update_data).await
+    RoleService::update_role(&mut conn, role_id, update_data).await
   }
 
   /// Create a role with permission check
@@ -153,19 +139,16 @@ impl RoleOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
+    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+
     // Authorization: Get user and check permissions
-    let user = {
-      let mut conn = pool.acquire().await?;
-      GetUserByIdQuery::run(&mut conn, user_id)
-        .await?
-        .ok_or(RoleError::AuthenticationError("User not found".to_string()))?
-    };
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
+      .await
+      .map_err(RoleError::DatabaseError)?
+      .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
-    let can_manage_roles = {
-      let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
-
-      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?
-    };
+    let can_manage_roles =
+      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?;
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
@@ -176,7 +159,7 @@ impl RoleOrchestrator {
       permissions: create_data.permissions,
       is_default: false,
     };
-    RoleService::create_role(pool, create_data_with_default_false).await
+    RoleService::create_role(&mut conn, create_data_with_default_false).await
   }
 
   /// Delete a role with permission check
@@ -197,26 +180,23 @@ impl RoleOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
+    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+
     // Authorization: Get user and check permissions
-    let user = {
-      let mut conn = pool.acquire().await?;
-      GetUserByIdQuery::run(&mut conn, user_id)
-        .await?
-        .ok_or(RoleError::AuthenticationError("User not found".to_string()))?
-    };
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
+      .await
+      .map_err(RoleError::DatabaseError)?
+      .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
-    let can_manage_roles = {
-      let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
-
-      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?
-    };
+    let can_manage_roles =
+      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?;
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Delete role
-    RoleService::delete_role(pool, role_id).await
+    RoleService::delete_role(&mut conn, role_id).await
   }
 
   /// Set a role as default with permission check
@@ -237,26 +217,23 @@ impl RoleOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
+    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+
     // Authorization: Get user and check permissions
-    let user = {
-      let mut conn = pool.acquire().await?;
-      GetUserByIdQuery::run(&mut conn, user_id)
-        .await?
-        .ok_or(RoleError::AuthenticationError("User not found".to_string()))?
-    };
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
+      .await
+      .map_err(RoleError::DatabaseError)?
+      .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
-    let can_manage_roles = {
-      let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
-
-      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?
-    };
+    let can_manage_roles =
+      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?;
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Set default role
-    RoleService::set_default_role(pool, role_id).await
+    RoleService::set_default_role(&mut conn, role_id).await
   }
 
   /// Get all role permissions with permission check
@@ -1326,7 +1303,8 @@ mod tests {
     assert_eq!(deleted_role.name, "test_role");
 
     // Verify role is actually deleted
-    let check_result = RoleService::get_role_by_id(&pool, test_role_id).await;
+    let mut conn = pool.acquire().await.unwrap();
+    let check_result = RoleService::get_role_by_id(&mut conn, test_role_id).await;
     assert!(check_result.is_ok());
     assert!(check_result.unwrap().is_none());
   }
@@ -1490,7 +1468,8 @@ mod tests {
     assert!(check_user.unwrap().is_some());
 
     // Verify the role still exists
-    let check_role = RoleService::get_role_by_id(&pool, test_role_id).await;
+    let mut conn = pool.acquire().await.unwrap();
+    let check_role = RoleService::get_role_by_id(&mut conn, test_role_id).await;
     assert!(check_role.is_ok());
     assert!(check_role.unwrap().is_some());
   }
@@ -1513,10 +1492,13 @@ mod tests {
     .await;
 
     // Get the role data before deletion for comparison
-    let role_before = RoleService::get_role_by_id(&pool, test_role_id)
-      .await
-      .unwrap()
-      .unwrap();
+    let role_before = {
+      let mut conn = pool.acquire().await.unwrap();
+      RoleService::get_role_by_id(&mut conn, test_role_id)
+        .await
+        .unwrap()
+        .unwrap()
+    };
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -1742,10 +1724,13 @@ mod tests {
     assert!(updated_role1.is_default);
 
     // Verify only role1 is default
-    let all_roles = RoleService::get_all_roles(&pool).await.unwrap();
-    let default_roles: Vec<_> = all_roles.iter().filter(|r| r.is_default).collect();
-    assert_eq!(default_roles.len(), 1);
-    assert_eq!(default_roles[0].id, role1_id);
+    {
+      let mut conn = pool.acquire().await.unwrap();
+      let all_roles = RoleService::get_all_roles(&mut conn).await.unwrap();
+      let default_roles: Vec<_> = all_roles.iter().filter(|r| r.is_default).collect();
+      assert_eq!(default_roles.len(), 1);
+      assert_eq!(default_roles[0].id, role1_id);
+    }
 
     // Add delay to ensure timestamp difference
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -1762,15 +1747,23 @@ mod tests {
     assert!(updated_role2.is_default);
 
     // Verify only role2 is default now
-    let all_roles = RoleService::get_all_roles(&pool).await.unwrap();
-    let default_roles: Vec<_> = all_roles.iter().filter(|r| r.is_default).collect();
-    assert_eq!(default_roles.len(), 1);
-    assert_eq!(default_roles[0].id, role2_id);
+    {
+      let mut conn = pool.acquire().await.unwrap();
+      let all_roles = RoleService::get_all_roles(&mut conn).await.unwrap();
+      let default_roles: Vec<_> = all_roles.iter().filter(|r| r.is_default).collect();
+      assert_eq!(default_roles.len(), 1);
+      assert_eq!(default_roles[0].id, role2_id);
+    }
 
     // Verify role1 is no longer default
-    let current_role1 = RoleService::get_role_by_id(&pool, role1_id).await.unwrap();
-    assert!(current_role1.is_some());
-    assert!(!current_role1.unwrap().is_default);
+    {
+      let mut conn = pool.acquire().await.unwrap();
+      let current_role1 = RoleService::get_role_by_id(&mut conn, role1_id)
+        .await
+        .unwrap();
+      assert!(current_role1.is_some());
+      assert!(!current_role1.unwrap().is_default);
+    }
 
     // Add delay to ensure timestamp difference
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -1784,15 +1777,23 @@ mod tests {
     assert!(updated_role3.is_default);
 
     // Verify only role3 is default now
-    let all_roles = RoleService::get_all_roles(&pool).await.unwrap();
-    let default_roles: Vec<_> = all_roles.iter().filter(|r| r.is_default).collect();
-    assert_eq!(default_roles.len(), 1);
-    assert_eq!(default_roles[0].id, role3_id);
+    {
+      let mut conn = pool.acquire().await.unwrap();
+      let all_roles = RoleService::get_all_roles(&mut conn).await.unwrap();
+      let default_roles: Vec<_> = all_roles.iter().filter(|r| r.is_default).collect();
+      assert_eq!(default_roles.len(), 1);
+      assert_eq!(default_roles[0].id, role3_id);
+    }
 
     // Verify role2 is no longer default
-    let current_role2 = RoleService::get_role_by_id(&pool, role2_id).await.unwrap();
-    assert!(current_role2.is_some());
-    assert!(!current_role2.unwrap().is_default);
+    {
+      let mut conn = pool.acquire().await.unwrap();
+      let current_role2 = RoleService::get_role_by_id(&mut conn, role2_id)
+        .await
+        .unwrap();
+      assert!(current_role2.is_some());
+      assert!(!current_role2.unwrap().is_default);
+    }
   }
 
   #[tokio::test]
@@ -1807,11 +1808,14 @@ mod tests {
     // Create a role to set as default
     let test_role_id = create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
 
-    // Get the role before setting as default to compare timestamps
-    let role_before = RoleService::get_role_by_id(&pool, test_role_id)
-      .await
-      .unwrap()
-      .unwrap();
+    // Get role before setting as default to compare timestamps
+    let role_before = {
+      let mut conn = pool.acquire().await.unwrap();
+      RoleService::get_role_by_id(&mut conn, test_role_id)
+        .await
+        .unwrap()
+        .unwrap()
+    };
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {

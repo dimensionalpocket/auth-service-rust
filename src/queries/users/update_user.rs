@@ -107,21 +107,12 @@ mod tests {
   use crate::services::PasswordService;
   use crate::test_utils::{create_test_database, create_test_role_model_with_pool};
 
-  async fn setup_default_role(pool: &sqlx::SqlitePool) {
-    create_test_role_model_with_pool(pool, "user", &["can_view_user_self"], true).await;
-  }
-
-  async fn setup_admin_role_for_update(pool: &sqlx::SqlitePool) -> i64 {
-    let admin_role = create_test_role_model_with_pool(pool, "admin", &["is_admin"], false).await;
-    admin_role.id
-  }
-
   #[tokio::test]
   async fn test_update_user_name_only() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -161,8 +152,9 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user and admin role
-    setup_default_role(&pool).await;
-    let admin_role_id = setup_admin_role_for_update(&pool).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    let admin_role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
+    let admin_role_id = admin_role.id;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -202,7 +194,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -244,8 +236,9 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user and admin role
-    setup_default_role(&pool).await;
-    let admin_role_id = setup_admin_role_for_update(&pool).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    let admin_role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
+    let admin_role_id = admin_role.id;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -286,8 +279,9 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user with default role and admin role
-    setup_default_role(&pool).await;
-    let admin_role_id = setup_admin_role_for_update(&pool).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    let admin_role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
+    let admin_role_id = admin_role.id;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -327,7 +321,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -389,7 +383,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user with all fields
-    setup_default_role(&pool).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -429,7 +423,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user with metadata
-    setup_default_role(&pool).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -473,7 +467,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user with metadata
-    setup_default_role(&pool).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),

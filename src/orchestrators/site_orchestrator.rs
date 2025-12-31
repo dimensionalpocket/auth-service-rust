@@ -26,6 +26,8 @@ impl SiteOrchestrator {
     session_context: SessionContext,
     create_data: CreateSiteData,
   ) -> Result<crate::models::Site, SiteError> {
+    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
+
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -34,26 +36,19 @@ impl SiteOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = {
-      let mut conn = pool.acquire().await?;
-      GetUserByIdQuery::run(&mut conn, user_id)
-        .await
-        .map_err(SiteError::DatabaseError)?
-        .ok_or(SiteError::AuthenticationError("User not found".to_string()))?
-    };
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
+      .await
+      .map_err(SiteError::DatabaseError)?
+      .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = {
-      let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
-
-      RoleService::check_user_permission(&mut conn, &user, "can_create_site").await?
-    };
+    let allowed = RoleService::check_user_permission(&mut conn, &user, "can_create_site").await?;
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Create site
-    SiteService::create_site(pool, create_data).await
+    SiteService::create_site(&mut conn, create_data).await
   }
 
   pub async fn remove_site_with_permission_check(
@@ -61,6 +56,8 @@ impl SiteOrchestrator {
     session_context: SessionContext,
     site_id: i64,
   ) -> Result<crate::models::Site, SiteError> {
+    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
+
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -69,26 +66,19 @@ impl SiteOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = {
-      let mut conn = pool.acquire().await?;
-      GetUserByIdQuery::run(&mut conn, user_id)
-        .await
-        .map_err(SiteError::DatabaseError)?
-        .ok_or(SiteError::AuthenticationError("User not found".to_string()))?
-    };
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
+      .await
+      .map_err(SiteError::DatabaseError)?
+      .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = {
-      let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
-
-      RoleService::check_user_permission(&mut conn, &user, "can_delete_site").await?
-    };
+    let allowed = RoleService::check_user_permission(&mut conn, &user, "can_delete_site").await?;
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Delete site
-    SiteService::delete_site(pool, site_id).await
+    SiteService::delete_site(&mut conn, site_id).await
   }
 
   pub async fn update_site_with_permission_check(
@@ -97,6 +87,8 @@ impl SiteOrchestrator {
     site_id: i64,
     update_data: UpdateSiteData,
   ) -> Result<Option<crate::models::Site>, SiteError> {
+    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
+
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -105,26 +97,19 @@ impl SiteOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = {
-      let mut conn = pool.acquire().await?;
-      GetUserByIdQuery::run(&mut conn, user_id)
-        .await
-        .map_err(SiteError::DatabaseError)?
-        .ok_or(SiteError::AuthenticationError("User not found".to_string()))?
-    };
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
+      .await
+      .map_err(SiteError::DatabaseError)?
+      .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = {
-      let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
-
-      RoleService::check_user_permission(&mut conn, &user, "can_update_site").await?
-    };
+    let allowed = RoleService::check_user_permission(&mut conn, &user, "can_update_site").await?;
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Update site
-    SiteService::update_site(pool, site_id, update_data).await
+    SiteService::update_site(&mut conn, site_id, update_data).await
   }
 
   pub async fn get_site_details_with_permission_check(
@@ -132,14 +117,14 @@ impl SiteOrchestrator {
     session_context: SessionContext,
     site_id: i64,
   ) -> Result<crate::models::Site, SiteError> {
+    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
+
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
       .ok_or(SiteError::AuthenticationError(
         "Authentication required".to_string(),
       ))?;
-
-    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
 
     // Authorization: Get user and check permissions
     let user = GetUserByIdQuery::run(&mut conn, user_id)

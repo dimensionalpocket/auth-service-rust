@@ -42,7 +42,11 @@ impl SitesResolver {
   #[graphql(name = "sites")]
   async fn sites(&self, ctx: &Context<'_>) -> Result<Vec<SiteListing>> {
     let pool = ctx.data::<SqlitePool>()?;
-    let sites = SiteService::get_all_sites(pool).await?;
+    let mut conn = pool
+      .acquire()
+      .await
+      .map_err(|_| async_graphql::Error::new("Internal server error"))?;
+    let sites = SiteService::get_all_sites(&mut conn).await?;
 
     let site_listings: Vec<SiteListing> = sites
       .into_iter()

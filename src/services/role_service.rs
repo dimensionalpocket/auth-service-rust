@@ -5,7 +5,7 @@ use crate::queries::roles::{
   CreateRoleData, CreateRoleQuery, DeleteRoleQuery, GetAllRolesQuery, GetRoleByIdQuery,
   GetRoleByNameQuery, SetDefaultRoleQuery, UpdateRoleData, UpdateRoleQuery,
 };
-use sqlx::{Row, SqliteConnection, SqlitePool};
+use sqlx::{Row, SqliteConnection};
 use tracing::warn;
 
 /// Custom error type for user role operations
@@ -56,28 +56,28 @@ pub struct RoleService;
 
 impl RoleService {
   /// Get all roles
-  pub async fn get_all_roles(pool: &SqlitePool) -> Result<Vec<Role>, RoleError> {
-    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
-
-    GetAllRolesQuery::run(&mut conn)
+  pub async fn get_all_roles(conn: &mut SqliteConnection) -> Result<Vec<Role>, RoleError> {
+    GetAllRolesQuery::run(conn)
       .await
       .map_err(RoleError::DatabaseError)
   }
 
   /// Get a role by ID
-  pub async fn get_role_by_id(pool: &SqlitePool, role_id: i64) -> Result<Option<Role>, RoleError> {
-    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
-
-    GetRoleByIdQuery::run(&mut conn, role_id)
+  pub async fn get_role_by_id(
+    conn: &mut SqliteConnection,
+    role_id: i64,
+  ) -> Result<Option<Role>, RoleError> {
+    GetRoleByIdQuery::run(conn, role_id)
       .await
       .map_err(RoleError::DatabaseError)
   }
 
   /// Get a role by name
-  pub async fn get_role_by_name(pool: &SqlitePool, name: &str) -> Result<Option<Role>, RoleError> {
-    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
-
-    GetRoleByNameQuery::run(&mut conn, name)
+  pub async fn get_role_by_name(
+    conn: &mut SqliteConnection,
+    name: &str,
+  ) -> Result<Option<Role>, RoleError> {
+    GetRoleByNameQuery::run(conn, name)
       .await
       .map_err(RoleError::DatabaseError)
   }
@@ -89,14 +89,14 @@ impl RoleService {
   /// Role name format and uniqueness are validated.
   ///
   /// # Arguments
-  /// * `pool` - Database connection pool
+  /// * `conn` - Database connection
   /// * `create_data` - Data for creating the new role
   ///
   /// # Returns
   /// * `Ok(Role)` - Created role
   /// * `Err(RoleError)` - Database error, validation error, or role name already exists
   pub async fn create_role(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     create_data: CreateRoleData,
   ) -> Result<Role, RoleError> {
     // Validate role name format
@@ -114,9 +114,7 @@ impl RoleService {
     }
 
     // Check if role name already exists and create role in one connection block
-    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
-
-    let existing_role = GetRoleByNameQuery::run(&mut conn, &create_data.name)
+    let existing_role = GetRoleByNameQuery::run(conn, &create_data.name)
       .await
       .map_err(RoleError::DatabaseError)?;
 
@@ -129,7 +127,7 @@ impl RoleService {
       permissions: create_data.permissions,
       is_default: false,
     };
-    CreateRoleQuery::run(&mut conn, create_data_with_default_false)
+    CreateRoleQuery::run(conn, create_data_with_default_false)
       .await
       .map_err(RoleError::DatabaseError)
   }
@@ -140,15 +138,13 @@ impl RoleService {
   /// The role data is returned before deletion for audit purposes.
   ///
   /// # Arguments
-  /// * `pool` - Database connection pool
+  /// * `conn` - Database connection
   /// * `role_id` - ID of the role to delete
   ///
   /// # Returns
   /// * `Ok(Role)` - The deleted role data
   /// * `Err(RoleError)` - Database error, role not found, or role in use
-  pub async fn delete_role(pool: &SqlitePool, role_id: i64) -> Result<Role, RoleError> {
-    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
-
+  pub async fn delete_role(conn: &mut SqliteConnection, role_id: i64) -> Result<Role, RoleError> {
     // First check if any users are using this role
     let user_count = sqlx::query("SELECT COUNT(*) FROM users WHERE role_id = ?")
       .bind(role_id)
@@ -162,7 +158,7 @@ impl RoleService {
     }
 
     // Delete role
-    match DeleteRoleQuery::run(&mut conn, role_id).await {
+    match DeleteRoleQuery::run(conn, role_id).await {
       Ok(role) => Ok(role),
       Err(sqlx::Error::RowNotFound) => Err(RoleError::RoleNotFound(role_id)),
       Err(err) => Err(RoleError::DatabaseError(err)),
@@ -176,7 +172,7 @@ impl RoleService {
   /// All permissions in the input array are validated against the whitelist.
   ///
   /// # Arguments
-  /// * `pool` - Database connection pool
+  /// * `conn` - Database connection
   /// * `role_id` - ID of the role to update
   /// * `update_data` - Data to update (partial update supported)
   ///
@@ -184,7 +180,7 @@ impl RoleService {
   /// * `Ok(Role)` - Updated role
   /// * `Err(RoleError)` - Database error, role not found, or validation error
   pub async fn update_role(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     role_id: i64,
     update_data: UpdateRoleData,
   ) -> Result<Role, RoleError> {
@@ -205,8 +201,7 @@ impl RoleService {
     };
 
     // Run the update query
-    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
-    let updated_role = UpdateRoleQuery::run(&mut conn, update_data_with_id)
+    let updated_role = UpdateRoleQuery::run(conn, update_data_with_id)
       .await
       .map_err(RoleError::DatabaseError)?;
 
@@ -223,15 +218,17 @@ impl RoleService {
   /// transaction to ensure atomicity.
   ///
   /// # Arguments
-  /// * `pool` - Database connection pool
+  /// * `conn` - Database connection
   /// * `role_id` - ID of the role to set as default
   ///
   /// # Returns
   /// * `Ok(Role)` - The updated role with is_default set to true
   /// * `Err(RoleError)` - Database error or role not found
-  pub async fn set_default_role(pool: &SqlitePool, role_id: i64) -> Result<Role, RoleError> {
-    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
-    match SetDefaultRoleQuery::run(&mut conn, role_id).await {
+  pub async fn set_default_role(
+    conn: &mut SqliteConnection,
+    role_id: i64,
+  ) -> Result<Role, RoleError> {
+    match SetDefaultRoleQuery::run(conn, role_id).await {
       Ok(Some(role)) => Ok(role),
       Ok(None) => Err(RoleError::RoleNotFound(role_id)),
       Err(err) => Err(RoleError::DatabaseError(err)),
@@ -290,7 +287,9 @@ mod tests {
   use crate::models::ROLE_PERMISSIONS;
   use crate::queries::roles::GetDefaultRoleQuery;
   use crate::queries::users::{CreateUserData, CreateUserQuery};
-  use crate::test_utils::{create_test_database, create_test_role_model_with_pool};
+  use crate::test_utils::{
+    create_test_database, create_test_role_model, create_test_role_model_with_pool,
+  };
 
   #[tokio::test]
   async fn test_get_role_by_id_delegates_to_query() {
@@ -299,7 +298,11 @@ mod tests {
     // Insert test role with permissions
     let role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
     let role_id = role.id;
-    let role = RoleService::get_role_by_id(&pool, role_id).await.unwrap();
+
+    let mut conn = pool.acquire().await.unwrap();
+    let role = RoleService::get_role_by_id(&mut conn, role_id)
+      .await
+      .unwrap();
 
     assert!(role.is_some());
     let role = role.unwrap();
@@ -314,7 +317,10 @@ mod tests {
     // Insert test role with permissions
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
-    let role = RoleService::get_role_by_name(&pool, "user").await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let role = RoleService::get_role_by_name(&mut conn, "user")
+      .await
+      .unwrap();
 
     assert!(role.is_some());
     let role = role.unwrap();
@@ -331,7 +337,8 @@ mod tests {
       .await;
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
-    let roles = RoleService::get_all_roles(&pool).await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let roles = RoleService::get_all_roles(&mut conn).await.unwrap();
 
     assert_eq!(roles.len(), 2);
 
@@ -349,8 +356,9 @@ mod tests {
   #[tokio::test]
   async fn test_get_all_roles_empty_table() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
-    let roles = RoleService::get_all_roles(&pool).await.unwrap();
+    let roles = RoleService::get_all_roles(&mut conn).await.unwrap();
 
     assert_eq!(roles.len(), 0);
   }
@@ -607,10 +615,10 @@ mod tests {
   #[tokio::test]
   async fn test_update_role_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a role first
-    let role =
-      create_test_role_model_with_pool(&pool, "test-role", &["can_view_user_self"], false).await;
+    let role = create_test_role_model(&mut conn, "test-role", &["can_view_user_self"], false).await;
     let role_id = role.id;
 
     // Update the role
@@ -623,7 +631,7 @@ mod tests {
       ]),
     };
 
-    let updated_role = RoleService::update_role(&pool, role_id, update_data)
+    let updated_role = RoleService::update_role(&mut conn, role_id, update_data)
       .await
       .unwrap();
 
@@ -638,10 +646,11 @@ mod tests {
   #[tokio::test]
   async fn test_update_role_partial_update() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a role first
-    let role = create_test_role_model_with_pool(
-      &pool,
+    let role = create_test_role_model(
+      &mut conn,
       "test-role",
       &["can_view_user_self", "can_list_users"],
       false,
@@ -656,7 +665,7 @@ mod tests {
       permissions: None,
     };
 
-    let updated_role = RoleService::update_role(&pool, role_id, update_data)
+    let updated_role = RoleService::update_role(&mut conn, role_id, update_data)
       .await
       .unwrap();
 
@@ -671,6 +680,7 @@ mod tests {
   #[tokio::test]
   async fn test_update_role_not_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     let update_data = UpdateRoleData {
       id: 999,
@@ -678,7 +688,7 @@ mod tests {
       permissions: None,
     };
 
-    let result = RoleService::update_role(&pool, 999, update_data).await;
+    let result = RoleService::update_role(&mut conn, 999, update_data).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::RoleNotFound(id) => assert_eq!(id, 999),
@@ -689,10 +699,10 @@ mod tests {
   #[tokio::test]
   async fn test_update_role_invalid_permission() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a role first
-    let role =
-      create_test_role_model_with_pool(&pool, "test-role", &["can_view_user_self"], false).await;
+    let role = create_test_role_model(&mut conn, "test-role", &["can_view_user_self"], false).await;
     let role_id = role.id;
 
     // Update with invalid permission
@@ -702,7 +712,7 @@ mod tests {
       permissions: Some(vec!["invalid_permission".to_string()]),
     };
 
-    let result = RoleService::update_role(&pool, role_id, update_data).await;
+    let result = RoleService::update_role(&mut conn, role_id, update_data).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::InvalidPermission(permission) => assert_eq!(permission, "invalid_permission"),
@@ -713,10 +723,11 @@ mod tests {
   #[tokio::test]
   async fn test_update_role_empty_permissions() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a role first
-    let role = create_test_role_model_with_pool(
-      &pool,
+    let role = create_test_role_model(
+      &mut conn,
       "empty-permissions-role",
       &["can_view_user_self"],
       false,
@@ -731,7 +742,7 @@ mod tests {
       permissions: Some(vec![]), // Set to empty array
     };
 
-    let updated_role = RoleService::update_role(&pool, role_id, update_data)
+    let updated_role = RoleService::update_role(&mut conn, role_id, update_data)
       .await
       .unwrap();
 
@@ -744,10 +755,11 @@ mod tests {
   #[tokio::test]
   async fn test_update_role_all_valid_permissions() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a role first
-    let role = create_test_role_model_with_pool(
-      &pool,
+    let role = create_test_role_model(
+      &mut conn,
       "all-permissions-role",
       &["can_view_user_self"],
       false,
@@ -767,7 +779,7 @@ mod tests {
       permissions: Some(all_permissions.clone()),
     };
 
-    let updated_role = RoleService::update_role(&pool, role_id, update_data)
+    let updated_role = RoleService::update_role(&mut conn, role_id, update_data)
       .await
       .unwrap();
 
@@ -787,6 +799,7 @@ mod tests {
   #[tokio::test]
   async fn test_create_role_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
       name: "test_role".to_string(),
@@ -797,7 +810,9 @@ mod tests {
       is_default: false,
     };
 
-    let role = RoleService::create_role(&pool, create_data).await.unwrap();
+    let role = RoleService::create_role(&mut conn, create_data)
+      .await
+      .unwrap();
 
     assert_eq!(role.name, "test_role");
     assert!(!role.is_default);
@@ -813,6 +828,7 @@ mod tests {
   #[tokio::test]
   async fn test_create_role_empty_permissions() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
       name: "empty_permissions_role".to_string(),
@@ -820,7 +836,9 @@ mod tests {
       is_default: true,
     };
 
-    let role = RoleService::create_role(&pool, create_data).await.unwrap();
+    let role = RoleService::create_role(&mut conn, create_data)
+      .await
+      .unwrap();
 
     assert_eq!(role.name, "empty_permissions_role");
     assert!(!role.is_default); // Always false for now
@@ -830,6 +848,7 @@ mod tests {
   #[tokio::test]
   async fn test_create_role_duplicate_name_fails() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create first role
     let create_data1 = CreateRoleData {
@@ -838,7 +857,9 @@ mod tests {
       is_default: false,
     };
 
-    RoleService::create_role(&pool, create_data1).await.unwrap();
+    RoleService::create_role(&mut conn, create_data1)
+      .await
+      .unwrap();
 
     // Try to create second role with same name
     let create_data2 = CreateRoleData {
@@ -847,7 +868,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = RoleService::create_role(&pool, create_data2).await;
+    let result = RoleService::create_role(&mut conn, create_data2).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::RoleNameAlreadyExists(name) => assert_eq!(name, "duplicate"),
@@ -858,6 +879,7 @@ mod tests {
   #[tokio::test]
   async fn test_create_role_empty_name_fails() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
       name: "".to_string(),
@@ -865,7 +887,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = RoleService::create_role(&pool, create_data).await;
+    let result = RoleService::create_role(&mut conn, create_data).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::ValidationError(msg) => assert_eq!(msg, "Role name cannot be empty"),
@@ -876,6 +898,7 @@ mod tests {
   #[tokio::test]
   async fn test_create_role_whitespace_name_fails() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
       name: "   ".to_string(),
@@ -883,7 +906,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = RoleService::create_role(&pool, create_data).await;
+    let result = RoleService::create_role(&mut conn, create_data).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::ValidationError(msg) => assert_eq!(msg, "Role name cannot be empty"),
@@ -894,6 +917,7 @@ mod tests {
   #[tokio::test]
   async fn test_create_role_invalid_permission_fails() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
       name: "invalid_permission_role".to_string(),
@@ -901,7 +925,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = RoleService::create_role(&pool, create_data).await;
+    let result = RoleService::create_role(&mut conn, create_data).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::InvalidPermission(permission) => assert_eq!(permission, "invalid_permission"),
@@ -912,6 +936,7 @@ mod tests {
   #[tokio::test]
   async fn test_create_role_multiple_invalid_permissions_fails() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
       name: "multiple_invalid_role".to_string(),
@@ -923,7 +948,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = RoleService::create_role(&pool, create_data).await;
+    let result = RoleService::create_role(&mut conn, create_data).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::InvalidPermission(permission) => assert_eq!(permission, "invalid_permission1"),
@@ -934,6 +959,7 @@ mod tests {
   #[tokio::test]
   async fn test_create_role_all_valid_permissions() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     let all_permissions: Vec<String> = ROLE_PERMISSIONS
       .iter()
@@ -946,7 +972,9 @@ mod tests {
       is_default: false,
     };
 
-    let role = RoleService::create_role(&pool, create_data).await.unwrap();
+    let role = RoleService::create_role(&mut conn, create_data)
+      .await
+      .unwrap();
 
     assert_eq!(role.name, "all_permissions_role");
     assert!(!role.is_default);
@@ -966,6 +994,7 @@ mod tests {
   #[tokio::test]
   async fn test_create_role_default_role() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
       name: "default_test_role".to_string(),
@@ -973,7 +1002,9 @@ mod tests {
       is_default: true,
     };
 
-    let role = RoleService::create_role(&pool, create_data).await.unwrap();
+    let role = RoleService::create_role(&mut conn, create_data)
+      .await
+      .unwrap();
 
     assert_eq!(role.name, "default_test_role");
     assert!(!role.is_default); // Always false for now
@@ -984,6 +1015,7 @@ mod tests {
   #[tokio::test]
   async fn test_delete_role_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a role first
     let create_data = CreateRoleData {
@@ -991,10 +1023,12 @@ mod tests {
       permissions: vec!["can_manage_roles".to_string()],
       is_default: false,
     };
-    let role = RoleService::create_role(&pool, create_data).await.unwrap();
+    let role = RoleService::create_role(&mut conn, create_data)
+      .await
+      .unwrap();
 
     // Delete the role
-    let deleted_role = RoleService::delete_role(&pool, role.id).await.unwrap();
+    let deleted_role = RoleService::delete_role(&mut conn, role.id).await.unwrap();
 
     // Verify returned data matches original
     assert_eq!(deleted_role.id, role.id);
@@ -1004,16 +1038,19 @@ mod tests {
     assert_eq!(deleted_role.is_default, role.is_default);
 
     // Verify role is deleted from database
-    let result = RoleService::get_role_by_id(&pool, role.id).await.unwrap();
+    let result = RoleService::get_role_by_id(&mut conn, role.id)
+      .await
+      .unwrap();
     assert!(result.is_none());
   }
 
   #[tokio::test]
   async fn test_delete_role_not_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Try to delete non-existent role
-    let result = RoleService::delete_role(&pool, 999).await;
+    let result = RoleService::delete_role(&mut conn, 999).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::RoleNotFound(id) => assert_eq!(id, 999),
@@ -1024,6 +1061,7 @@ mod tests {
   #[tokio::test]
   async fn test_delete_role_in_use() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a role
     let role_data = CreateRoleData {
@@ -1031,7 +1069,9 @@ mod tests {
       permissions: vec!["can_manage_roles".to_string()],
       is_default: false,
     };
-    let role = RoleService::create_role(&pool, role_data).await.unwrap();
+    let role = RoleService::create_role(&mut conn, role_data)
+      .await
+      .unwrap();
 
     // Create a user with this role
     let user_data = CreateUserData {
@@ -1041,23 +1081,21 @@ mod tests {
       role_id: Some(role.id),
       metadata_json: None,
     };
-    {
-      let mut conn = pool.acquire().await.unwrap();
-      CreateUserQuery::run(&mut conn, user_data).await.unwrap();
-    }
+    CreateUserQuery::run(&mut conn, user_data).await.unwrap();
 
     // Try to delete the role while it's in use
-    let result = RoleService::delete_role(&pool, role.id).await;
+    let result = RoleService::delete_role(&mut conn, role.id).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::RoleInUse(id) => assert_eq!(id, role.id),
-      _ => panic!("Expected RoleInUse error"),
+      _ => panic!("Expected RoleInUse"),
     }
   }
 
   #[tokio::test]
   async fn test_set_default_role_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create two roles
     let role1_data = CreateRoleData {
@@ -1065,20 +1103,24 @@ mod tests {
       permissions: vec!["can_view_user_self".to_string()],
       is_default: false,
     };
-    let role1 = RoleService::create_role(&pool, role1_data).await.unwrap();
+    let role1 = RoleService::create_role(&mut conn, role1_data)
+      .await
+      .unwrap();
 
     let role2_data = CreateRoleData {
       name: "role2".to_string(),
       permissions: vec!["can_list_users".to_string()],
       is_default: false,
     };
-    let role2 = RoleService::create_role(&pool, role2_data).await.unwrap();
+    let role2 = RoleService::create_role(&mut conn, role2_data)
+      .await
+      .unwrap();
 
     // Add delay to ensure timestamp difference
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
     // Set role1 as default
-    let updated_role1 = RoleService::set_default_role(&pool, role1.id)
+    let updated_role1 = RoleService::set_default_role(&mut conn, role1.id)
       .await
       .unwrap();
 
@@ -1088,10 +1130,7 @@ mod tests {
     assert!(updated_role1.updated_ts > role1.updated_ts);
 
     // Verify role1 is now default
-    let default_role = {
-      let mut conn = pool.acquire().await.unwrap();
-      GetDefaultRoleQuery::run(&mut conn).await.unwrap()
-    };
+    let default_role = GetDefaultRoleQuery::run(&mut conn).await.unwrap();
     assert!(default_role.is_some());
     assert_eq!(default_role.unwrap().id, role1.id);
 
@@ -1099,7 +1138,7 @@ mod tests {
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
     // Set role2 as default (should unset role1)
-    let updated_role2 = RoleService::set_default_role(&pool, role2.id)
+    let updated_role2 = RoleService::set_default_role(&mut conn, role2.id)
       .await
       .unwrap();
 
@@ -1108,14 +1147,13 @@ mod tests {
     assert!(updated_role2.is_default);
 
     // Verify role2 is now default and role1 is not
-    let default_role = {
-      let mut conn = pool.acquire().await.unwrap();
-      GetDefaultRoleQuery::run(&mut conn).await.unwrap()
-    };
+    let default_role = GetDefaultRoleQuery::run(&mut conn).await.unwrap();
     assert!(default_role.is_some());
     assert_eq!(default_role.unwrap().id, role2.id);
 
-    let current_role1 = RoleService::get_role_by_id(&pool, role1.id).await.unwrap();
+    let current_role1 = RoleService::get_role_by_id(&mut conn, role1.id)
+      .await
+      .unwrap();
     assert!(current_role1.is_some());
     assert!(!current_role1.unwrap().is_default);
   }
@@ -1123,18 +1161,20 @@ mod tests {
   #[tokio::test]
   async fn test_set_default_role_not_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
-    let result = RoleService::set_default_role(&pool, 999).await;
+    let result = RoleService::set_default_role(&mut conn, 999).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::RoleNotFound(id) => assert_eq!(id, 999),
-      _ => panic!("Expected RoleNotFound error"),
+      _ => panic!("Expected RoleNotFound"),
     }
   }
 
   #[tokio::test]
   async fn test_set_default_role_atomic_behavior() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create multiple roles
     let _role1_data = CreateRoleData {
@@ -1142,46 +1182,53 @@ mod tests {
       permissions: vec!["can_view_user_self".to_string()],
       is_default: false,
     };
-    let _role1 = RoleService::create_role(&pool, _role1_data).await.unwrap();
+    let _role1 = RoleService::create_role(&mut conn, _role1_data)
+      .await
+      .unwrap();
 
     let role2_data = CreateRoleData {
       name: "atomic-role2".to_string(),
       permissions: vec!["can_list_users".to_string()],
       is_default: false,
     };
-    let role2 = RoleService::create_role(&pool, role2_data).await.unwrap();
+    let role2 = RoleService::create_role(&mut conn, role2_data)
+      .await
+      .unwrap();
 
     let role3_data = CreateRoleData {
       name: "atomic-role3".to_string(),
       permissions: vec!["can_manage_roles".to_string()],
       is_default: false,
     };
-    let role3 = RoleService::create_role(&pool, role3_data).await.unwrap();
+    let role3 = RoleService::create_role(&mut conn, role3_data)
+      .await
+      .unwrap();
 
     // Set role2 as default
-    RoleService::set_default_role(&pool, role2.id)
+    RoleService::set_default_role(&mut conn, role2.id)
       .await
       .unwrap();
 
     // Verify only role2 is default
-    let all_roles = RoleService::get_all_roles(&pool).await.unwrap();
+    let all_roles = RoleService::get_all_roles(&mut conn).await.unwrap();
     let default_roles: Vec<_> = all_roles.iter().filter(|r| r.is_default).collect();
     assert_eq!(default_roles.len(), 1);
     assert_eq!(default_roles[0].id, role2.id);
 
     // Set role3 as default
-    RoleService::set_default_role(&pool, role3.id)
+    RoleService::set_default_role(&mut conn, role3.id)
       .await
       .unwrap();
 
     // Verify only role3 is default now
-    let all_roles = RoleService::get_all_roles(&pool).await.unwrap();
+    let all_roles = RoleService::get_all_roles(&mut conn).await.unwrap();
     let default_roles: Vec<_> = all_roles.iter().filter(|r| r.is_default).collect();
     assert_eq!(default_roles.len(), 1);
     assert_eq!(default_roles[0].id, role3.id);
 
-    // Verify role2 is no longer default
-    let current_role2 = RoleService::get_role_by_id(&pool, role2.id).await.unwrap();
+    let current_role2 = RoleService::get_role_by_id(&mut conn, role2.id)
+      .await
+      .unwrap();
     assert!(current_role2.is_some());
     assert!(!current_role2.unwrap().is_default);
   }

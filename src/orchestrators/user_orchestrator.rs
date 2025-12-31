@@ -132,20 +132,15 @@ impl UserOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
+    let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
+
     // Authorization: Get user and check permissions
-    let user = {
-      let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
-      GetUserByIdQuery::run(&mut conn, user_id)
-        .await
-        .map_err(UserError::DatabaseError)?
-        .ok_or(UserError::UserNotFound(user_id))?
-    };
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
+      .await
+      .map_err(UserError::DatabaseError)?
+      .ok_or(UserError::UserNotFound(user_id))?;
 
-    let allowed = {
-      let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
-
-      RoleService::check_user_permission(&mut conn, &user, "can_delete_user").await?
-    };
+    let allowed = RoleService::check_user_permission(&mut conn, &user, "can_delete_user").await?;
 
     if !allowed {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));
@@ -157,7 +152,7 @@ impl UserOrchestrator {
     }
 
     // Business logic: Delete user
-    let deleted = UserService::delete_user(pool, target_user_id).await?;
+    let deleted = UserService::delete_user(&mut conn, target_user_id).await?;
 
     if !deleted {
       return Err(UserError::UserNotFound(target_user_id));
@@ -200,27 +195,22 @@ impl UserOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
+    let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
+
     // Authorization: Get user and check permissions
-    let user = {
-      let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
-      GetUserByIdQuery::run(&mut conn, user_id)
-        .await
-        .map_err(UserError::DatabaseError)?
-        .ok_or(UserError::UserNotFound(user_id))?
-    };
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
+      .await
+      .map_err(UserError::DatabaseError)?
+      .ok_or(UserError::UserNotFound(user_id))?;
 
-    let allowed = {
-      let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
-
-      RoleService::check_user_permission(&mut conn, &user, "can_edit_user").await?
-    };
+    let allowed = RoleService::check_user_permission(&mut conn, &user, "can_edit_user").await?;
 
     if !allowed {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Validate and update user
-    UserService::update_user(pool, target_user_id, update_data, password).await
+    UserService::update_user(&mut conn, target_user_id, update_data, password).await
   }
 }
 
@@ -759,7 +749,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
 
     // Setup: Create admin role with can_edit_user permission
-    let admin_role_id = create_admin_role(&pool).await;
+    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     eprintln!("Created admin role with ID: {admin_role_id}");
 
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -807,7 +797,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
 
     // Setup: Create target user
-    let user_role_id = create_user_role(&pool).await;
+    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
 
     // Create session context without user (unauthenticated)
@@ -845,7 +835,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
 
     // Setup: Create target user
-    let user_role_id = create_user_role(&pool).await;
+    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
 
     // Create session context with non-existent user
@@ -888,7 +878,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
 
     // Setup: Create regular user without can_edit_user permission
-    let user_role_id = create_user_role(&pool).await;
+    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
 
     let regular_user = create_test_user_with_pool(&pool, "regular", user_role_id).await;
     let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
@@ -933,7 +923,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
 
     // Setup: Create admin user with can_edit_user permission
-    let admin_role_id = create_admin_role(&pool).await;
+    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
@@ -976,10 +966,10 @@ mod tests {
     let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
 
     // Setup: Create admin user with can_edit_user permission
-    let admin_role_id = create_admin_role(&pool).await;
+    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
-    let user_role_id = create_user_role(&pool).await;
+    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
 
     // Create session context for admin user
@@ -1022,10 +1012,10 @@ mod tests {
     let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
 
     // Setup: Create admin user with can_edit_user permission
-    let admin_role_id = create_admin_role(&pool).await;
+    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
-    let user_role_id = create_user_role(&pool).await;
+    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
 
     // Create session context for admin user
@@ -1068,10 +1058,10 @@ mod tests {
     let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
 
     // Setup: Create admin user with can_edit_user permission
-    let admin_role_id = create_admin_role(&pool).await;
+    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
-    let user_role_id = create_user_role(&pool).await;
+    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
     let _existing_user = create_test_user_with_pool(&pool, "existinguser", user_role_id).await;
 
@@ -1108,14 +1098,5 @@ mod tests {
       }
       _ => panic!("Expected UsernameAlreadyExists"),
     }
-  }
-
-  // Helper functions for orchestrator tests
-  async fn create_admin_role(pool: &SqlitePool) -> i64 {
-    create_test_role_with_pool(pool, "admin", &["can_edit_user"]).await
-  }
-
-  async fn create_user_role(pool: &SqlitePool) -> i64 {
-    create_test_role_with_pool(pool, "user", &[]).await
   }
 }

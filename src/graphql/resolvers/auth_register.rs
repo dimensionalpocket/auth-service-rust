@@ -60,8 +60,13 @@ impl AuthRegisterResolver {
     let cookie_domain = config.cookie_domain.clone();
     let insecure_cookie = config.insecure_cookie;
 
+    let mut conn = pool
+      .acquire()
+      .await
+      .map_err(|_| async_graphql::Error::new("Internal server error"))?;
+
     match AuthService::register(
-      pool,
+      &mut conn,
       &username,
       &password,
       &password_confirmation,
@@ -117,7 +122,7 @@ impl AuthRegisterResolver {
 mod tests {
   use super::*;
   use crate::test_utils::{
-    create_test_database, create_test_mutation_schema, create_test_role_model_with_pool,
+    create_test_database, create_test_mutation_schema, create_test_role_model,
   };
 
   #[tokio::test]
@@ -125,7 +130,10 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert default role first
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    {
+      let mut conn = pool.acquire().await.unwrap();
+      create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+    }
 
     // Test secret - 32 bytes for AES-256
     let test_secret = vec![
@@ -193,7 +201,10 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert default role first
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    {
+      let mut conn = pool.acquire().await.unwrap();
+      create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+    }
 
     // Test secret - 32 bytes for AES-256
     let test_secret = vec![
@@ -326,7 +337,10 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Insert default role first
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    {
+      let mut conn = pool.acquire().await.unwrap();
+      create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+    }
 
     // Test secret - 32 bytes for AES-256
     let test_secret = vec![

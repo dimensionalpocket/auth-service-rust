@@ -91,8 +91,9 @@ mod tests {
   use crate::middleware::session::{SessionContext, SessionPayload};
   use crate::services::{AuthService, UserService};
   use crate::test_utils::{
-    create_test_database, create_test_mutation_schema, create_test_role_model_with_pool,
+    create_test_database, create_test_mutation_schema, create_test_role_model,
   };
+  use sqlx::SqliteConnection;
 
   // Test secret - 32 bytes for AES-256
   const TEST_SECRET: &[u8] = &[
@@ -101,20 +102,17 @@ mod tests {
   ];
 
   async fn create_authenticated_session(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     username: &str,
     password: &str,
   ) -> (SessionContext, i64) {
-    // Create default role
-    create_test_role_model_with_pool(pool, "user", &["can_view_user_self"], true).await;
-
     // Create user
-    let user = UserService::create_user(pool, username, password)
+    let user = UserService::create_user(conn, username, password)
       .await
       .unwrap();
 
     // Create session (we don't need the result for this test)
-    let _auth_result = AuthService::login(pool, username, password, TEST_SECRET)
+    let _auth_result = AuthService::login(conn, username, password, TEST_SECRET)
       .await
       .unwrap();
 
@@ -134,8 +132,13 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create authenticated user
-    let (session_context, _user_id) =
-      create_authenticated_session(&pool, "testuser", "oldpassword123").await;
+    let session_context = {
+      let mut conn = pool.acquire().await.unwrap();
+      create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+      create_authenticated_session(&mut conn, "testuser", "oldpassword123")
+        .await
+        .0
+    };
 
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
@@ -145,9 +148,9 @@ mod tests {
     let query = r#"
       mutation {
         authChangePassword(
-          currentPassword: "oldpassword123", 
-          newPassword: "newpassword456", 
-          newPasswordConfirmation: "newpassword456" 
+          currentPassword: "oldpassword123",
+          newPassword: "newpassword456",
+          newPasswordConfirmation: "newpassword456"
         ) {
           message
           updatedTs
@@ -179,8 +182,13 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create authenticated user
-    let (session_context, _user_id) =
-      create_authenticated_session(&pool, "testuser", "correctpassword").await;
+    let session_context = {
+      let mut conn = pool.acquire().await.unwrap();
+      create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+      create_authenticated_session(&mut conn, "testuser", "correctpassword")
+        .await
+        .0
+    };
 
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
@@ -214,8 +222,13 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create authenticated user
-    let (session_context, _user_id) =
-      create_authenticated_session(&pool, "testuser", "currentpassword").await;
+    let session_context = {
+      let mut conn = pool.acquire().await.unwrap();
+      create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+      create_authenticated_session(&mut conn, "testuser", "currentpassword")
+        .await
+        .0
+    };
 
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
@@ -279,8 +292,13 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create authenticated user
-    let (session_context, _user_id) =
-      create_authenticated_session(&pool, "testuser", "currentpassword").await;
+    let session_context = {
+      let mut conn = pool.acquire().await.unwrap();
+      create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+      create_authenticated_session(&mut conn, "testuser", "currentpassword")
+        .await
+        .0
+    };
 
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;

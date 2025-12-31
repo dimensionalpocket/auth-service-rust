@@ -116,22 +116,28 @@ impl AuthMeResolver {
     };
 
     match &session_context.payload {
-      Some(_payload) => match AuthService::get_current_user(pool, session_context).await {
-        Ok(auth_me_result) => Ok(Some(AuthMeResponse {
-          user_id: auth_me_result.user_id,
-          uuid: auth_me_result.uuid,
-          username: auth_me_result.username,
-          role: UserRole::from(auth_me_result.role),
-          created_ts: auth_me_result.created_ts,
-          updated_ts: auth_me_result.updated_ts,
-          session_iat: auth_me_result.session_iat,
-          session_exp: auth_me_result.session_exp,
-        })),
-        Err(session_error) => {
-          let user_message = map_session_error_to_user_message(&session_error);
-          Err(async_graphql::Error::new(user_message))
+      Some(_payload) => {
+        let mut conn = pool
+          .acquire()
+          .await
+          .map_err(|_| async_graphql::Error::new("Internal server error"))?;
+        match AuthService::get_current_user(&mut conn, session_context).await {
+          Ok(auth_me_result) => Ok(Some(AuthMeResponse {
+            user_id: auth_me_result.user_id,
+            uuid: auth_me_result.uuid,
+            username: auth_me_result.username,
+            role: UserRole::from(auth_me_result.role),
+            created_ts: auth_me_result.created_ts,
+            updated_ts: auth_me_result.updated_ts,
+            session_iat: auth_me_result.session_iat,
+            session_exp: auth_me_result.session_exp,
+          })),
+          Err(session_error) => {
+            let user_message = map_session_error_to_user_message(&session_error);
+            Err(async_graphql::Error::new(user_message))
+          }
         }
-      },
+      }
       None => Ok(None),
     }
   }

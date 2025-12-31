@@ -43,7 +43,12 @@ impl AuthLoginResolver {
     let cookie_domain = config.cookie_domain.clone();
     let insecure_cookie = config.insecure_cookie;
 
-    match AuthService::login(pool, &username, &password, &session_secret).await {
+    let mut conn = pool
+      .acquire()
+      .await
+      .map_err(|_| async_graphql::Error::new("Internal server error"))?;
+
+    match AuthService::login(&mut conn, &username, &password, &session_secret).await {
       Ok(auth_result) => {
         // Set session cookie
         let cookie_value = format!(
@@ -95,7 +100,7 @@ mod tests {
   use super::*;
   use crate::services::UserService;
   use crate::test_utils::{
-    create_test_database, create_test_mutation_schema, create_test_role_model_with_pool,
+    create_test_database, create_test_mutation_schema, create_test_role_model,
   };
 
   // Test secret - 32 bytes for AES-256 (base64-decoded from QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=)
@@ -109,10 +114,13 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
-    UserService::create_user(&pool, "testuser", "password123")
-      .await
-      .unwrap();
+    {
+      let mut conn = pool.acquire().await.unwrap();
+      create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+      UserService::create_user(&mut conn, "testuser", "password123")
+        .await
+        .unwrap();
+    }
 
     // Create GraphQL schema with just the mutation
     let test_config = DpsAuthApiConfig {

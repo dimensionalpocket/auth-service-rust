@@ -61,18 +61,13 @@ mod tests {
   use crate::test_utils::{
     create_test_database, create_test_role_model_with_pool, create_test_user_full_with_pool,
   };
-  use sqlx::SqlitePool;
-
-  async fn setup_default_role(pool: &SqlitePool) {
-    create_test_role_model_with_pool(pool, "user", &["can_view_user_self"], true).await;
-  }
 
   #[tokio::test]
   async fn test_update_user_password_success() {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let user = create_test_user_full_with_pool(
       &pool,
       "test-uuid",
@@ -124,7 +119,7 @@ mod tests {
     let (pool, _temp_file) = create_test_database().await;
 
     // Setup: Create a user
-    setup_default_role(&pool).await;
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let user = create_test_user_full_with_pool(
       &pool,
       "test-uuid",

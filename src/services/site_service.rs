@@ -3,7 +3,7 @@ use crate::queries::sites::{
   CreateSiteData, CreateSiteQuery, DeleteSiteQuery, GetAllSitesQuery, UpdateSiteData,
   UpdateSiteQuery,
 };
-use sqlx::SqlitePool;
+use sqlx::SqliteConnection;
 
 /// Custom error type for site operations
 #[derive(Debug)]
@@ -54,13 +54,16 @@ impl SiteService {
   /// This method validates the input (slug) and delegates creation to the query layer.
   ///
   /// # Arguments
-  /// * `pool` - Database connection pool
+  /// * `conn` - Database connection
   /// * `data` - Site creation data
   ///
   /// # Returns
   /// * `Ok(Site)` - Successfully created site
   /// * `Err(SiteError)` - Creation failed due to validation, uniqueness, or database error
-  pub async fn create_site(pool: &SqlitePool, data: CreateSiteData) -> Result<Site, SiteError> {
+  pub async fn create_site(
+    conn: &mut SqliteConnection,
+    data: CreateSiteData,
+  ) -> Result<Site, SiteError> {
     // Input validation
     Self::validate_slug(&data.slug)?;
 
@@ -68,8 +71,7 @@ impl SiteService {
     let slug_clone = data.slug.clone();
 
     // Delegate to query
-    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
-    CreateSiteQuery::run(&mut conn, data).await.map_err(|err| {
+    CreateSiteQuery::run(conn, data).await.map_err(|err| {
       // Check if this is a unique constraint violation
       if let Some(sqlite_err) = err.as_database_error() {
         if let Some(code) = sqlite_err.code() {
@@ -133,15 +135,13 @@ impl SiteService {
   /// Get all sites from the database
   ///
   /// # Arguments
-  /// * `pool` - Database connection pool
+  /// * `conn` - Database connection
   ///
   /// # Returns
   /// * `Ok(Vec<Site>)` - Vector of all sites
   /// * `Err(SiteError)` - Database operation failed
-  pub async fn get_all_sites(pool: &SqlitePool) -> Result<Vec<Site>, SiteError> {
-    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
-
-    GetAllSitesQuery::run(&mut conn)
+  pub async fn get_all_sites(conn: &mut SqliteConnection) -> Result<Vec<Site>, SiteError> {
+    GetAllSitesQuery::run(conn)
       .await
       .map_err(SiteError::DatabaseError)
   }
@@ -149,7 +149,7 @@ impl SiteService {
   /// Update an existing site with partial data
   ///
   /// # Arguments
-  /// * `pool` - Database connection pool
+  /// * `conn` - Database connection
   /// * `id` - Site ID to update
   /// * `data` - Partial update data
   ///
@@ -158,12 +158,10 @@ impl SiteService {
   /// * `Ok(None)` - Site not found
   /// * `Err(SiteError)` - Update failed due to validation, uniqueness, or database error
   pub async fn update_site(
-    pool: &SqlitePool,
+    conn: &mut SqliteConnection,
     id: i64,
     data: UpdateSiteData,
   ) -> Result<Option<Site>, SiteError> {
-    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
-
     // Validate slug if provided
     if let Some(ref slug) = data.slug {
       Self::validate_slug(slug)?;
@@ -184,7 +182,7 @@ impl SiteService {
     }
 
     // Delegate to query
-    match UpdateSiteQuery::run(&mut conn, UpdateSiteData { id, ..data }).await {
+    match UpdateSiteQuery::run(conn, UpdateSiteData { id, ..data }).await {
       Ok(Some(site)) => Ok(Some(site)),
       Ok(None) => Err(SiteError::SiteNotFound(id)),
       Err(err) => Err(SiteError::DatabaseError(err)),
@@ -194,16 +192,14 @@ impl SiteService {
   /// Delete a site by ID
   ///
   /// # Arguments
-  /// * `pool` - Database connection pool
+  /// * `conn` - Database connection
   /// * `site_id` - ID of site to delete
   ///
   /// # Returns
   /// * `Ok(Site)` - Successfully deleted site data
   /// * `Err(SiteError)` - Deletion failed due to site not found or database error
-  pub async fn delete_site(pool: &SqlitePool, site_id: i64) -> Result<Site, SiteError> {
-    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
-
-    DeleteSiteQuery::run(&mut conn, site_id)
+  pub async fn delete_site(conn: &mut SqliteConnection, site_id: i64) -> Result<Site, SiteError> {
+    DeleteSiteQuery::run(conn, site_id)
       .await
       .map_err(|e| match e {
         sqlx::Error::RowNotFound => SiteError::SiteNotFound(site_id),
@@ -220,6 +216,7 @@ mod tests {
   #[tokio::test]
   async fn test_create_site_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     let data = CreateSiteData {
       slug: "example".to_string(),
@@ -229,7 +226,7 @@ mod tests {
       metadata_json: Some(r#"{"a":1}"#.to_string()),
     };
 
-    let site = SiteService::create_site(&pool, data).await.unwrap();
+    let site = SiteService::create_site(&mut conn, data).await.unwrap();
 
     assert_eq!(site.slug, "example");
     assert_eq!(site.protocol, "https");
@@ -243,6 +240,7 @@ mod tests {
   #[tokio::test]
   async fn test_create_site_slug_already_exists() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     let data1 = CreateSiteData {
       slug: "duplicate".to_string(),
@@ -252,7 +250,7 @@ mod tests {
       metadata_json: None,
     };
 
-    SiteService::create_site(&pool, data1).await.unwrap();
+    SiteService::create_site(&mut conn, data1).await.unwrap();
 
     let data2 = CreateSiteData {
       slug: "duplicate".to_string(),
@@ -262,7 +260,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = SiteService::create_site(&pool, data2).await;
+    let result = SiteService::create_site(&mut conn, data2).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       SiteError::SlugAlreadyExists(slug) => assert_eq!(slug, "duplicate"),
@@ -343,6 +341,7 @@ mod tests {
   #[tokio::test]
   async fn test_get_all_sites() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create test sites
     let data1 = CreateSiteData {
@@ -361,10 +360,10 @@ mod tests {
       metadata_json: None,
     };
 
-    SiteService::create_site(&pool, data1).await.unwrap();
-    SiteService::create_site(&pool, data2).await.unwrap();
+    SiteService::create_site(&mut conn, data1).await.unwrap();
+    SiteService::create_site(&mut conn, data2).await.unwrap();
 
-    let sites = SiteService::get_all_sites(&pool).await.unwrap();
+    let sites = SiteService::get_all_sites(&mut conn).await.unwrap();
     assert_eq!(sites.len(), 2);
     assert_eq!(sites[0].slug, "test1");
     assert_eq!(sites[1].slug, "test2");
@@ -373,6 +372,7 @@ mod tests {
   #[tokio::test]
   async fn test_update_site_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -382,7 +382,9 @@ mod tests {
       protocol: None,
       metadata_json: Some(r#"{"test": true}"#.to_string()),
     };
-    let site = SiteService::create_site(&pool, create_data).await.unwrap();
+    let site = SiteService::create_site(&mut conn, create_data)
+      .await
+      .unwrap();
 
     // Add a delay to ensure different timestamps
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -397,7 +399,7 @@ mod tests {
       metadata_json: Some(None), // Set to null
     };
 
-    let updated_site = SiteService::update_site(&pool, site.id, update_data)
+    let updated_site = SiteService::update_site(&mut conn, site.id, update_data)
       .await
       .unwrap()
       .unwrap();
@@ -415,6 +417,7 @@ mod tests {
   #[tokio::test]
   async fn test_update_site_slug_already_exists() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create two sites
     let data1 = CreateSiteData {
@@ -432,8 +435,8 @@ mod tests {
       metadata_json: None,
     };
 
-    let site1 = SiteService::create_site(&pool, data1).await.unwrap();
-    SiteService::create_site(&pool, data2).await.unwrap();
+    let site1 = SiteService::create_site(&mut conn, data1).await.unwrap();
+    SiteService::create_site(&mut conn, data2).await.unwrap();
 
     // Try to update site1 with site2's slug
     let update_data = UpdateSiteData {
@@ -445,7 +448,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = SiteService::update_site(&pool, site1.id, update_data).await;
+    let result = SiteService::update_site(&mut conn, site1.id, update_data).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       SiteError::SlugAlreadyExists(slug) => assert_eq!(slug, "site2"),
@@ -456,6 +459,7 @@ mod tests {
   #[tokio::test]
   async fn test_update_site_not_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     let update_data = UpdateSiteData {
       id: 999,
@@ -466,7 +470,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = SiteService::update_site(&pool, 999, update_data).await;
+    let result = SiteService::update_site(&mut conn, 999, update_data).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       SiteError::SiteNotFound(id) => assert_eq!(id, 999),
@@ -477,6 +481,7 @@ mod tests {
   #[tokio::test]
   async fn test_update_site_invalid_slug() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -486,7 +491,9 @@ mod tests {
       protocol: None,
       metadata_json: None,
     };
-    let site = SiteService::create_site(&pool, create_data).await.unwrap();
+    let site = SiteService::create_site(&mut conn, create_data)
+      .await
+      .unwrap();
 
     // Try to update with invalid slug
     let update_data = UpdateSiteData {
@@ -498,7 +505,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = SiteService::update_site(&pool, site.id, update_data).await;
+    let result = SiteService::update_site(&mut conn, site.id, update_data).await;
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("Validation error"));
   }
@@ -506,6 +513,7 @@ mod tests {
   #[tokio::test]
   async fn test_delete_site_success() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -515,10 +523,12 @@ mod tests {
       protocol: Some("https".to_string()),
       metadata_json: Some(r#"{"test": true}"#.to_string()),
     };
-    let site = SiteService::create_site(&pool, create_data).await.unwrap();
+    let site = SiteService::create_site(&mut conn, create_data)
+      .await
+      .unwrap();
 
     // Delete the site
-    let deleted_site = SiteService::delete_site(&pool, site.id).await.unwrap();
+    let deleted_site = SiteService::delete_site(&mut conn, site.id).await.unwrap();
 
     // Verify returned data matches original
     assert_eq!(deleted_site.id, site.id);
@@ -531,15 +541,16 @@ mod tests {
     assert_eq!(deleted_site.updated_ts, site.updated_ts);
 
     // Verify site is deleted from database
-    let all_sites = SiteService::get_all_sites(&pool).await.unwrap();
+    let all_sites = SiteService::get_all_sites(&mut conn).await.unwrap();
     assert_eq!(all_sites.len(), 0);
   }
 
   #[tokio::test]
   async fn test_delete_site_not_found() {
     let (pool, _temp_file) = create_test_database().await;
+    let mut conn = pool.acquire().await.unwrap();
 
-    let result = SiteService::delete_site(&pool, 999).await;
+    let result = SiteService::delete_site(&mut conn, 999).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       SiteError::SiteNotFound(id) => assert_eq!(id, 999),

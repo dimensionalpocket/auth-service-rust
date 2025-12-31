@@ -23,17 +23,16 @@ impl AuthOrchestrator {
 
     let user_id = session_payload.sub;
 
+    let mut conn = pool.acquire().await?;
+
     // Authorization: Verify user exists
-    let _user = {
-      let mut conn = pool.acquire().await?;
-      GetUserByIdQuery::run(&mut conn, user_id)
-        .await?
-        .ok_or(UserError::UserNotFound(user_id))?
-    };
+    let _user = GetUserByIdQuery::run(&mut conn, user_id)
+      .await?
+      .ok_or(UserError::UserNotFound(user_id))?;
 
     // Business logic: Update password
     UserService::update_password(
-      pool,
+      &mut conn,
       user_id,
       current_password,
       new_password,
