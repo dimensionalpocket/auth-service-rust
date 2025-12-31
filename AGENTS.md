@@ -87,17 +87,19 @@
 - Orchestrators are called by GraphQL resolvers only
 - Orchestrators handle the common pattern of: authentication → authorization → business logic (calling other services)
 - Orchestrator inputs are typically the database pool, session context (extracted by the resolver), and any resolver inputs
+- Orchestrators extract a connection from the pool and use that connection to call any services and queries it needs
 
 ### Service Layer
 - Services live in `src/services/`
 - Services contain core business logic and interact with the database layer via Query objects
   - Services should not contain SQL queries directly; if a query doesn't exist, create a new Query object in `src/queries/`
 - Services can also call other services as needed
-- Service inputs are typically the database pool and any parameters needed for the business logic
+- Service inputs are a database connection (not a pool) and any parameters needed for the business logic
 
 ### Database
 - Query objects live in `src/queries/`
   - Use `sqlx` to build dynamic queries
+- Query objects work with a database connection (not a pool)
 - The objects returned by queries (models) live in `src/models/`
 - The Database instance is managed by `Database` struct in `src/database/mod.rs`
 - Use async/await for database operations
