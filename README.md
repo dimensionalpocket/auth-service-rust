@@ -32,11 +32,11 @@ It is intended to be deployed as a microservice with a volume to house the SQLit
 | `authMe` | Get current authenticated user profile. Returns userId (Int), uuid (String), username (String), role { id (String), name (String), permissions ([String]) }, createdTs (Int), updatedTs (Int), sessionIat (Int), sessionExp (Int). Requires valid session cookie. |
 | `site` | Get complete site details by ID (admin only). Returns id (Int!), slug (String), subdomain (String), port (Int), protocol (String), metadataJson (String), createdTs (Int), updatedTs (Int). Requires can_view_site_details permission. |
 | `sites` | List all sites in database. Returns array of [id (Int), slug (String), subdomain (String), port (Int), protocol (String)]. No authentication required. |
-| `user` | Get complete user details by ID (admin only). Returns id (Int!), uuid (String), username (String), role { id (String), name (String), permissions ([String]) }, createdTs (Int), updatedTs (Int). Requires can_view_user_details permission. |
-| `users` | List all users with role information (admin only). Returns array of [id (Int), uuid (String), username (String), role { id (String), name (String), permissions ([String]) }, createdTs (Int), updatedTs (Int)]. Requires can_list_users permission. |
+| `user` | Get complete user details by ID (admin only). Returns id (Int!), uuid (String), name (String), role { id (String), name (String), permissions ([String]) }, createdTs (Int), updatedTs (Int). Requires can_view_user_details permission. |
+| `users` | List all users with role information (admin only). Returns array of [id (Int), uuid (String), name (String), role { id (String), name (String), permissions ([String]) }, createdTs (Int), updatedTs (Int)]. Requires can_list_users permission. |
 | `rolePermissions` | List all available role permissions. Returns array of permission strings. Requires can_manage_roles permission. |
-| `roles` | List all roles with permissions. Returns array of [id (Int), name (String), permissions ([String]), createdTs (Int), updatedTs (Int)]. Requires can_manage_roles OR can_edit_user_role permission. |
-| `role` | Get single role by ID. Returns id (Int!), name (String), permissions ([String]), createdTs (Int), updatedTs (Int). Requires can_manage_roles permission. |
+| `roles` | List all roles with permissions. Returns array of [id (Int), name (String), isDefault (Boolean), permissions ([String]), createdTs (Int), updatedTs (Int)]. Requires can_manage_roles OR can_edit_user_role permission. |
+| `role` | Get single role by ID. Returns id (Int!), name (String), isDefault (Boolean), permissions ([String]), createdTs (Int), updatedTs (Int). Requires can_manage_roles permission. |
 
 #### Mutations
 
@@ -50,11 +50,10 @@ It is intended to be deployed as a microservice with a volume to house the SQLit
 | `updateSite` | Update existing site. Input: id (Int!), slug (String), subdomain (String), port (Int), protocol (String), metadataJson (String). Returns: id (Int), slug (String), subdomain (String), port (Int), protocol (String), metadataJson (String), createdTs (Int), updatedTs (Int). Requires can_update_site permission. |
 | `removeSite` | Remove existing site. Input: siteId (Int!). Returns: id (Int), slug (String), subdomain (String), port (Int), protocol (String), metadataJson (String), createdTs (Int), updatedTs (Int). Requires can_delete_site permission. |
 | `deleteUser` | Delete existing user. Input: id (Int!). Returns: success (Boolean). Requires can_delete_user permission. |
-| `updateUser` | Update existing user. Input: id (Int!), username (String), roleId (Int), password (String), passwordConfirmation (String), metadataJson (String). Returns: id (Int), uuid (String), username (String), roleId (Int), createdTs (Int), updatedTs (Int). Requires can_edit_user permission. |
-| `addRole` | Create new role. Input: name (String!), permissions ([String]!). Returns: id (Int), name (String), permissions ([String]), createdTs (Int), updatedTs (Int). Requires can_manage_roles permission. |
-| `updateRole` | Update existing role. Input: id (Int!), name (String), permissions ([String]). Returns: id (Int), name (String), permissions ([String]), createdTs (Int), updatedTs (Int). Requires can_manage_roles permission. |
+| `addRole` | Create new role. Input: name (String!), permissions ([String]!). Returns: id (Int), name (String), isDefault (Boolean), permissions ([String]), createdTs (Int), updatedTs (Int). Requires can_manage_roles permission. |
+| `updateRole` | Update existing role. Input: id (Int!), name (String), permissions ([String]). Returns: id (Int), name (String), isDefault (Boolean), permissions ([String]), createdTs (Int), updatedTs (Int). Requires can_manage_roles permission. |
 | `setDefaultRole` | Set a role as the default role. Input: roleId (Int!). Returns: id (Int), name (String), isDefault (Boolean), permissions ([String]), createdTs (Int), updatedTs (Int). Requires can_manage_roles permission. |
-| `removeRole` | Delete existing role. Input: id (Int!). Returns: success (Boolean). Requires can_manage_roles permission. |
+| `removeRole` | Delete existing role. Input: id (Int!). Returns: success (Boolean), id (Int), name (String). Requires can_manage_roles permission. |
 
 ## Installation
 
