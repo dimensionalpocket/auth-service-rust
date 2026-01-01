@@ -1,11 +1,12 @@
 use crate::middleware::session::SessionContext;
-use crate::models::user::{User, UserWithRole};
+use crate::models::user::UserWithRole;
 use crate::queries::users::GetAllUsersWithRolesQuery;
 use crate::queries::users::GetUserByIdQuery;
 use crate::queries::users::GetUserByIdWithRoleQuery;
 use crate::queries::users::UpdateUserData;
 use crate::services::role_service::RoleError;
 use crate::services::{RoleService, UserError, UserService};
+use crate::types::user::update_user_input::UpdateUserInput;
 use sqlx::SqlitePool;
 
 impl From<RoleError> for UserError {
@@ -167,27 +168,23 @@ impl UserOrchestrator {
   /// - Checks if user is authenticated
   /// - Verifies user has "can_edit_user" permission
   /// - Validates username uniqueness if name is being updated
-  /// - Validates password if provided
+  /// - Validates password confirmation if password is provided
   /// - Updates only the provided fields (partial update)
-  /// - Returns the updated user
+  /// - Returns the updated user with role information
   ///
   /// # Arguments
   /// * `pool` - Database connection pool
   /// * `session_context` - Session context for authentication/authorization
-  /// * `target_user_id` - ID of user to update
-  /// * `update_data` - Partial user data to update (with Option<Option<T>> for nullable fields)
-  /// * `password` - Optional new password (plain text, will be hashed)
+  /// * `input` - High-level input containing user data to update
   ///
   /// # Returns
-  /// * `Ok(User)` - Successfully updated user
+  /// * `Ok(UserWithRole)` - Successfully updated user with role information
   /// * `Err(UserError)` - Authentication, authorization, validation, or database error
   pub async fn update_user_with_permission_check(
     pool: &SqlitePool,
     session_context: SessionContext,
-    target_user_id: i64,
-    update_data: UpdateUserData,
-    password: Option<String>,
-  ) -> Result<User, UserError> {
+    input: UpdateUserInput,
+  ) -> Result<UserWithRole, UserError> {
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -209,8 +206,44 @@ impl UserOrchestrator {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));
     }
 
+    // Business logic: Validate password confirmation
+    let password_to_update = if input.password.is_some() || input.password_confirmation.is_some() {
+      match (&input.password, &input.password_confirmation) {
+        (Some(pw), Some(confirm_pw)) if pw == confirm_pw => Some(pw.clone()),
+        (Some(_), None) | (None, Some(_)) => {
+          return Err(UserError::ValidationError(
+            "Password and password confirmation must both be provided".to_string(),
+          ));
+        }
+        (Some(_), Some(_)) => {
+          return Err(UserError::ValidationError(
+            "Password and password confirmation do not match".to_string(),
+          ));
+        }
+        _ => None,
+      }
+    } else {
+      None
+    };
+
+    // Business logic: Convert high-level input to low-level UpdateUserData
+    let update_data = UpdateUserData {
+      id: input.id,
+      name: input.name,
+      role_id: input.role_id,
+      password_hash: None,
+      metadata_json: input.metadata_json.map(Some),
+    };
+
     // Business logic: Validate and update user
-    UserService::update_user(&mut conn, target_user_id, update_data, password).await
+    let _updated_user =
+      UserService::update_user(&mut conn, input.id, update_data, password_to_update).await?;
+
+    // Business logic: Fetch updated user with role details
+    GetUserByIdWithRoleQuery::run(&mut conn, input.id)
+      .await
+      .map_err(UserError::DatabaseError)?
+      .ok_or(UserError::UserNotFound(input.id))
   }
 }
 
@@ -218,11 +251,11 @@ impl UserOrchestrator {
 mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::queries::users::UpdateUserData;
   use crate::test_utils::{
     create_test_database, create_test_database_with_pool_size, create_test_role_with_pool,
     create_test_user_with_pool,
   };
+  use crate::types::user::update_user_input::UpdateUserInput;
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[tokio::test]
@@ -748,14 +781,11 @@ mod tests {
   async fn test_update_user_with_permission_check_success() {
     let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
 
-    // Setup: Create admin role with can_edit_user permission
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
-    eprintln!("Created admin role with ID: {admin_role_id}");
 
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
     let target_user = create_test_user_with_pool(&pool, "targetuser", admin_role_id).await;
 
-    // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
       iat: 1000,
@@ -763,63 +793,50 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    // Test: Update target user
-    let update_data = UpdateUserData {
+    let input = UpdateUserInput {
       id: target_user.id,
       name: Some("updatedname".to_string()),
       role_id: Some(admin_role_id),
-      password_hash: None,
-      metadata_json: Some(Some(r#"{"updated": true}"#.to_string())),
+      password: Some("newpassword123".to_string()),
+      password_confirmation: Some("newpassword123".to_string()),
+      metadata_json: Some(r#"{"updated": true}"#.to_string()),
     };
 
-    let result = UserOrchestrator::update_user_with_permission_check(
-      &pool,
-      session_context,
-      target_user.id,
-      update_data,
-      Some("newpassword123".to_string()),
-    )
-    .await;
+    let result =
+      UserOrchestrator::update_user_with_permission_check(&pool, session_context, input).await;
 
     assert!(result.is_ok());
-    let updated_user = result.unwrap();
-    assert_eq!(updated_user.name, "updatedname");
-    assert_eq!(updated_user.role_id, admin_role_id);
+    let user_with_role = result.unwrap();
+    assert_eq!(user_with_role.user.name, "updatedname");
+    assert_eq!(user_with_role.user.role_id, admin_role_id);
+    assert_eq!(user_with_role.role.name, "admin");
     assert_eq!(
-      updated_user.metadata_json,
+      user_with_role.user.metadata_json,
       Some(r#"{"updated": true}"#.to_string())
     );
-    assert_ne!(updated_user.password_hash, target_user.password_hash); // Password should be updated
+    assert_ne!(user_with_role.user.password_hash, target_user.password_hash);
   }
 
   #[tokio::test]
   async fn test_update_user_with_permission_check_unauthenticated() {
     let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
 
-    // Setup: Create target user
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
 
-    // Create session context without user (unauthenticated)
     let session_context = SessionContext::new(None);
 
-    // Test: Try to update user without authentication
-    let update_data = UpdateUserData {
+    let input = UpdateUserInput {
       id: target_user.id,
       name: Some("updatedname".to_string()),
       role_id: None,
-      password_hash: None,
+      password: None,
+      password_confirmation: None,
       metadata_json: None,
     };
 
-    let result = UserOrchestrator::update_user_with_permission_check(
-      &pool,
-      session_context,
-      target_user.id,
-      update_data,
-      None,
-    )
-    .await;
+    let result =
+      UserOrchestrator::update_user_with_permission_check(&pool, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -834,40 +851,32 @@ mod tests {
   async fn test_update_user_with_permission_check_session_user_not_found() {
     let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
 
-    // Setup: Create target user
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
 
-    // Create session context with non-existent user
     let session_payload = DpsAuthSessionPayload {
-      sub: 999, // Non-existent user ID
+      sub: 999,
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    // Test: Try to update user with non-existent session user
-    let update_data = UpdateUserData {
+    let input = UpdateUserInput {
       id: target_user.id,
       name: Some("updatedname".to_string()),
       role_id: None,
-      password_hash: None,
+      password: None,
+      password_confirmation: None,
       metadata_json: None,
     };
 
-    let result = UserOrchestrator::update_user_with_permission_check(
-      &pool,
-      session_context,
-      target_user.id,
-      update_data,
-      None,
-    )
-    .await;
+    let result =
+      UserOrchestrator::update_user_with_permission_check(&pool, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::UserNotFound(user_id) => {
-        assert_eq!(user_id, 999); // Session user ID should be reported
+        assert_eq!(user_id, 999);
       }
       _ => panic!("Expected UserNotFound"),
     }
@@ -877,13 +886,11 @@ mod tests {
   async fn test_update_user_with_permission_check_forbidden() {
     let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
 
-    // Setup: Create regular user without can_edit_user permission
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
 
     let regular_user = create_test_user_with_pool(&pool, "regular", user_role_id).await;
     let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
 
-    // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
       sub: regular_user.id,
       iat: 1000,
@@ -891,23 +898,17 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    // Test: Try to update user without permission
-    let update_data = UpdateUserData {
+    let input = UpdateUserInput {
       id: target_user.id,
       name: Some("updatedname".to_string()),
       role_id: None,
-      password_hash: None,
+      password: None,
+      password_confirmation: None,
       metadata_json: None,
     };
 
-    let result = UserOrchestrator::update_user_with_permission_check(
-      &pool,
-      session_context,
-      target_user.id,
-      update_data,
-      None,
-    )
-    .await;
+    let result =
+      UserOrchestrator::update_user_with_permission_check(&pool, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -922,11 +923,9 @@ mod tests {
   async fn test_update_user_with_permission_check_target_user_not_found() {
     let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
 
-    // Setup: Create admin user with can_edit_user permission
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
-    // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
       iat: 1000,
@@ -934,28 +933,22 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    // Test: Try to update non-existent user
-    let update_data = UpdateUserData {
-      id: 999, // Non-existent target user
+    let input = UpdateUserInput {
+      id: 999,
       name: Some("updatedname".to_string()),
       role_id: None,
-      password_hash: None,
+      password: None,
+      password_confirmation: None,
       metadata_json: None,
     };
 
-    let result = UserOrchestrator::update_user_with_permission_check(
-      &pool,
-      session_context,
-      999,
-      update_data,
-      None,
-    )
-    .await;
+    let result =
+      UserOrchestrator::update_user_with_permission_check(&pool, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::UserNotFound(user_id) => {
-        assert_eq!(user_id, 999); // Target user ID should be reported
+        assert_eq!(user_id, 999);
       }
       _ => panic!("Expected UserNotFound"),
     }
@@ -965,14 +958,12 @@ mod tests {
   async fn test_update_user_with_permission_check_validation_error() {
     let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
 
-    // Setup: Create admin user with can_edit_user permission
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
 
-    // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
       iat: 1000,
@@ -980,23 +971,17 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    // Test: Try to update user with invalid username (too short)
-    let update_data = UpdateUserData {
+    let input = UpdateUserInput {
       id: target_user.id,
-      name: Some("ab".to_string()), // Invalid: too short
+      name: Some("ab".to_string()),
       role_id: None,
-      password_hash: None,
+      password: None,
+      password_confirmation: None,
       metadata_json: None,
     };
 
-    let result = UserOrchestrator::update_user_with_permission_check(
-      &pool,
-      session_context,
-      target_user.id,
-      update_data,
-      None,
-    )
-    .await;
+    let result =
+      UserOrchestrator::update_user_with_permission_check(&pool, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -1011,14 +996,12 @@ mod tests {
   async fn test_update_user_with_permission_check_password_validation_error() {
     let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
 
-    // Setup: Create admin user with can_edit_user permission
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
 
-    // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
       iat: 1000,
@@ -1026,23 +1009,17 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    // Test: Try to update user with invalid password (too short)
-    let update_data = UpdateUserData {
+    let input = UpdateUserInput {
       id: target_user.id,
       name: None,
       role_id: None,
-      password_hash: None,
+      password: Some("123".to_string()),
+      password_confirmation: Some("123".to_string()),
       metadata_json: None,
     };
 
-    let result = UserOrchestrator::update_user_with_permission_check(
-      &pool,
-      session_context,
-      target_user.id,
-      update_data,
-      Some("123".to_string()), // Invalid: too short
-    )
-    .await;
+    let result =
+      UserOrchestrator::update_user_with_permission_check(&pool, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -1057,7 +1034,6 @@ mod tests {
   async fn test_update_user_with_permission_check_username_conflict() {
     let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
 
-    // Setup: Create admin user with can_edit_user permission
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
@@ -1065,7 +1041,6 @@ mod tests {
     let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
     let _existing_user = create_test_user_with_pool(&pool, "existinguser", user_role_id).await;
 
-    // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
       iat: 1000,
@@ -1073,23 +1048,17 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    // Test: Try to update user with existing username
-    let update_data = UpdateUserData {
+    let input = UpdateUserInput {
       id: target_user.id,
-      name: Some("existinguser".to_string()), // Already exists
+      name: Some("existinguser".to_string()),
       role_id: None,
-      password_hash: None,
+      password: None,
+      password_confirmation: None,
       metadata_json: None,
     };
 
-    let result = UserOrchestrator::update_user_with_permission_check(
-      &pool,
-      session_context,
-      target_user.id,
-      update_data,
-      None,
-    )
-    .await;
+    let result =
+      UserOrchestrator::update_user_with_permission_check(&pool, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -1098,5 +1067,115 @@ mod tests {
       }
       _ => panic!("Expected UsernameAlreadyExists"),
     }
+  }
+
+  #[tokio::test]
+  async fn test_update_user_password_confirmation_missing() {
+    let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
+
+    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+
+    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
+    let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
+
+    let session_payload = DpsAuthSessionPayload {
+      sub: admin_user.id,
+      iat: 1000,
+      exp: 2000,
+    };
+    let session_context = SessionContext::new(Some(session_payload));
+
+    let input = UpdateUserInput {
+      id: target_user.id,
+      name: None,
+      role_id: None,
+      password: Some("newpassword123".to_string()),
+      password_confirmation: None,
+      metadata_json: None,
+    };
+
+    let result =
+      UserOrchestrator::update_user_with_permission_check(&pool, session_context, input).await;
+
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::ValidationError(msg) => {
+        assert!(msg.contains("must both be provided"));
+      }
+      _ => panic!("Expected ValidationError"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_update_user_password_confirmation_mismatch() {
+    let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
+
+    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+
+    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
+    let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
+
+    let session_payload = DpsAuthSessionPayload {
+      sub: admin_user.id,
+      iat: 1000,
+      exp: 2000,
+    };
+    let session_context = SessionContext::new(Some(session_payload));
+
+    let input = UpdateUserInput {
+      id: target_user.id,
+      name: None,
+      role_id: None,
+      password: Some("newpassword123".to_string()),
+      password_confirmation: Some("different123".to_string()),
+      metadata_json: None,
+    };
+
+    let result =
+      UserOrchestrator::update_user_with_permission_check(&pool, session_context, input).await;
+
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::ValidationError(msg) => {
+        assert!(msg.contains("do not match"));
+      }
+      _ => panic!("Expected ValidationError"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_update_user_password_confirmation_match() {
+    let (pool, _temp_file) = create_test_database_with_pool_size(1).await;
+
+    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+
+    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
+    let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
+
+    let session_payload = DpsAuthSessionPayload {
+      sub: admin_user.id,
+      iat: 1000,
+      exp: 2000,
+    };
+    let session_context = SessionContext::new(Some(session_payload));
+
+    let input = UpdateUserInput {
+      id: target_user.id,
+      name: None,
+      role_id: None,
+      password: Some("newpassword123".to_string()),
+      password_confirmation: Some("newpassword123".to_string()),
+      metadata_json: None,
+    };
+
+    let result =
+      UserOrchestrator::update_user_with_permission_check(&pool, session_context, input).await;
+
+    assert!(result.is_ok());
+    let user_with_role = result.unwrap();
+    assert_ne!(user_with_role.user.password_hash, target_user.password_hash);
   }
 }

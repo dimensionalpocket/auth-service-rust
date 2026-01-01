@@ -17,6 +17,7 @@ pub mod site;
 pub mod sites;
 pub mod update_role;
 pub mod update_site;
+pub mod update_user;
 pub mod user;
 pub mod users;
 
@@ -39,5 +40,6 @@ pub use site::SiteResolver;
 pub use sites::SitesResolver;
 pub use update_role::UpdateRoleResolver;
 pub use update_site::UpdateSiteResolver;
+pub use update_user::UpdateUserResolver;
 pub use user::UserResolver;
 pub use users::UsersResolver;

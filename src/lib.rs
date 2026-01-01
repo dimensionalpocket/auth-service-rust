@@ -9,6 +9,7 @@ pub mod orchestrators;
 pub mod queries;
 pub mod services;
 pub mod test_utils;
+pub mod types;
 
 pub use database::Database;
 pub use dps_auth_api::{DpsAuthApi, DpsAuthApiConfig, DpsAuthApiError};

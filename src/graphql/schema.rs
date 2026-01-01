@@ -3,7 +3,7 @@ use crate::graphql::resolvers::{
   AuthLogoutResolver, AuthMeResolver, AuthRegisterResolver, DeleteUserResolver, RemoveRoleResolver,
   RemoveSiteResolver, RolePermissionsResolver, RoleResolver, RolesResolver,
   ServerTimestampResolver, SetDefaultRoleResolver, SiteResolver, SitesResolver, UpdateRoleResolver,
-  UpdateSiteResolver, UserResolver, UsersResolver,
+  UpdateSiteResolver, UpdateUserResolver, UserResolver, UsersResolver,
 };
 use async_graphql::{EmptySubscription, MergedObject, Schema};
 
@@ -61,6 +61,7 @@ impl Query {
 /// - setDefaultRole: Set a role as the default role (requires can_manage_roles permission)
 /// - removeRole: Delete an existing role (requires can_manage_roles permission)
 /// - deleteUser: Delete an existing user (requires can_delete_user permission)
+/// - updateUser: Update an existing user (requires can_edit_user permission)
 ///
 /// Future mutations will be added here as the service expands to include
 /// user management, authentication, and other auth-related operations.
@@ -78,6 +79,7 @@ pub struct Mutation(
   SetDefaultRoleResolver,
   RemoveRoleResolver,
   DeleteUserResolver,
+  UpdateUserResolver,
 );
 
 impl Mutation {

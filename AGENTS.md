@@ -44,8 +44,22 @@
 - Never implement anything not explicitly mentioned in the plan
 - After implementation is fully finished and all tests pass, run the linter command and fix any issues
 
+## Tool Usage
+
+### File Editing
+When using the Edit tool to modify files:
+- Preserve ALL existing comments and documentation
+- Make surgical, targeted edits - only change the specific lines that need to change
+- Comments that are unrelated to your change must remain intact
 
 ## Project Structure
+
+### Domains
+
+- `auth` - workflows related to authentication such as sign-up, login/logout, password recovery, etc
+- `user` - user CRUD operations
+- `role` - role CRUD operations and permission checks (authorization)
+- `site` - site CRUD operations
 
 ### API Setup
 - API handlers live in `src/handlers/`
@@ -84,6 +98,7 @@
 
 ### Orchestration Layer
 - Service orchestrators live in `src/orchestrators/`
+  - One orchestrator per domain, with multiple methods each
 - Orchestrators are called by GraphQL resolvers only
 - Orchestrators handle the common pattern of: authentication → authorization → business logic (calling other services)
 - Orchestrator inputs are typically the database pool, session context (extracted by the resolver), and any resolver inputs
@@ -91,7 +106,8 @@
 
 ### Service Layer
 - Services live in `src/services/`
-- Services contain core business logic and interact with the database layer via Query objects
+  - One service per domain (e.g., Auth) or specialization (e.g., Password) with multiple methods
+- Services contain core business logic and can interact with the database layer via Query objects
   - Services should not contain SQL queries directly; if a query doesn't exist, create a new Query object in `src/queries/`
 - Services can also call other services as needed
 - Service inputs are a database connection (not a pool) and any parameters needed for the business logic
