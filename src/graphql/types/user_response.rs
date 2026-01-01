@@ -5,10 +5,11 @@ use async_graphql::SimpleObject;
 #[derive(SimpleObject)]
 pub struct UserWithRoleResponse {
   /// The user's ID
-  #[graphql(name = "userId")]
-  pub user_id: i64,
+  #[graphql(name = "id")]
+  pub id: i64,
   /// The user's username
-  pub username: String,
+  #[graphql(name = "name")]
+  pub name: String,
   /// The user's role information
   pub role: UserRole,
   /// The user's UUID (public identifier) - optional for register responses

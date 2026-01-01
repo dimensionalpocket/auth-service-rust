@@ -273,7 +273,7 @@ pub async fn create_test_user_via_mutation(
 
   let query = format!(
     r#"{{
-        "query": "mutation {{ authRegister(username: \"{username}\", password: \"{password}\", passwordConfirmation: \"{password}\") {{ user {{ uuid username }} }} }}"
+        "query": "mutation {{ authRegister(username: \"{username}\", password: \"{password}\", passwordConfirmation: \"{password}\") {{ user {{ uuid name }} }} }}"
       }}"#
   );
 

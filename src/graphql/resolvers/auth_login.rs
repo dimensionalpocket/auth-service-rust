@@ -55,8 +55,8 @@ impl AuthLoginResolver {
         Ok(AuthLoginResponse {
           token: auth_result.session_token,
           user: UserWithRoleResponse {
-            user_id: auth_result.user_id,
-            username: auth_result.username,
+            id: auth_result.user_id,
+            name: auth_result.username,
             role: UserRole::from(auth_result.role),
             uuid: None,
             created_ts: None,
@@ -131,8 +131,8 @@ mod tests {
         authLogin(username: "testuser", password: "password123") {
           token
           user {
-            userId
-            username
+            id
+            name
             role {
               id
               name
@@ -157,8 +157,8 @@ mod tests {
     let auth_login = &data["authLogin"];
 
     assert!(!auth_login["token"].as_str().unwrap().is_empty());
-    assert!(auth_login["user"]["userId"].as_i64().unwrap() > 0);
-    assert_eq!(auth_login["user"]["username"].as_str().unwrap(), "testuser");
+    assert!(auth_login["user"]["id"].as_i64().unwrap() > 0);
+    assert_eq!(auth_login["user"]["name"].as_str().unwrap(), "testuser");
     assert_eq!(auth_login["user"]["role"]["name"].as_str().unwrap(), "user");
     assert_eq!(
       auth_login["message"].as_str().unwrap(),
@@ -190,8 +190,8 @@ mod tests {
         authLogin(username: "testuser", password: "password123") {
           token
           user {
-            userId
-            username
+            id
+            name
           }
           message
         }
@@ -226,8 +226,8 @@ mod tests {
         authLogin(username: "testuser", password: "password123") {
           token
           user {
-            userId
-            username
+            id
+            name
           }
           message
         }

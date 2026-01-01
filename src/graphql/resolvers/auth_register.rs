@@ -80,8 +80,8 @@ impl AuthRegisterResolver {
 
         Ok(AuthRegisterResponse {
           user: UserWithRoleResponse {
-            user_id: register_result.user_id,
-            username: register_result.username,
+            id: register_result.user_id,
+            name: register_result.username,
             role: UserRole::from(register_result.role),
             uuid: Some(register_result.uuid),
             created_ts: Some(register_result.created_ts),
@@ -150,9 +150,9 @@ mod tests {
       mutation {
         authRegister(username: "testuser", password: "testpass123", passwordConfirmation: "testpass123") {
           user {
-            userId
+            id
             uuid
-            username
+            name
             role {
               id
               name
@@ -173,9 +173,9 @@ mod tests {
     let auth_register = &data["authRegister"];
     let user_data = &auth_register["user"];
 
-    assert!(user_data["userId"].as_i64().unwrap() > 0);
+    assert!(user_data["id"].as_i64().unwrap() > 0);
     assert!(!user_data["uuid"].as_str().unwrap().is_empty());
-    assert_eq!(user_data["username"].as_str().unwrap(), "testuser");
+    assert_eq!(user_data["name"].as_str().unwrap(), "testuser");
     assert_eq!(user_data["role"]["name"].as_str().unwrap(), "user");
     assert!(user_data["createdTs"].as_i64().unwrap() > 0);
     assert!(user_data["updatedTs"].as_i64().unwrap() > 0);
@@ -221,8 +221,8 @@ mod tests {
       mutation {
         authRegister(username: "testuser", password: "testpass123", passwordConfirmation: "testpass123") {
           user {
-            userId
-            username
+            id
+            name
           }
         }
       }
@@ -268,8 +268,8 @@ mod tests {
     let query = r#"
       mutation {
         authRegister(username: "", password: "testpass123", passwordConfirmation: "testpass123") {
-          userId
-          username
+          id
+          name
         }
       }
     "#;
@@ -309,8 +309,8 @@ mod tests {
       mutation {
         authRegister(username: "testuser", password: "testpass123", passwordConfirmation: "differentpass") {
           user {
-            userId
-            username
+            id
+            name
           }
         }
       }
@@ -357,8 +357,8 @@ mod tests {
       mutation {
         authRegister(username: "testuser", password: "testpass123", passwordConfirmation: "testpass123") {
           user {
-            userId
-            username
+            id
+            name
           }
           message
         }

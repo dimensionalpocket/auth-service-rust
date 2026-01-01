@@ -1,4 +1,4 @@
-use crate::graphql::types::UserRole;
+use crate::graphql::types::{UserRole, UserWithRoleResponse};
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::auth_orchestrator::AuthOrchestrator;
 use crate::services::SessionError;
@@ -8,21 +8,8 @@ use tracing::instrument;
 /// GraphQL output type for current authenticated user information
 #[derive(async_graphql::SimpleObject)]
 pub struct AuthMeResponse {
-  /// The authenticated user's ID
-  #[graphql(name = "userId")]
-  pub user_id: i64,
-  /// The authenticated user's UUID (public identifier)
-  pub uuid: String,
-  /// The authenticated user's username
-  pub username: String,
-  /// The authenticated user's role information
-  pub role: UserRole,
-  /// Timestamp when the user was created
-  #[graphql(name = "createdTs")]
-  pub created_ts: i64,
-  /// Timestamp when the user was last updated
-  #[graphql(name = "updatedTs")]
-  pub updated_ts: i64,
+  /// The authenticated user's information
+  pub user: UserWithRoleResponse,
   /// When the current session was created (seconds since Unix epoch)
   #[graphql(name = "sessionIat")]
   pub session_iat: i64,
@@ -42,7 +29,7 @@ impl AuthMeResolver {
   /// This query retrieves detailed user information for the authenticated user,
   /// including both user profile data and current session information.
   /// The response contains:
-  /// - User profile: ID, UUID, username, role information (id, name, permissions), timestamps
+  /// - User profile (nested): ID, UUID, username, role information (id, name, permissions), timestamps
   /// - Session data: When session was created and when it expires
   ///
   /// Returns `null` if no valid session token was provided in the request.
@@ -59,16 +46,18 @@ impl AuthMeResolver {
   /// ```graphql
   /// query {
   ///   authMe {
-  ///     userId
-  ///     uuid
-  ///     username
-  ///     role {
+  ///     user {
   ///       id
+  ///       uuid
   ///       name
-  ///       permissions
+  ///       role {
+  ///         id
+  ///         name
+  ///         permissions
+  ///       }
+  ///       createdTs
+  ///       updatedTs
   ///     }
-  ///     createdTs
-  ///     updatedTs
   ///     sessionIat
   ///     sessionExp
   ///   }
@@ -78,22 +67,24 @@ impl AuthMeResolver {
   /// **Response for authenticated user:**
   /// ```json
   /// {
-  /// "data": {
-  ///   "authMe": {
-  ///     "userId": 123,
-  ///     "uuid": "550e8400-e29b-41d4-a716-446655440000",
-  ///     "username": "johndoe",
-  ///     "role": {
-  ///       "id": "2",
-  ///       "name": "user",
-  ///       "permissions": ["can_view_user_self"]
-  ///     },
-  ///     "createdTs": 1706356800,
-  ///     "updatedTs": 1706356800,
-  ///     "sessionIat": 1706356800,
-  ///     "sessionExp": 1706616000
+  ///   "data": {
+  ///     "authMe": {
+  ///       "user": {
+  ///         "id": 123,
+  ///         "uuid": "550e8400-e29b-41d4-a716-446655440000",
+  ///         "name": "johndoe",
+  ///         "role": {
+  ///           "id": "2",
+  ///           "name": "user",
+  ///           "permissions": ["can_view_user_self"]
+  ///         },
+  ///         "createdTs": 1706356800,
+  ///         "updatedTs": 1706356800
+  ///       },
+  ///       "sessionIat": 1706356800,
+  ///       "sessionExp": 1706616000
+  ///     }
   ///   }
-  /// }
   /// }
   /// ```
   ///
@@ -118,12 +109,14 @@ impl AuthMeResolver {
 
     match AuthOrchestrator::get_authenticated_user(pool, session_context.clone()).await {
       Ok(Some(auth_me_result)) => Ok(Some(AuthMeResponse {
-        user_id: auth_me_result.user_id,
-        uuid: auth_me_result.uuid,
-        username: auth_me_result.username,
-        role: UserRole::from(auth_me_result.role),
-        created_ts: auth_me_result.created_ts,
-        updated_ts: auth_me_result.updated_ts,
+        user: UserWithRoleResponse {
+          id: auth_me_result.user_id,
+          name: auth_me_result.username,
+          role: UserRole::from(auth_me_result.role),
+          uuid: Some(auth_me_result.uuid),
+          created_ts: Some(auth_me_result.created_ts),
+          updated_ts: Some(auth_me_result.updated_ts),
+        },
         session_iat: auth_me_result.session_iat,
         session_exp: auth_me_result.session_exp,
       })),
@@ -182,15 +175,15 @@ mod tests {
 
     let result = schema
       .execute(
-        "{ authMe { userId uuid username role { id name permissions } createdTs updatedTs sessionIat sessionExp } }",
+        "{ authMe { user { id uuid name role { id name permissions } createdTs updatedTs } sessionIat sessionExp } }",
       )
       .await;
 
     assert!(result.errors.is_empty());
     let data = result.data.into_json().unwrap();
-    assert_eq!(data["authMe"]["userId"], user_id);
-    assert_eq!(data["authMe"]["username"], "testuser");
-    assert_eq!(data["authMe"]["role"]["name"], "user");
+    assert_eq!(data["authMe"]["user"]["id"], user_id);
+    assert_eq!(data["authMe"]["user"]["name"], "testuser");
+    assert_eq!(data["authMe"]["user"]["role"]["name"], "user");
     assert_eq!(data["authMe"]["sessionIat"], 1706356800);
     assert_eq!(data["authMe"]["sessionExp"], 1706616000);
   }
@@ -203,7 +196,7 @@ mod tests {
 
     let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
 
-    let result = schema.execute("{ authMe { userId uuid username } }").await;
+    let result = schema.execute("{ authMe { user { id uuid name } } }").await;
 
     // Should succeed with null response when no session
     assert!(result.errors.is_empty());
@@ -217,7 +210,7 @@ mod tests {
     let query = AuthMeResolver;
 
     let schema = create_test_query_schema(query, Some(pool), None, None);
-    let result = schema.execute("{ authMe { userId uuid username } }").await;
+    let result = schema.execute("{ authMe { user { id uuid name } } }").await;
 
     // Should succeed with null response when no session context
     assert!(result.errors.is_empty());

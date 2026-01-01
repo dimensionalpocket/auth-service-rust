@@ -59,7 +59,7 @@ async fn test_auth_login_no_password_in_logs() {
   // Test: Call the login mutation with a distinct password
   let query = format!(
     r#"{{
-      "query": "mutation {{ authLogin(username: \"{unique_username}\", password: \"secret_password_123!\") {{ token userId username message }} }}"
+      "query": "mutation {{ authLogin(username: \"{unique_username}\", password: \"secret_password_123!\") {{ token user {{ id name }} message }} }}"
     }}"#
   );
 
@@ -92,7 +92,7 @@ async fn test_auth_register_no_password_in_logs() {
   let unique_username = format!("newuser_{}", rand::random::<u32>());
   let query = format!(
     r#"{{
-      "query": "mutation {{ authRegister(username: \"{unique_username}\", password: \"super_secret_pass_456\", passwordConfirmation: \"super_secret_pass_456\") {{ userId uuid username message }} }}"
+      "query": "mutation {{ authRegister(username: \"{unique_username}\", password: \"super_secret_pass_456\", passwordConfirmation: \"super_secret_pass_456\") {{ user {{ id uuid name }} message }} }}"
     }}"#
   );
 
