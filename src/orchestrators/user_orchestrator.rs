@@ -4,9 +4,9 @@ use crate::queries::users::GetAllUsersWithRolesQuery;
 use crate::queries::users::GetUserByIdQuery;
 use crate::queries::users::GetUserByIdWithRoleQuery;
 use crate::queries::users::UpdateUserData;
-use crate::services::role_service::RoleError;
 use crate::services::{RoleService, UserError, UserService};
 use crate::types::user::update_user_input::UpdateUserInput;
+use crate::types::RoleError;
 use sqlx::SqlitePool;
 
 impl From<RoleError> for UserError {

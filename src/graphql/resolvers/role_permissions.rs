@@ -1,6 +1,6 @@
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::role_orchestrator::RoleOrchestrator;
-use crate::services::role_service::RoleError;
+use crate::types::RoleError;
 use async_graphql::{Context, Object, Result};
 use sqlx::SqlitePool;
 use tracing::instrument;

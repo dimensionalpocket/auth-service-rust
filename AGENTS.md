@@ -61,6 +61,11 @@ When using the Edit tool to modify files:
 - `role` - role CRUD operations and permission checks (authorization)
 - `site` - site CRUD operations
 
+### Types
+
+- App-wide types (non-GraphQL) live in `src/types/`
+- GraphQL-specific types live in `src/graphql/types/`
+
 ### API Setup
 - API handlers live in `src/handlers/`
 - API has REST and GraphQL endpoints
@@ -80,10 +85,6 @@ When using the Edit tool to modify files:
 - Resolvers handle GraphQL-specific concerns (input validation, response formatting)
   - They do NOT contain business logic, database access, or session management
 - Any objects that are part of the GraphQL context should be retrieved from the context object passed into the resolver method then passed to the orchestration/service layer as needed
-- **GraphQL Types**: All GraphQL response types should be defined inline within their respective resolver files, not in separate types modules
-  - This follows the established pattern where types live alongside the code that uses them
-  - Do NOT create separate `types` modules for GraphQL types
-  - Examples: `UserListing` in `users.rs`, `SiteListing` in `sites.rs`, `AddSiteResponse` in `add_site.rs`
 - Naming conventions:
   - **Query/Mutation names**: camelCase with `#[graphql(name = "camelCase")]` (e.g., `updateUser`, `deleteUser`, `authLogin`)
   - **Field names**: snake_case in Rust with `#[graphql(name = "camelCase")]` for GraphQL output (e.g., `role_id` → `roleId`, `created_ts` → `createdTs`)

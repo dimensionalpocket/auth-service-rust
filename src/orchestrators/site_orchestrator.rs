@@ -1,8 +1,8 @@
 use crate::middleware::session::SessionContext;
 use crate::queries::sites::{CreateSiteData, GetSiteByIdQuery, UpdateSiteData};
 use crate::queries::users::GetUserByIdQuery;
-use crate::services::role_service::RoleError;
 use crate::services::{RoleService, SiteError, SiteService};
+use crate::types::RoleError;
 use sqlx::SqlitePool;
 
 impl From<RoleError> for SiteError {

@@ -2,7 +2,8 @@ use crate::middleware::session::SessionContext;
 use crate::models::role::{Role, ROLE_PERMISSIONS};
 use crate::queries::roles::{CreateRoleData, UpdateRoleData};
 use crate::queries::users::GetUserByIdQuery;
-use crate::services::role_service::{RoleError, RoleService};
+use crate::services::role_service::RoleService;
+use crate::types::RoleError;
 use sqlx::SqlitePool;
 
 pub struct RoleOrchestrator;
