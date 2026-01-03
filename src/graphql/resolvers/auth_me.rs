@@ -1,7 +1,7 @@
 use crate::graphql::types::{UserRole, UserWithRoleResponse};
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::auth_orchestrator::AuthOrchestrator;
-use crate::services::SessionError;
+use crate::types::SessionError;
 use async_graphql::{Context, Object, Result};
 use tracing::instrument;
 

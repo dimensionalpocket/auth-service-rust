@@ -1,45 +1,11 @@
 use crate::models::user::User;
 use crate::services::{PasswordService, UserService};
-use dps_auth_session::{DpsAuthSession, DpsAuthSessionError};
+use crate::types::SessionError;
+use dps_auth_session::DpsAuthSession;
 use sqlx::SqliteConnection;
-use std::fmt;
 
 // Re-export the session payload from the new crate for backward compatibility
 pub use dps_auth_session::DpsAuthSessionPayload as SessionPayload;
-
-/// Custom error type for session operations
-#[derive(Debug)]
-pub enum SessionError {
-  /// Token encoding/decoding errors from the auth session service
-  AuthSessionError(DpsAuthSessionError),
-  /// Authentication failed - user input validation
-  AuthenticationError(String),
-  /// Database operation failed during authentication
-  DatabaseError(String),
-  /// Password verification failed
-  PasswordVerificationError(String),
-}
-
-impl fmt::Display for SessionError {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    match self {
-      SessionError::AuthSessionError(err) => write!(f, "Auth session error: {err}"),
-      SessionError::AuthenticationError(msg) => write!(f, "Authentication error: {msg}"),
-      SessionError::DatabaseError(msg) => write!(f, "Database error: {msg}"),
-      SessionError::PasswordVerificationError(msg) => {
-        write!(f, "Password verification error: {msg}")
-      }
-    }
-  }
-}
-
-impl From<DpsAuthSessionError> for SessionError {
-  fn from(err: DpsAuthSessionError) -> Self {
-    SessionError::AuthSessionError(err)
-  }
-}
-
-impl std::error::Error for SessionError {}
 
 /// Service for managing session tokens using custom encrypted format
 pub struct SessionService;

@@ -4,23 +4,10 @@ use crate::queries::users::GetAllUsersWithRolesQuery;
 use crate::queries::users::GetUserByIdQuery;
 use crate::queries::users::GetUserByIdWithRoleQuery;
 use crate::queries::users::UpdateUserData;
-use crate::services::{RoleService, UserError, UserService};
+use crate::services::{RoleService, UserService};
 use crate::types::user::update_user_input::UpdateUserInput;
-use crate::types::RoleError;
+use crate::types::UserError;
 use sqlx::SqlitePool;
-
-impl From<RoleError> for UserError {
-  fn from(err: RoleError) -> Self {
-    match err {
-      RoleError::DatabaseError(db_err) => UserError::DatabaseError(db_err),
-      RoleError::AuthenticationError(msg) => UserError::AuthenticationError(msg),
-      RoleError::AuthorizationError(msg) => UserError::AuthorizationError(msg),
-      // Other RoleError variants shouldn't occur in user operations,
-      // but we'll handle them as database errors for safety
-      _ => UserError::DatabaseError(sqlx::Error::Protocol(format!("Role error: {err}"))),
-    }
-  }
-}
 
 pub struct UserOrchestrator;
 

@@ -3,7 +3,8 @@ use crate::models::Role;
 use crate::queries::users::{
   get_user_by_id_with_role::GetUserByIdWithRoleQuery, GetUserByNameWithRoleQuery,
 };
-use crate::services::{SessionError, SessionService, UserError, UserService};
+use crate::services::{SessionService, UserService};
+use crate::types::{SessionError, UserError};
 use sqlx::SqliteConnection;
 use tracing::instrument;
 

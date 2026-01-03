@@ -1,7 +1,8 @@
 use crate::middleware::session::SessionContext;
 use crate::models::User;
 use crate::queries::users::GetUserByIdQuery;
-use crate::services::{AuthService, SessionError, UserError, UserService};
+use crate::services::{AuthService, UserService};
+use crate::types::{SessionError, UserError};
 use sqlx::SqlitePool;
 
 pub struct AuthOrchestrator;

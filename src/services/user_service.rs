@@ -3,64 +3,10 @@ use crate::queries::users::{
   CreateUserData, CreateUserQuery, DeleteUserByIdQuery, GetUserByIdQuery, GetUserByNameQuery,
   UpdateUserData, UpdateUserPasswordData, UpdateUserPasswordQuery, UpdateUserQuery,
 };
-use crate::services::{PasswordError, PasswordService};
+use crate::services::PasswordService;
+use crate::types::UserError;
 use sqlx::SqliteConnection;
 use uuid::Uuid;
-
-/// Custom error type for user operations
-#[derive(Debug)]
-pub enum UserError {
-  /// Username is already in use
-  UsernameAlreadyExists(String),
-  /// Password hashing failed
-  PasswordHashingFailed(PasswordError),
-  /// Database operation failed
-  DatabaseError(sqlx::Error),
-  /// Input validation failed
-  ValidationError(String),
-  /// Authentication failed
-  AuthenticationError(String),
-  /// Authorization failed
-  AuthorizationError(String),
-  /// User not found
-  UserNotFound(i64),
-  /// Self-deletion attempted
-  SelfDeletion,
-  /// Session creation failed
-  SessionError(String),
-}
-
-impl std::fmt::Display for UserError {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    match self {
-      UserError::UsernameAlreadyExists(username) => {
-        write!(f, "Username '{username}' is already in use")
-      }
-      UserError::PasswordHashingFailed(err) => write!(f, "Password hashing failed: {err}"),
-      UserError::DatabaseError(err) => write!(f, "Database error: {err}"),
-      UserError::ValidationError(msg) => write!(f, "Validation error: {msg}"),
-      UserError::AuthenticationError(msg) => write!(f, "Authentication error: {msg}"),
-      UserError::AuthorizationError(msg) => write!(f, "Authorization error: {msg}"),
-      UserError::UserNotFound(user_id) => write!(f, "User with ID {user_id} not found"),
-      UserError::SelfDeletion => write!(f, "Cannot delete your own account"),
-      UserError::SessionError(msg) => write!(f, "Session creation failed: {msg}"),
-    }
-  }
-}
-
-impl std::error::Error for UserError {}
-
-impl From<PasswordError> for UserError {
-  fn from(err: PasswordError) -> Self {
-    UserError::PasswordHashingFailed(err)
-  }
-}
-
-impl From<sqlx::Error> for UserError {
-  fn from(err: sqlx::Error) -> Self {
-    UserError::DatabaseError(err)
-  }
-}
 
 /// Service for user management operations
 pub struct UserService;

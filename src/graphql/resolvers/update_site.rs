@@ -1,7 +1,7 @@
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::site_orchestrator::SiteOrchestrator;
 use crate::queries::sites::UpdateSiteData;
-use crate::services::SiteError;
+use crate::types::SiteError;
 use async_graphql::{Context, Object, Result};
 use sqlx::SqlitePool;
 use tracing::instrument;

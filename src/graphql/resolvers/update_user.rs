@@ -1,8 +1,7 @@
 use crate::graphql::types::UserRole;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::user_orchestrator::UserOrchestrator;
-use crate::services::UserError;
-use crate::types::user::update_user_input::UpdateUserInput;
+use crate::types::{user::update_user_input::UpdateUserInput, UserError};
 use async_graphql::{Context, Object, Result};
 use sqlx::SqlitePool;
 use tracing::instrument;

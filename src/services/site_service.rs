@@ -3,47 +3,8 @@ use crate::queries::sites::{
   CreateSiteData, CreateSiteQuery, DeleteSiteQuery, GetAllSitesQuery, UpdateSiteData,
   UpdateSiteQuery,
 };
+use crate::types::SiteError;
 use sqlx::SqliteConnection;
-
-/// Custom error type for site operations
-#[derive(Debug)]
-pub enum SiteError {
-  /// Slug is already in use
-  SlugAlreadyExists(String),
-  /// Database operation failed
-  DatabaseError(sqlx::Error),
-  /// Input validation failed
-  ValidationError(String),
-  /// Site not found
-  SiteNotFound(i64),
-  /// Authentication failed
-  AuthenticationError(String),
-  /// Authorization failed
-  AuthorizationError(String),
-}
-
-impl std::fmt::Display for SiteError {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    match self {
-      SiteError::SlugAlreadyExists(slug) => {
-        write!(f, "Slug '{slug}' is already in use")
-      }
-      SiteError::DatabaseError(err) => write!(f, "Database error: {err}"),
-      SiteError::ValidationError(msg) => write!(f, "Validation error: {msg}"),
-      SiteError::SiteNotFound(id) => write!(f, "Site with ID {id} not found"),
-      SiteError::AuthenticationError(msg) => write!(f, "Authentication error: {msg}"),
-      SiteError::AuthorizationError(msg) => write!(f, "Authorization error: {msg}"),
-    }
-  }
-}
-
-impl std::error::Error for SiteError {}
-
-impl From<sqlx::Error> for SiteError {
-  fn from(err: sqlx::Error) -> Self {
-    SiteError::DatabaseError(err)
-  }
-}
 
 /// Service for site management operations
 pub struct SiteService;

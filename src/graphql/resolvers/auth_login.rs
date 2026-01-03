@@ -1,5 +1,6 @@
 use crate::graphql::types::{UserRole, UserWithRoleResponse};
-use crate::services::{AuthService, CookieService, SessionError};
+use crate::services::{AuthService, CookieService};
+use crate::types::SessionError;
 use crate::DpsAuthApiConfig;
 use async_graphql::{Context, Error, Object, Result};
 use sqlx::SqlitePool;
