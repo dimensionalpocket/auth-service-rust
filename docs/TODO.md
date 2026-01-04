@@ -1,1 +1,4 @@
 - services: one struct per resolver, not one method
+- emails
+- multi-database support
+- session management (separate database)
