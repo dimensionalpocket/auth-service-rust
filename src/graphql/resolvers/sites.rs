@@ -1,7 +1,8 @@
-use crate::services::SiteService;
 use async_graphql::{Context, Object, Result, SimpleObject};
 use sqlx::SqlitePool;
 use tracing::instrument;
+
+use crate::orchestrators::site::GetSitesOrchestrator;
 
 /// GraphQL output type for site listing
 #[derive(SimpleObject, Debug)]
@@ -42,11 +43,7 @@ impl SitesResolver {
   #[graphql(name = "sites")]
   async fn sites(&self, ctx: &Context<'_>) -> Result<Vec<SiteListing>> {
     let pool = ctx.data::<SqlitePool>()?;
-    let mut conn = pool
-      .acquire()
-      .await
-      .map_err(|_| async_graphql::Error::new("Internal server error"))?;
-    let sites = SiteService::get_all_sites(&mut conn).await?;
+    let sites = GetSitesOrchestrator::run(pool).await?;
 
     let site_listings: Vec<SiteListing> = sites
       .into_iter()

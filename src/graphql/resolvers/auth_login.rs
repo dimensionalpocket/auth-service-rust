@@ -1,5 +1,5 @@
 use crate::graphql::types::{UserRole, UserWithRoleResponse};
-use crate::services::{AuthService, CookieService};
+use crate::orchestrators::auth::AuthLoginOrchestrator;
 use crate::types::SessionError;
 use crate::DpsAuthApiConfig;
 use async_graphql::{Context, Error, Object, Result};
@@ -32,25 +32,15 @@ impl AuthLoginResolver {
     #[graphql(name = "username")] username: String,
     #[graphql(name = "password")] password: String,
   ) -> Result<AuthLoginResponse, Error> {
-    // Extract required context data with proper error handling
     let pool = ctx
       .data::<SqlitePool>()
       .map_err(|_| async_graphql::Error::new("Internal server error"))?;
     let config = ctx
       .data::<DpsAuthApiConfig>()
       .map_err(|_| async_graphql::Error::new("Internal server error"))?;
-    let mut conn = pool
-      .acquire()
-      .await
-      .map_err(|_| async_graphql::Error::new("Internal server error"))?;
 
-    match AuthService::login(&mut conn, &username, &password, &config.session_secret).await {
-      Ok(auth_result) => {
-        // Set session cookie
-        let cookie_value =
-          CookieService::generate_session_cookie(config, &auth_result.session_token);
-
-        // Use append to allow multiple cookies; ignore the return value
+    match AuthLoginOrchestrator::run(pool, &username, &password, config).await {
+      Ok((auth_result, cookie_value)) => {
         let _ = ctx.append_http_header("set-cookie", cookie_value);
 
         Ok(AuthLoginResponse {

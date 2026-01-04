@@ -1,6 +1,6 @@
 use crate::graphql::types::{UserRole, UserWithRoleResponse};
-use crate::services::{AuthService, CookieService};
-use crate::types::UserError;
+use crate::orchestrators::auth::AuthRegisterOrchestrator;
+use crate::types::SessionError;
 use crate::DpsAuthApiConfig;
 use async_graphql::{Context, Object, Result};
 use sqlx::SqlitePool;
@@ -57,25 +57,10 @@ impl AuthRegisterResolver {
     let pool = ctx.data::<SqlitePool>()?;
     let config = ctx.data::<DpsAuthApiConfig>()?;
 
-    let mut conn = pool
-      .acquire()
+    match AuthRegisterOrchestrator::run(pool, &username, &password, &password_confirmation, config)
       .await
-      .map_err(|_| async_graphql::Error::new("Internal server error"))?;
-
-    match AuthService::register(
-      &mut conn,
-      &username,
-      &password,
-      &password_confirmation,
-      &config.session_secret,
-    )
-    .await
     {
-      Ok(register_result) => {
-        // Set session cookie
-        let cookie_value =
-          CookieService::generate_session_cookie(config, &register_result.session_token);
-
+      Ok((register_result, cookie_value)) => {
         // Use append to allow multiple cookies; ignore the return value
         let _ = ctx.append_http_header("set-cookie", cookie_value);
 
@@ -91,15 +76,7 @@ impl AuthRegisterResolver {
           message: "User registration successful".to_string(),
         })
       }
-      Err(UserError::UsernameAlreadyExists(username)) => Err(async_graphql::Error::new(format!(
-        "Username '{username}' is already in use"
-      ))),
-      Err(UserError::ValidationError(msg)) => Err(async_graphql::Error::new(format!(
-        "Validation error: {msg}"
-      ))),
-      Err(UserError::SessionError(msg)) => Err(async_graphql::Error::new(format!(
-        "Session creation failed: {msg}"
-      ))),
+      Err(SessionError::AuthenticationError(msg)) => Err(async_graphql::Error::new(msg)),
       Err(err) => {
         tracing::error!("Failed to register user: {}", err);
         Err(async_graphql::Error::new("Failed to register user"))
