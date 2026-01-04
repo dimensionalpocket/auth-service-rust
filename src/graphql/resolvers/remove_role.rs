@@ -1,5 +1,5 @@
 use crate::middleware::session::SessionContext;
-use crate::orchestrators::role_orchestrator::RoleOrchestrator;
+use crate::orchestrators::role::RemoveRoleOrchestrator;
 use crate::types::RoleError;
 use async_graphql::{Context, Object, Result};
 use sqlx::SqlitePool;
@@ -50,9 +50,7 @@ impl RemoveRoleResolver {
     let pool = ctx.data::<SqlitePool>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
-    match RoleOrchestrator::delete_role_with_permission_check(pool, session_context.clone(), id)
-      .await
-    {
+    match RemoveRoleOrchestrator::run(pool, session_context.clone(), id).await {
       Ok(role) => Ok(RemoveRoleResponse {
         success: true,
         id: role.id,

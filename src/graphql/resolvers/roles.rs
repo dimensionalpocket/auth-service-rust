@@ -1,5 +1,5 @@
 use crate::middleware::session::SessionContext;
-use crate::orchestrators::role_orchestrator::RoleOrchestrator;
+use crate::orchestrators::role::GetRolesOrchestrator;
 use async_graphql::{Context, Object, Result, SimpleObject};
 use sqlx::SqlitePool;
 use tracing::instrument;
@@ -53,10 +53,9 @@ impl RolesResolver {
     let pool = ctx.data::<SqlitePool>()?;
     let session_context = ctx.data::<SessionContext>()?;
 
-    let roles =
-      RoleOrchestrator::get_all_roles_with_permission_check(pool, session_context.clone())
-        .await
-        .map_err(|e| async_graphql::Error::new(e.to_string()))?;
+    let roles = GetRolesOrchestrator::run(pool, session_context.clone())
+      .await
+      .map_err(|e| async_graphql::Error::new(e.to_string()))?;
 
     let role_listings: Vec<RoleListing> = roles
       .into_iter()

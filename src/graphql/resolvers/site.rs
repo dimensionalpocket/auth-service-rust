@@ -1,5 +1,5 @@
 use crate::middleware::session::SessionContext;
-use crate::orchestrators::site_orchestrator::SiteOrchestrator;
+use crate::orchestrators::site::GetSiteOrchestrator;
 use crate::types::SiteError;
 use async_graphql::{Context, Object, Result};
 use sqlx::SqlitePool;
@@ -61,13 +61,7 @@ impl SiteResolver {
     let pool = ctx.data::<SqlitePool>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
-    match SiteOrchestrator::get_site_details_with_permission_check(
-      pool,
-      session_context.clone(),
-      id,
-    )
-    .await
-    {
+    match GetSiteOrchestrator::run(pool, session_context.clone(), id).await {
       Ok(site) => Ok(SiteDetailsResponse {
         id: site.id,
         slug: site.slug,

@@ -1,6 +1,6 @@
 use crate::graphql::types::UserRole;
 use crate::middleware::session::SessionContext;
-use crate::orchestrators::user_orchestrator::UserOrchestrator;
+use crate::orchestrators::user::UpdateUserOrchestrator;
 use crate::types::{user::update_user_input::UpdateUserInput, UserError};
 use async_graphql::{Context, Object, Result};
 use sqlx::SqlitePool;
@@ -51,9 +51,7 @@ impl UpdateUserResolver {
       metadata_json,
     };
 
-    match UserOrchestrator::update_user_with_permission_check(pool, session_context.clone(), input)
-      .await
-    {
+    match UpdateUserOrchestrator::run(pool, session_context.clone(), input).await {
       Ok(user_with_role) => Ok(UpdateUserResponse {
         id: user_with_role.user.id,
         uuid: user_with_role.user.uuid,

@@ -1,7 +1,9 @@
-pub mod auth_orchestrator;
-pub mod role_orchestrator;
-pub mod site_orchestrator;
-pub mod user_orchestrator;
+pub mod auth;
+pub mod role;
+pub mod site;
+pub mod user;
 
-pub use role_orchestrator::RoleOrchestrator;
-pub use user_orchestrator::UserOrchestrator;
+pub use auth::*;
+pub use role::*;
+pub use site::*;
+pub use user::*;

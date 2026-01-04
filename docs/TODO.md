@@ -1,0 +1,1 @@
+- services: one struct per resolver, not one method

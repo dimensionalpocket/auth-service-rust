@@ -1,5 +1,5 @@
 use crate::middleware::session::SessionContext;
-use crate::orchestrators::role_orchestrator::RoleOrchestrator;
+use crate::orchestrators::role::UpdateRoleOrchestrator;
 use crate::queries::roles::UpdateRoleData;
 use crate::types::RoleError;
 use async_graphql::{Context, InputObject, Object, Result};
@@ -87,14 +87,7 @@ impl UpdateRoleResolver {
       permissions,
     };
 
-    match RoleOrchestrator::update_role_with_permission_check(
-      pool,
-      session_context.clone(),
-      id,
-      update_data,
-    )
-    .await
-    {
+    match UpdateRoleOrchestrator::run(pool, session_context.clone(), id, update_data).await {
       Ok(role) => {
         let permissions = role.permissions;
         Ok(UpdateRoleResponse {

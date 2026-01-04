@@ -1,5 +1,5 @@
 use crate::middleware::session::SessionContext;
-use crate::orchestrators::site_orchestrator::SiteOrchestrator;
+use crate::orchestrators::site::AddSiteOrchestrator;
 use crate::queries::sites::CreateSiteData;
 use crate::types::SiteError;
 use async_graphql::{Context, Object, Result};
@@ -84,13 +84,7 @@ impl AddSiteResolver {
       metadata_json,
     };
 
-    match SiteOrchestrator::create_site_with_permission_check(
-      pool,
-      session_context.clone(),
-      create_data,
-    )
-    .await
-    {
+    match AddSiteOrchestrator::run(pool, session_context.clone(), create_data).await {
       Ok(site) => Ok(AddSiteResponse {
         id: site.id,
         slug: site.slug,

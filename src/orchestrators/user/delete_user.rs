@@ -1,0 +1,212 @@
+use crate::middleware::session::SessionContext;
+use crate::queries::users::GetUserByIdQuery;
+use crate::services::{RoleService, UserService};
+use crate::types::UserError;
+use sqlx::SqlitePool;
+
+pub struct DeleteUserOrchestrator;
+
+impl DeleteUserOrchestrator {
+  pub async fn run(
+    pool: &SqlitePool,
+    session_context: SessionContext,
+    target_user_id: i64,
+  ) -> Result<(), UserError> {
+    let user_id = session_context
+      .user_id()
+      .ok_or(UserError::AuthenticationError(
+        "Authentication required".to_string(),
+      ))?;
+
+    let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
+
+    let user = GetUserByIdQuery::run(&mut conn, user_id)
+      .await
+      .map_err(UserError::DatabaseError)?
+      .ok_or(UserError::UserNotFound(user_id))?;
+
+    let allowed = RoleService::check_user_permission(&mut conn, &user, "can_delete_user").await?;
+
+    if !allowed {
+      return Err(UserError::AuthorizationError("Forbidden".to_string()));
+    }
+
+    if user_id == target_user_id {
+      return Err(UserError::SelfDeletion);
+    }
+
+    let deleted = UserService::delete_user(&mut conn, target_user_id).await?;
+
+    if !deleted {
+      return Err(UserError::UserNotFound(target_user_id));
+    }
+
+    Ok(())
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::middleware::session::SessionContext;
+  use crate::queries::users::GetUserByIdQuery;
+  use crate::test_utils::{
+    create_test_database, create_test_role_with_pool, create_test_user_with_pool,
+  };
+  use dps_auth_session::DpsAuthSessionPayload;
+
+  #[tokio::test]
+  async fn test_delete_user_with_permission_check_success() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
+    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
+
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let target_user = create_test_user_with_pool(&pool, "target_user", user_role_id).await;
+
+    let session_payload = DpsAuthSessionPayload {
+      sub: admin_user.id,
+      iat: 1000,
+      exp: 2000,
+    };
+    let session_context = SessionContext::new(Some(session_payload));
+
+    let result = DeleteUserOrchestrator::run(&pool, session_context, target_user.id).await;
+
+    assert!(result.is_ok());
+
+    let deleted_user = {
+      let mut conn = pool.acquire().await.unwrap();
+      GetUserByIdQuery::run(&mut conn, target_user.id)
+        .await
+        .unwrap()
+    };
+    assert!(deleted_user.is_none());
+  }
+
+  #[tokio::test]
+  async fn test_delete_user_without_authentication() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    let session_context = SessionContext::new(None);
+
+    let result = DeleteUserOrchestrator::run(&pool, session_context, 123).await;
+
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::AuthenticationError(msg) => {
+        assert!(msg.contains("Authentication required"));
+      }
+      _ => panic!("Expected AuthenticationError"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_delete_user_without_permission() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
+
+    let regular_user = create_test_user_with_pool(&pool, "user1", user_role_id).await;
+    let target_user = create_test_user_with_pool(&pool, "target_user", user_role_id).await;
+
+    let session_payload = DpsAuthSessionPayload {
+      sub: regular_user.id,
+      iat: 1000,
+      exp: 2000,
+    };
+    let session_context = SessionContext::new(Some(session_payload));
+
+    let result = DeleteUserOrchestrator::run(&pool, session_context, target_user.id).await;
+
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::AuthorizationError(msg) => {
+        assert!(msg.contains("Forbidden"));
+      }
+      _ => panic!("Expected AuthorizationError"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_delete_user_self_deletion_prevented() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+
+    let session_payload = DpsAuthSessionPayload {
+      sub: admin_user.id,
+      iat: 1000,
+      exp: 2000,
+    };
+    let session_context = SessionContext::new(Some(session_payload));
+
+    let result = DeleteUserOrchestrator::run(&pool, session_context, admin_user.id).await;
+
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::SelfDeletion => {}
+      _ => panic!("Expected SelfDeletion error"),
+    }
+
+    let user_still_exists = {
+      let mut conn = pool.acquire().await.unwrap();
+      GetUserByIdQuery::run(&mut conn, admin_user.id)
+        .await
+        .unwrap()
+    };
+    assert!(user_still_exists.is_some());
+  }
+
+  #[tokio::test]
+  async fn test_delete_user_nonexistent_target() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
+    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+
+    let session_payload = DpsAuthSessionPayload {
+      sub: admin_user.id,
+      iat: 1000,
+      exp: 2000,
+    };
+    let session_context = SessionContext::new(Some(session_payload));
+
+    let result = DeleteUserOrchestrator::run(&pool, session_context, 999).await;
+
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::UserNotFound(user_id) => {
+        assert_eq!(user_id, 999);
+      }
+      _ => panic!("Expected UserNotFound"),
+    }
+  }
+
+  #[tokio::test]
+  async fn test_delete_user_nonexistent_session_user() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
+    let target_user = create_test_user_with_pool(&pool, "target_user", user_role_id).await;
+
+    let session_payload = DpsAuthSessionPayload {
+      sub: 999,
+      iat: 1000,
+      exp: 2000,
+    };
+    let session_context = SessionContext::new(Some(session_payload));
+
+    let result = DeleteUserOrchestrator::run(&pool, session_context, target_user.id).await;
+
+    assert!(result.is_err());
+    match result.unwrap_err() {
+      UserError::UserNotFound(user_id) => {
+        assert_eq!(user_id, 999);
+      }
+      _ => panic!("Expected UserNotFound"),
+    }
+  }
+}

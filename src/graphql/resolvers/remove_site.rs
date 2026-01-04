@@ -1,5 +1,5 @@
 use crate::middleware::session::SessionContext;
-use crate::orchestrators::site_orchestrator::SiteOrchestrator;
+use crate::orchestrators::site::RemoveSiteOrchestrator;
 use crate::types::SiteError;
 use async_graphql::{Context, Object, Result};
 use sqlx::SqlitePool;
@@ -65,13 +65,7 @@ impl RemoveSiteResolver {
     let pool = ctx.data::<SqlitePool>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
-    match SiteOrchestrator::remove_site_with_permission_check(
-      pool,
-      session_context.clone(),
-      site_id,
-    )
-    .await
-    {
+    match RemoveSiteOrchestrator::run(pool, session_context.clone(), site_id).await {
       Ok(site) => Ok(RemoveSiteResponse {
         id: site.id,
         slug: site.slug,

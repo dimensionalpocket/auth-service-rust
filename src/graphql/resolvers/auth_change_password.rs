@@ -1,5 +1,5 @@
 use crate::middleware::session::SessionContext;
-use crate::orchestrators::auth_orchestrator::AuthOrchestrator;
+use crate::orchestrators::auth::AuthChangePasswordOrchestrator;
 use crate::types::UserError;
 use async_graphql::{Context, Object, Result, SimpleObject};
 use sqlx::SqlitePool;
@@ -56,7 +56,7 @@ impl AuthChangePasswordResolver {
     let pool = ctx.data::<SqlitePool>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
-    match AuthOrchestrator::change_authenticated_user_password(
+    match AuthChangePasswordOrchestrator::run(
       pool,
       session_context.clone(),
       &current_password,

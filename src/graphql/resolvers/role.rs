@@ -1,5 +1,5 @@
 use crate::middleware::session::SessionContext;
-use crate::orchestrators::role_orchestrator::RoleOrchestrator;
+use crate::orchestrators::role::GetRoleOrchestrator;
 use crate::types::RoleError;
 use async_graphql::{Context, Object, Result};
 use sqlx::SqlitePool;
@@ -56,9 +56,7 @@ impl RoleResolver {
     let pool = ctx.data::<SqlitePool>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
-    match RoleOrchestrator::get_role_by_id_with_permission_check(pool, session_context.clone(), id)
-      .await
-    {
+    match GetRoleOrchestrator::run(pool, session_context.clone(), id).await {
       Ok(role) => {
         let permissions = role.permissions;
         Ok(RoleResponse {

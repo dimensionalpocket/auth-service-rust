@@ -56,10 +56,14 @@ When using the Edit tool to modify files:
 
 ### Domains
 
+Domain usage is more of a way to organize code than strict boundaries. Cross-domain calls are common and acceptable when needed.
+
 - `auth` - workflows related to authentication such as sign-up, login/logout, password recovery, etc
 - `user` - user CRUD operations
 - `role` - role CRUD operations and permission checks (authorization)
 - `site` - site CRUD operations
+- `session` - session management and validation
+- `password` - password hashing, validation, and other checks
 
 ### Types
 
@@ -69,7 +73,7 @@ When using the Edit tool to modify files:
 ### API Setup
 - API handlers live in `src/handlers/`
 - API has REST and GraphQL endpoints
-  - REST is only used for health checks, all other functionality is via GraphQL
+  - REST is only used for health checks and development playgrounds, all other functionality is via GraphQL
 
 ### Middleware
 - Middlewares live in `src/middleware/`
@@ -98,12 +102,19 @@ When using the Edit tool to modify files:
   - The `QueryRoot` delegation pattern is not used in this project
 
 ### Orchestration Layer
-- Service orchestrators live in `src/orchestrators/`
-  - One orchestrator per domain, with multiple methods each
-- Orchestrators are called by GraphQL resolvers only
-- Orchestrators handle the common pattern of: authentication → authorization → business logic (calling other services)
-- Orchestrator inputs are typically the database pool, session context (extracted by the resolver), and any resolver inputs
-- Orchestrators extract a connection from the pool and use that connection to call any services and queries it needs
+- Orchestrators handle high-level workflows that may involve multiple services, authentication, and authorization
+- They make the connection between GraphQL resolvers and the service layer, keeping resolvers thin
+- Service orchestrators live in `src/orchestrators/<domain>/`
+  - One orchestrator per resolver
+  - Each orchestrator has a single `run(...)` method
+- Orchestrators handle the common pattern of: authentication → authorization → business logic (calling other services and/or queries)
+- Orchestrator inputs are extracted by the resolver and passed down: database pool (if database access required), session context, and resolver inputs
+- For Orchestrators with database usage, they extract a connection from the pool and reuse that connection to call any services and queries it needs
+- Naming conventions:
+  - Orchestrator structs are named after the resolver (which also describes the workflow) and suffixed with `Orchestrator` (e.g., `AuthLoginOrchestrator`, `SetDefaultRoleOrchestrator`, etc)
+  - Orchestrator filenames are in snake_case matching the orchestrator name without the suffix (e.g., `src/orchestrators/auth/auth_login.rs`)
+  - Exception: when the orchestrator refers to a "getter" resolver (such as `User` - one user, `Users` - multiple users, etc), use `Get` prefix (e.g., `GetUserOrchestrator`, `GetUsersOrchestrator`) and `get_` prefix for filenames (e.g., `get_user.rs`, `get_users.rs`)
+    - This helps avoiding name conflicts with the domain name itself (e.g., `UserOrchestrator` could be confused with user domain)
 
 ### Service Layer
 - Services live in `src/services/`
@@ -117,6 +128,7 @@ When using the Edit tool to modify files:
 - Query objects live in `src/queries/`
   - Use `sqlx` to build dynamic queries
 - Query objects work with a database connection (not a pool)
+  - Alternatively, a transaction can be passed to the query if the caller has an active transaction
 - The objects returned by queries (models) live in `src/models/`
 - The Database instance is managed by `Database` struct in `src/database/mod.rs`
 - Use async/await for database operations

@@ -1,5 +1,5 @@
 use crate::middleware::session::SessionContext;
-use crate::orchestrators::user_orchestrator::UserOrchestrator;
+use crate::orchestrators::user::DeleteUserOrchestrator;
 use crate::types::UserError;
 use async_graphql::{Context, Object, Result};
 use sqlx::SqlitePool;
@@ -39,9 +39,7 @@ impl DeleteUserResolver {
     let pool = ctx.data::<SqlitePool>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
-    match UserOrchestrator::delete_user_with_permission_check(pool, session_context.clone(), id)
-      .await
-    {
+    match DeleteUserOrchestrator::run(pool, session_context.clone(), id).await {
       Ok(_) => Ok(true),
       Err(UserError::AuthenticationError(msg)) => Err(async_graphql::Error::new(msg)),
       Err(UserError::AuthorizationError(msg)) => Err(async_graphql::Error::new(msg)),

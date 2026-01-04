@@ -1,6 +1,6 @@
 use crate::graphql::types::UserRole;
 use crate::middleware::session::SessionContext;
-use crate::orchestrators::user_orchestrator::UserOrchestrator;
+use crate::orchestrators::user::GetUsersOrchestrator;
 use crate::types::UserError;
 use async_graphql::{Context, Object, Result};
 use sqlx::SqlitePool;
@@ -49,7 +49,7 @@ impl UsersResolver {
     let pool = ctx.data::<SqlitePool>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
-    match UserOrchestrator::list_users_with_permission_check(pool, session_context.clone()).await {
+    match GetUsersOrchestrator::run(pool, session_context.clone()).await {
       Ok(users) => Ok(
         users
           .into_iter()

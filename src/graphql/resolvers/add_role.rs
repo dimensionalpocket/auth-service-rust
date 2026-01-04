@@ -1,5 +1,5 @@
 use crate::middleware::session::SessionContext;
-use crate::orchestrators::role_orchestrator::RoleOrchestrator;
+use crate::orchestrators::role::AddRoleOrchestrator;
 use crate::queries::roles::CreateRoleData;
 use crate::types::RoleError;
 use async_graphql::{Context, Object, Result};
@@ -83,13 +83,7 @@ impl AddRoleResolver {
       is_default: false,
     };
 
-    match RoleOrchestrator::create_role_with_permission_check(
-      pool,
-      session_context.clone(),
-      create_data,
-    )
-    .await
-    {
+    match AddRoleOrchestrator::run(pool, session_context.clone(), create_data).await {
       Ok(role) => Ok(AddRoleResponse {
         id: role.id,
         name: role.name.clone(),

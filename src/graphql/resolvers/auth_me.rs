@@ -1,6 +1,6 @@
 use crate::graphql::types::{UserRole, UserWithRoleResponse};
 use crate::middleware::session::SessionContext;
-use crate::orchestrators::auth_orchestrator::AuthOrchestrator;
+use crate::orchestrators::auth::AuthMeOrchestrator;
 use crate::types::SessionError;
 use async_graphql::{Context, Object, Result};
 use tracing::instrument;
@@ -107,7 +107,7 @@ impl AuthMeResolver {
       Err(_) => return Ok(None),
     };
 
-    match AuthOrchestrator::get_authenticated_user(pool, session_context.clone()).await {
+    match AuthMeOrchestrator::run(pool, session_context.clone()).await {
       Ok(Some(auth_me_result)) => Ok(Some(AuthMeResponse {
         user: UserWithRoleResponse {
           id: auth_me_result.user_id,
