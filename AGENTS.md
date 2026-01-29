@@ -64,6 +64,7 @@ Domain usage is more of a way to organize code than strict boundaries. Cross-dom
 - `site` - site CRUD operations
 - `session` - session management and validation
 - `password` - password hashing, validation, and other checks
+- `shutdown` - application shutdown handling
 
 ### Types
 
@@ -106,7 +107,7 @@ Domain usage is more of a way to organize code than strict boundaries. Cross-dom
 - They make the connection between GraphQL resolvers and the service layer, keeping resolvers thin
 - Service orchestrators live in `src/orchestrators/<domain>/`
   - One orchestrator per resolver
-  - Each orchestrator has a single `run(...)` method
+  - Each orchestrator has a single static `run(...)` method
 - Orchestrators handle the common pattern of: authentication → authorization → business logic (calling other services and/or queries)
 - Orchestrator inputs are extracted by the resolver and passed down: database pool (if database access required), session context, and resolver inputs
 - For Orchestrators with database usage, they extract a connection from the pool and reuse that connection to call any services and queries it needs
@@ -117,8 +118,9 @@ Domain usage is more of a way to organize code than strict boundaries. Cross-dom
     - This helps avoiding name conflicts with the domain name itself (e.g., `UserOrchestrator` could be confused with user domain)
 
 ### Service Layer
-- Services live in `src/services/`
-  - One service per domain (e.g., Auth) or specialization (e.g., Password) with multiple methods
+- Services live in `src/services/<domain>/`
+  - One struct per action (e.g., `CreateUserService`, `UpdateUserService`, etc
+  - Each service has a single static public method named `run(...)`
 - Services contain core business logic and can interact with the database layer via Query objects
   - Services should not contain SQL queries directly; if a query doesn't exist, create a new Query object in `src/queries/`
 - Services can also call other services as needed
