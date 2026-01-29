@@ -12,7 +12,7 @@ use crate::database::Database;
 use crate::models::{Role, User};
 use crate::queries::roles::{CreateRoleData, CreateRoleQuery, GetDefaultRoleQuery};
 use crate::queries::users::{CreateUserData, CreateUserQuery};
-use crate::services::password_service::PasswordService;
+use crate::services::GeneratePasswordHashService;
 use sqlx::{SqliteConnection, SqlitePool};
 use tempfile::NamedTempFile;
 use uuid::Uuid;
@@ -147,7 +147,7 @@ pub async fn create_test_user_full(
     role_id
   };
 
-  let password_hash = PasswordService::generate(password).unwrap();
+  let password_hash = GeneratePasswordHashService::run(password).unwrap();
   let metadata_json_str = metadata_json.map(|v| v.to_string());
   let create_data = CreateUserData {
     uuid: Uuid::new_v4().to_string(),
@@ -201,7 +201,7 @@ pub async fn create_test_user_with_uuid(
     role_id
   };
 
-  let password_hash = PasswordService::generate(password).unwrap();
+  let password_hash = GeneratePasswordHashService::run(password).unwrap();
   let metadata_json_str = metadata_json.map(|v| v.to_string());
   let create_data = CreateUserData {
     uuid: uuid.to_string(),

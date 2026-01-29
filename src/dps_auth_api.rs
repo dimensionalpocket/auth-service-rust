@@ -1,4 +1,5 @@
 use crate::graphql::schema::AppSchema;
+use crate::services::{LogShutdownStartService, WaitForShutdownSignalService};
 use axum::{middleware::from_fn, routing::get, Router};
 use std::sync::Arc;
 use tokio::net::TcpListener;
@@ -182,9 +183,8 @@ impl DpsAuthApi {
 
   fn create_shutdown_handler(&self) -> impl std::future::Future<Output = ()> {
     async {
-      let signal_name =
-        crate::services::shutdown_service::ShutdownService::wait_for_shutdown_signal().await;
-      crate::services::shutdown_service::ShutdownService::log_shutdown_start(signal_name);
+      let signal_name = WaitForShutdownSignalService::run().await;
+      LogShutdownStartService::run(signal_name);
     }
   }
 

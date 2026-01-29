@@ -104,7 +104,7 @@ impl UpdateUserQuery {
 mod tests {
   use super::*;
   use crate::queries::users::{CreateUserData, CreateUserQuery};
-  use crate::services::PasswordService;
+  use crate::services::GeneratePasswordHashService;
   use crate::test_utils::{create_test_database, create_test_role_model_with_pool};
 
   #[tokio::test]
@@ -117,7 +117,7 @@ mod tests {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
       role_id: None,
-      password_hash: PasswordService::generate("password123").unwrap(),
+      password_hash: GeneratePasswordHashService::run("password123").unwrap(),
       metadata_json: None,
     };
     let user = {
@@ -159,7 +159,7 @@ mod tests {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
       role_id: None,
-      password_hash: PasswordService::generate("password123").unwrap(),
+      password_hash: GeneratePasswordHashService::run("password123").unwrap(),
       metadata_json: None,
     };
     let user = {
@@ -199,7 +199,7 @@ mod tests {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
       role_id: None,
-      password_hash: PasswordService::generate("password123").unwrap(),
+      password_hash: GeneratePasswordHashService::run("password123").unwrap(),
       metadata_json: None,
     };
     let user = {
@@ -208,7 +208,7 @@ mod tests {
     };
 
     // Test: Update only password
-    let new_password_hash = PasswordService::generate("newpassword456").unwrap();
+    let new_password_hash = GeneratePasswordHashService::run("newpassword456").unwrap();
     let update_data = UpdateUserData {
       id: user.id,
       name: None,
@@ -243,7 +243,7 @@ mod tests {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
       role_id: None,
-      password_hash: PasswordService::generate("password123").unwrap(),
+      password_hash: GeneratePasswordHashService::run("password123").unwrap(),
       metadata_json: None,
     };
     let user = {
@@ -252,7 +252,7 @@ mod tests {
     };
 
     // Test: Update multiple fields
-    let new_password_hash = PasswordService::generate("newpassword456").unwrap();
+    let new_password_hash = GeneratePasswordHashService::run("newpassword456").unwrap();
     let update_data = UpdateUserData {
       id: user.id,
       name: Some("updateduser".to_string()),
@@ -286,7 +286,7 @@ mod tests {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
       role_id: None, // Will use default role (id=1)
-      password_hash: PasswordService::generate("password123").unwrap(),
+      password_hash: GeneratePasswordHashService::run("password123").unwrap(),
       metadata_json: None,
     };
     let user = {
@@ -326,7 +326,7 @@ mod tests {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
       role_id: None,
-      password_hash: PasswordService::generate("password123").unwrap(),
+      password_hash: GeneratePasswordHashService::run("password123").unwrap(),
       metadata_json: None,
     };
     let user = {
@@ -388,7 +388,7 @@ mod tests {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
       role_id: None,
-      password_hash: PasswordService::generate("password123").unwrap(),
+      password_hash: GeneratePasswordHashService::run("password123").unwrap(),
       metadata_json: Some(r#"{"key": "value"}"#.to_string()),
     };
     let user = {
@@ -428,7 +428,7 @@ mod tests {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
       role_id: None,
-      password_hash: PasswordService::generate("password123").unwrap(),
+      password_hash: GeneratePasswordHashService::run("password123").unwrap(),
       metadata_json: Some(r#"{"key": "value"}"#.to_string()),
     };
     let user = {
@@ -472,7 +472,7 @@ mod tests {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
       role_id: None,
-      password_hash: PasswordService::generate("password123").unwrap(),
+      password_hash: GeneratePasswordHashService::run("password123").unwrap(),
       metadata_json: Some(r#"{"key": "value"}"#.to_string()),
     };
     let user = {

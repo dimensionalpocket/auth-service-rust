@@ -1,5 +1,4 @@
-use crate::services::auth_service::RegisterResult;
-use crate::services::{AuthService, CookieService};
+use crate::services::{AuthRegisterService, GenerateSessionCookieService, RegisterResult};
 use crate::types::SessionError;
 use crate::DpsAuthApiConfig;
 use sqlx::{Pool, Sqlite};
@@ -19,7 +18,7 @@ impl AuthRegisterOrchestrator {
       .await
       .map_err(|e| SessionError::DatabaseError(e.to_string()))?;
 
-    let auth_result = AuthService::register(
+    let auth_result = AuthRegisterService::run(
       &mut conn,
       username,
       password,
@@ -29,7 +28,7 @@ impl AuthRegisterOrchestrator {
     .await
     .map_err(|e| SessionError::AuthenticationError(e.to_string()))?;
 
-    let cookie_value = CookieService::generate_session_cookie(config, &auth_result.session_token);
+    let cookie_value = GenerateSessionCookieService::run(config, &auth_result.session_token);
 
     Ok((auth_result, cookie_value))
   }

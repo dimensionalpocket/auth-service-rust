@@ -77,7 +77,7 @@ fn map_session_error_to_user_message(error: &SessionError) -> &'static str {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::services::UserService;
+  use crate::services::CreateUserService;
   use crate::test_utils::{
     create_test_database, create_test_mutation_schema, create_test_role_model,
   };
@@ -96,7 +96,7 @@ mod tests {
     {
       let mut conn = pool.acquire().await.unwrap();
       create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
-      UserService::create_user(&mut conn, "testuser", "password123")
+      CreateUserService::run(&mut conn, "testuser", "password123")
         .await
         .unwrap();
     }

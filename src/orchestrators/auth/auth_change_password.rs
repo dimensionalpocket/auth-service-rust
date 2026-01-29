@@ -1,7 +1,7 @@
 use crate::middleware::session::SessionContext;
 use crate::models::User;
 use crate::queries::users::GetUserByIdQuery;
-use crate::services::UserService;
+use crate::services::UpdateUserPasswordService;
 use crate::types::UserError;
 use sqlx::SqlitePool;
 
@@ -29,7 +29,7 @@ impl AuthChangePasswordOrchestrator {
       .await?
       .ok_or(UserError::UserNotFound(user_id))?;
 
-    UserService::update_password(
+    UpdateUserPasswordService::run(
       &mut conn,
       user_id,
       current_password,

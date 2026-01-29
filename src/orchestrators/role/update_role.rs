@@ -2,7 +2,7 @@ use crate::middleware::session::SessionContext;
 use crate::models::role::Role;
 use crate::queries::roles::UpdateRoleData;
 use crate::queries::users::GetUserByIdQuery;
-use crate::services::role_service::RoleService;
+use crate::services::{CheckUserPermissionService, UpdateRoleService};
 use crate::types::RoleError;
 use sqlx::SqlitePool;
 
@@ -37,14 +37,14 @@ impl UpdateRoleOrchestrator {
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
     let can_manage_roles =
-      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?;
+      CheckUserPermissionService::run(&mut conn, &user, "can_manage_roles").await?;
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Update role
-    RoleService::update_role(&mut conn, role_id, update_data).await
+    UpdateRoleService::run(&mut conn, role_id, update_data).await
   }
 }
 

@@ -1,7 +1,7 @@
 use crate::middleware::session::SessionContext;
 use crate::models::user::UserWithRole;
 use crate::queries::users::{GetUserByIdQuery, GetUserByIdWithRoleQuery};
-use crate::services::RoleService;
+use crate::services::CheckUserPermissionService;
 use crate::types::UserError;
 use sqlx::SqlitePool;
 
@@ -27,7 +27,7 @@ impl GetUserOrchestrator {
       .ok_or(UserError::UserNotFound(user_id))?;
 
     let allowed =
-      RoleService::check_user_permission(&mut conn, &user, "can_view_user_details").await?;
+      CheckUserPermissionService::run(&mut conn, &user, "can_view_user_details").await?;
 
     if !allowed {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));

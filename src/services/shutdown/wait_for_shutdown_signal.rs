@@ -1,12 +1,10 @@
 use tokio::signal;
 use tracing::info;
 
-pub struct ShutdownService;
+pub struct WaitForShutdownSignalService;
 
-impl ShutdownService {
-  /// Wait for shutdown signals (SIGTERM or SIGINT)
-  /// Returns the name of the signal that was received
-  pub async fn wait_for_shutdown_signal() -> &'static str {
+impl WaitForShutdownSignalService {
+  pub async fn run() -> &'static str {
     let ctrl_c = async {
       signal::ctrl_c()
         .await
@@ -34,11 +32,5 @@ impl ShutdownService {
         "SIGTERM"
       }
     }
-  }
-
-  /// Log the shutdown initiation - the actual graceful shutdown is handled by axum
-  pub fn log_shutdown_start(signal_name: &str) {
-    info!("Starting graceful shutdown due to {} signal", signal_name);
-    info!("Waiting for existing connections to complete...");
   }
 }

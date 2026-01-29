@@ -1,8 +1,7 @@
 use crate::middleware::session::SessionContext;
 use crate::queries::sites::UpdateSiteData;
 use crate::queries::users::GetUserByIdQuery;
-use crate::services::RoleService;
-use crate::services::SiteService;
+use crate::services::{CheckUserPermissionService, UpdateSiteService};
 use crate::types::SiteError;
 use sqlx::SqlitePool;
 
@@ -30,14 +29,14 @@ impl UpdateSiteOrchestrator {
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = RoleService::check_user_permission(&mut conn, &user, "can_update_site").await?;
+    let allowed = CheckUserPermissionService::run(&mut conn, &user, "can_update_site").await?;
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Update site
-    SiteService::update_site(&mut conn, site_id, update_data).await
+    UpdateSiteService::run(&mut conn, site_id, update_data).await
   }
 }
 

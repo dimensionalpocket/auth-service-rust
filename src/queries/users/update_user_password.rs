@@ -57,7 +57,7 @@ impl UpdateUserPasswordQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::services::PasswordService;
+  use crate::services::GeneratePasswordHashService;
   use crate::test_utils::{
     create_test_database, create_test_role_model_with_pool, create_test_user_full_with_pool,
   };
@@ -72,7 +72,7 @@ mod tests {
       &pool,
       "test-uuid",
       None,
-      &PasswordService::generate("oldpassword").unwrap(),
+      &GeneratePasswordHashService::run("oldpassword").unwrap(),
       None,
     )
     .await;
@@ -81,7 +81,7 @@ mod tests {
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
     // Test: Update password
-    let new_password_hash = PasswordService::generate("newpassword").unwrap();
+    let new_password_hash = GeneratePasswordHashService::run("newpassword").unwrap();
     let update_data = UpdateUserPasswordData {
       password_hash: new_password_hash,
     };
@@ -104,7 +104,7 @@ mod tests {
 
     // Test: Try to update password for non-existent user
     let update_data = UpdateUserPasswordData {
-      password_hash: PasswordService::generate("newpassword").unwrap(),
+      password_hash: GeneratePasswordHashService::run("newpassword").unwrap(),
     };
 
     let mut conn = pool.acquire().await.unwrap();
@@ -124,14 +124,14 @@ mod tests {
       &pool,
       "test-uuid",
       None,
-      &PasswordService::generate("oldpassword").unwrap(),
+      &GeneratePasswordHashService::run("oldpassword").unwrap(),
       None,
     )
     .await;
 
     // Test: Update password
     let update_data = UpdateUserPasswordData {
-      password_hash: PasswordService::generate("newpassword").unwrap(),
+      password_hash: GeneratePasswordHashService::run("newpassword").unwrap(),
     };
 
     let mut conn = pool.acquire().await.unwrap();

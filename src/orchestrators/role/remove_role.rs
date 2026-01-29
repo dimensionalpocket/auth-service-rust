@@ -1,7 +1,7 @@
 use crate::middleware::session::SessionContext;
 use crate::models::role::Role;
 use crate::queries::users::GetUserByIdQuery;
-use crate::services::role_service::RoleService;
+use crate::services::{CheckUserPermissionService, DeleteRoleService};
 use crate::types::RoleError;
 use sqlx::SqlitePool;
 
@@ -35,14 +35,14 @@ impl RemoveRoleOrchestrator {
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
     let can_manage_roles =
-      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?;
+      CheckUserPermissionService::run(&mut conn, &user, "can_manage_roles").await?;
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Delete role
-    RoleService::delete_role(&mut conn, role_id).await
+    DeleteRoleService::run(&mut conn, role_id).await
   }
 }
 
@@ -51,7 +51,7 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::queries::users::GetUserByIdQuery;
-  use crate::services::role_service::RoleService;
+  use crate::services::GetRoleByIdService;
   use crate::test_utils::{
     create_test_database, create_test_role_with_pool, create_test_user_with_pool,
   };
@@ -87,7 +87,7 @@ mod tests {
 
     // Verify role is actually deleted
     let mut conn = pool.acquire().await.unwrap();
-    let check_result = RoleService::get_role_by_id(&mut conn, test_role_id).await;
+    let check_result = GetRoleByIdService::run(&mut conn, test_role_id).await;
     assert!(check_result.is_ok());
     assert!(check_result.unwrap().is_none());
   }
@@ -243,7 +243,7 @@ mod tests {
 
     // Verify the role still exists
     let mut conn = pool.acquire().await.unwrap();
-    let check_role = RoleService::get_role_by_id(&mut conn, test_role_id).await;
+    let check_role = GetRoleByIdService::run(&mut conn, test_role_id).await;
     assert!(check_role.is_ok());
     assert!(check_role.unwrap().is_some());
   }
@@ -268,7 +268,7 @@ mod tests {
     // Get the role data before deletion for comparison
     let role_before = {
       let mut conn = pool.acquire().await.unwrap();
-      RoleService::get_role_by_id(&mut conn, test_role_id)
+      GetRoleByIdService::run(&mut conn, test_role_id)
         .await
         .unwrap()
         .unwrap()

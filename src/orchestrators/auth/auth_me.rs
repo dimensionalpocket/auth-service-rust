@@ -1,5 +1,5 @@
 use crate::middleware::session::SessionContext;
-use crate::services::AuthService;
+use crate::services::AuthGetCurrentUserService;
 use crate::types::SessionError;
 use sqlx::SqlitePool;
 
@@ -16,7 +16,7 @@ impl AuthMeOrchestrator {
           .acquire()
           .await
           .map_err(|e| SessionError::DatabaseError(e.to_string()))?;
-        AuthService::get_current_user(&mut conn, &session_context)
+        AuthGetCurrentUserService::run(&mut conn, &session_context)
           .await
           .map(Some)
       }

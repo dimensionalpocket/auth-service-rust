@@ -1,8 +1,7 @@
 use crate::middleware::session::SessionContext;
 use crate::queries::sites::CreateSiteData;
 use crate::queries::users::GetUserByIdQuery;
-use crate::services::RoleService;
-use crate::services::SiteService;
+use crate::services::{CheckUserPermissionService, CreateSiteService};
 use crate::types::SiteError;
 use sqlx::SqlitePool;
 
@@ -29,14 +28,14 @@ impl AddSiteOrchestrator {
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = RoleService::check_user_permission(&mut conn, &user, "can_create_site").await?;
+    let allowed = CheckUserPermissionService::run(&mut conn, &user, "can_create_site").await?;
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Create site
-    SiteService::create_site(&mut conn, create_data).await
+    CreateSiteService::run(&mut conn, create_data).await
   }
 }
 

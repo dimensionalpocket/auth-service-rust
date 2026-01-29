@@ -1,7 +1,7 @@
 use crate::middleware::session::SessionContext;
 use crate::models::role::ROLE_PERMISSIONS;
 use crate::queries::users::GetUserByIdQuery;
-use crate::services::role_service::RoleService;
+use crate::services::CheckUserPermissionService;
 use crate::types::RoleError;
 use sqlx::SqlitePool;
 
@@ -43,10 +43,9 @@ impl GetRolePermissionsOrchestrator {
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
     // Check permissions using scoped connection
-    let allowed = RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?;
+    let allowed = CheckUserPermissionService::run(&mut conn, &user, "can_manage_roles").await?;
     let can_manage_admin =
-      RoleService::check_user_permission(&mut conn, &user, "can_manage_admin_role_permission")
-        .await?;
+      CheckUserPermissionService::run(&mut conn, &user, "can_manage_admin_role_permission").await?;
 
     if !allowed {
       return Err(RoleError::AuthorizationError(

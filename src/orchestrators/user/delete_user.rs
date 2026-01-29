@@ -1,6 +1,6 @@
 use crate::middleware::session::SessionContext;
 use crate::queries::users::GetUserByIdQuery;
-use crate::services::{RoleService, UserService};
+use crate::services::{CheckUserPermissionService, DeleteUserService};
 use crate::types::UserError;
 use sqlx::SqlitePool;
 
@@ -25,7 +25,7 @@ impl DeleteUserOrchestrator {
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
 
-    let allowed = RoleService::check_user_permission(&mut conn, &user, "can_delete_user").await?;
+    let allowed = CheckUserPermissionService::run(&mut conn, &user, "can_delete_user").await?;
 
     if !allowed {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));
@@ -35,7 +35,7 @@ impl DeleteUserOrchestrator {
       return Err(UserError::SelfDeletion);
     }
 
-    let deleted = UserService::delete_user(&mut conn, target_user_id).await?;
+    let deleted = DeleteUserService::run(&mut conn, target_user_id).await?;
 
     if !deleted {
       return Err(UserError::UserNotFound(target_user_id));

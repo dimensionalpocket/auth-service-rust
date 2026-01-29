@@ -1,7 +1,7 @@
 use crate::middleware::session::SessionContext;
 use crate::queries::sites::GetSiteByIdQuery;
 use crate::queries::users::GetUserByIdQuery;
-use crate::services::RoleService;
+use crate::services::CheckUserPermissionService;
 use crate::types::SiteError;
 use sqlx::SqlitePool;
 
@@ -29,7 +29,7 @@ impl GetSiteOrchestrator {
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
     let allowed =
-      RoleService::check_user_permission(&mut conn, &user, "can_view_site_details").await?;
+      CheckUserPermissionService::run(&mut conn, &user, "can_view_site_details").await?;
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));

@@ -1,0 +1,35 @@
+use crate::models::role::Role;
+use crate::queries::roles::GetRoleByNameQuery;
+use crate::types::RoleError;
+use sqlx::SqliteConnection;
+
+pub struct GetRoleByNameService;
+
+impl GetRoleByNameService {
+  pub async fn run(conn: &mut SqliteConnection, name: &str) -> Result<Option<Role>, RoleError> {
+    GetRoleByNameQuery::run(conn, name)
+      .await
+      .map_err(RoleError::DatabaseError)
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::test_utils::{create_test_database, create_test_role_model_with_pool};
+
+  #[tokio::test]
+  async fn test_get_role_by_name_delegates_to_query() {
+    let (pool, _temp_file) = create_test_database().await;
+
+    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+
+    let mut conn = pool.acquire().await.unwrap();
+    let role = GetRoleByNameService::run(&mut conn, "user").await.unwrap();
+
+    assert!(role.is_some());
+    let role = role.unwrap();
+    assert_eq!(role.name, "user");
+    assert!(role.has_permission("can_view_user_self"));
+  }
+}

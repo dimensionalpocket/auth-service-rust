@@ -2,7 +2,7 @@ use crate::middleware::session::SessionContext;
 use crate::models::role::Role;
 use crate::queries::roles::CreateRoleData;
 use crate::queries::users::GetUserByIdQuery;
-use crate::services::role_service::RoleService;
+use crate::services::{CheckUserPermissionService, CreateRoleService};
 use crate::types::RoleError;
 use sqlx::SqlitePool;
 
@@ -36,7 +36,7 @@ impl AddRoleOrchestrator {
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
     let can_manage_roles =
-      RoleService::check_user_permission(&mut conn, &user, "can_manage_roles").await?;
+      CheckUserPermissionService::run(&mut conn, &user, "can_manage_roles").await?;
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
@@ -47,7 +47,7 @@ impl AddRoleOrchestrator {
       permissions: create_data.permissions,
       is_default: false,
     };
-    RoleService::create_role(&mut conn, create_data_with_default_false).await
+    CreateRoleService::run(&mut conn, create_data_with_default_false).await
   }
 }
 

@@ -216,10 +216,10 @@ async fn test_http_logging_404_request_logged() {
 #[tracing_test::traced_test]
 #[test]
 fn test_log_shutdown_start_logs_correct_message() {
-  use dps_auth_api::services::shutdown_service::ShutdownService;
+  use dps_auth_api::services::LogShutdownStartService;
 
   // Test that log_shutdown_start logs expected messages
-  ShutdownService::log_shutdown_start("SIGTERM");
+  LogShutdownStartService::run("SIGTERM");
 
   // Verify log messages were written
   assert!(logs_contain(
@@ -233,10 +233,10 @@ fn test_log_shutdown_start_logs_correct_message() {
 #[tracing_test::traced_test]
 #[test]
 fn test_log_shutdown_start_with_sigint() {
-  use dps_auth_api::services::shutdown_service::ShutdownService;
+  use dps_auth_api::services::LogShutdownStartService;
 
   // Test with SIGINT signal
-  ShutdownService::log_shutdown_start("SIGINT");
+  LogShutdownStartService::run("SIGINT");
 
   // Verify log messages were written
   assert!(logs_contain(
@@ -250,10 +250,10 @@ fn test_log_shutdown_start_with_sigint() {
 #[tracing_test::traced_test]
 #[test]
 fn test_log_shutdown_start_with_custom_signal() {
-  use dps_auth_api::services::shutdown_service::ShutdownService;
+  use dps_auth_api::services::LogShutdownStartService;
 
   // Test with a custom signal name
-  ShutdownService::log_shutdown_start("TEST_SIGNAL");
+  LogShutdownStartService::run("TEST_SIGNAL");
 
   // Verify log messages were written
   assert!(logs_contain(

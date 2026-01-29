@@ -89,7 +89,7 @@ impl AuthChangePasswordResolver {
 mod tests {
   use super::*;
   use crate::middleware::session::{SessionContext, SessionPayload};
-  use crate::services::{AuthService, UserService};
+  use crate::services::{AuthLoginService, CreateUserService};
   use crate::test_utils::{
     create_test_database, create_test_mutation_schema, create_test_role_model,
   };
@@ -107,12 +107,12 @@ mod tests {
     password: &str,
   ) -> (SessionContext, i64) {
     // Create user
-    let user = UserService::create_user(conn, username, password)
+    let user = CreateUserService::run(conn, username, password)
       .await
       .unwrap();
 
     // Create session (we don't need the result for this test)
-    let _auth_result = AuthService::login(conn, username, password, TEST_SECRET)
+    let _auth_result = AuthLoginService::run(conn, username, password, TEST_SECRET)
       .await
       .unwrap();
 

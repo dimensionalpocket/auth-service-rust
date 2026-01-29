@@ -1,7 +1,6 @@
 use crate::middleware::session::SessionContext;
 use crate::queries::users::GetUserByIdQuery;
-use crate::services::RoleService;
-use crate::services::SiteService;
+use crate::services::{CheckUserPermissionService, DeleteSiteService};
 use crate::types::SiteError;
 use sqlx::SqlitePool;
 
@@ -28,14 +27,14 @@ impl RemoveSiteOrchestrator {
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = RoleService::check_user_permission(&mut conn, &user, "can_delete_site").await?;
+    let allowed = CheckUserPermissionService::run(&mut conn, &user, "can_delete_site").await?;
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Delete site
-    SiteService::delete_site(&mut conn, site_id).await
+    DeleteSiteService::run(&mut conn, site_id).await
   }
 }
 

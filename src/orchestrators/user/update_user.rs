@@ -1,6 +1,6 @@
 use crate::middleware::session::SessionContext;
 use crate::queries::users::{GetUserByIdQuery, UpdateUserData};
-use crate::services::{RoleService, UserService};
+use crate::services::{CheckUserPermissionService, UpdateUserService};
 use crate::types::{user::update_user_input::UpdateUserInput, UserError};
 use sqlx::SqlitePool;
 
@@ -25,7 +25,7 @@ impl UpdateUserOrchestrator {
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
 
-    let allowed = RoleService::check_user_permission(&mut conn, &user, "can_edit_user").await?;
+    let allowed = CheckUserPermissionService::run(&mut conn, &user, "can_edit_user").await?;
 
     if !allowed {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));
@@ -59,7 +59,7 @@ impl UpdateUserOrchestrator {
     };
 
     let _updated_user =
-      UserService::update_user(&mut conn, input.id, update_data, password_to_update).await?;
+      UpdateUserService::run(&mut conn, input.id, update_data, password_to_update).await?;
 
     crate::queries::users::GetUserByIdWithRoleQuery::run(&mut conn, input.id)
       .await

@@ -1,4 +1,4 @@
-use crate::services::ServerService;
+use crate::services::GetServerTimestampService;
 use async_graphql::{Object, Result};
 use tracing::instrument;
 
@@ -24,7 +24,7 @@ impl ServerTimestampResolver {
   #[instrument]
   #[graphql(name = "serverTimestamp")]
   async fn server_timestamp(&self) -> Result<String> {
-    let timestamp = ServerService::get_server_timestamp();
+    let timestamp = GetServerTimestampService::run();
     Ok(timestamp.to_string())
   }
 }
