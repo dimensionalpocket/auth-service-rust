@@ -5,11 +5,11 @@ use std::fs;
 
 static MIGRATOR: Migrator = sqlx::migrate!("./config/database/migrations");
 
-pub struct Database {
+pub struct MainDatabase {
   pub pool: SqlitePool,
 }
 
-impl Database {
+impl MainDatabase {
   pub async fn new(sqlite_file_path: &str) -> Result<Self, sqlx::Error> {
     Self::new_with_pool_size(sqlite_file_path, None).await
   }
@@ -44,7 +44,7 @@ impl Database {
     println!("🔧 Configuring SQLite database: {sqlite_file_path}");
     Self::configure_sqlite(&pool).await?;
 
-    Ok(Database { pool })
+    Ok(MainDatabase { pool })
   }
 
   /// SQLite PRAGMA commands for optimal performance and data integrity
@@ -362,7 +362,7 @@ mod tests {
     // Create a test database without migrations
     let temp_file = NamedTempFile::new().expect("Failed to create temp file");
     let sqlite_file_path = temp_file.path().display().to_string();
-    let database = Database::new(&sqlite_file_path)
+    let database = MainDatabase::new(&sqlite_file_path)
       .await
       .expect("Failed to create test database");
 
@@ -420,7 +420,7 @@ mod tests {
     // Create a test database without migrations
     let temp_file = NamedTempFile::new().expect("Failed to create temp file");
     let sqlite_file_path = temp_file.path().display().to_string();
-    let database = Database::new(&sqlite_file_path)
+    let database = MainDatabase::new(&sqlite_file_path)
       .await
       .expect("Failed to create test database");
 
@@ -464,7 +464,7 @@ mod tests {
     // Create a test database without migrations
     let temp_file = NamedTempFile::new().expect("Failed to create temp file");
     let sqlite_file_path = temp_file.path().display().to_string();
-    let database = Database::new(&sqlite_file_path)
+    let database = MainDatabase::new(&sqlite_file_path)
       .await
       .expect("Failed to create test database");
 
@@ -507,7 +507,7 @@ mod tests {
     // Create a test database without migrations
     let temp_file = NamedTempFile::new().expect("Failed to create temp file");
     let sqlite_file_path = temp_file.path().display().to_string();
-    let database = Database::new(&sqlite_file_path)
+    let database = MainDatabase::new(&sqlite_file_path)
       .await
       .expect("Failed to create test database");
 
@@ -530,7 +530,7 @@ mod tests {
     // Create a test database without migrations
     let temp_file = NamedTempFile::new().expect("Failed to create temp file");
     let sqlite_file_path = temp_file.path().display().to_string();
-    let database = Database::new(&sqlite_file_path)
+    let database = MainDatabase::new(&sqlite_file_path)
       .await
       .expect("Failed to create test database");
 
@@ -590,7 +590,7 @@ mod tests {
     // Create test database and run migrations
     let temp_file = NamedTempFile::new().expect("Failed to create temp file");
     let sqlite_file_path = temp_file.path().display().to_string();
-    let database = Database::new(&sqlite_file_path)
+    let database = MainDatabase::new(&sqlite_file_path)
       .await
       .expect("Failed to create test database");
 
@@ -637,7 +637,7 @@ mod tests {
 
     let temp_file = NamedTempFile::new().expect("Failed to create temp file");
     let sqlite_file_path = temp_file.path().display().to_string();
-    let database = Database::new(&sqlite_file_path)
+    let database = MainDatabase::new(&sqlite_file_path)
       .await
       .expect("Failed to create test database");
 
@@ -675,7 +675,7 @@ mod tests {
 
     let temp_file = NamedTempFile::new().expect("Failed to create temp file");
     let sqlite_file_path = temp_file.path().display().to_string();
-    let database = Database::new(&sqlite_file_path)
+    let database = MainDatabase::new(&sqlite_file_path)
       .await
       .expect("Failed to create test database");
 
@@ -723,7 +723,7 @@ mod tests {
 
     let temp_file = NamedTempFile::new().expect("Failed to create temp file");
     let sqlite_file_path = temp_file.path().display().to_string();
-    let database = Database::new(&sqlite_file_path)
+    let database = MainDatabase::new(&sqlite_file_path)
       .await
       .expect("Failed to create test database");
 

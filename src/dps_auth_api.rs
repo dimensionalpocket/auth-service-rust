@@ -9,6 +9,7 @@ use tower_http::{
   trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
 };
 use tracing::Level;
+use crate::database::MainDatabase;
 
 #[derive(Debug)]
 pub struct DpsAuthApi {
@@ -147,8 +148,8 @@ impl DpsAuthApi {
 
   /// Initialize database connection only (no migrations or seeds).
   /// This method is public for test usage.
-  pub async fn initialize_database(&self) -> Result<crate::database::Database, DpsAuthApiError> {
-    crate::database::Database::new_with_pool_size(
+  pub async fn initialize_database(&self) -> Result<crate::database::MainDatabase, DpsAuthApiError> {
+    MainDatabase::new_with_pool_size(
       &self.config.sqlite_main_file_path,
       Some(self.config.sqlite_main_pool_size as u32),
     )
@@ -633,7 +634,7 @@ mod tests {
     let database = result.unwrap();
     assert_eq!(
       std::any::type_name_of_val(&database),
-      "dps_auth_api::database::database::Database"
+      "dps_auth_api::database::database::MainDatabase"
     );
   }
 

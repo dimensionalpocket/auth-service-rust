@@ -1,6 +1,6 @@
 use clap::Parser;
 use dps_auth_api::migration_config::{CliArgs, MigrationConfig};
-use dps_auth_api::Database;
+use dps_auth_api::MainDatabase;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -20,15 +20,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   println!();
 
   // Initialize database
-  let database = Database::new(&config.sqlite_file.display().to_string()).await?;
+  let main_database = MainDatabase::new(&config.sqlite_file.display().to_string()).await?;
 
   // Handle revert mode
   if let Some(steps) = config.revert {
     println!("⏮️  Revert mode enabled");
-    database.revert(steps).await?;
+    main_database.revert(steps).await?;
 
     // Regenerate schema dump after revert
-    database
+    main_database
       .dump_schema_to_file("config/database/schema.sql")
       .await?;
 
@@ -37,19 +37,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   }
 
   // Run migrations (always use library's internal migrations)
-  database.migrate().await?;
+  main_database.migrate().await?;
   println!("✅ Migrations completed successfully");
 
   // Run seeds (if not skipped)
   if !config.skip_seeds {
-    database.seed().await?;
+    main_database.seed().await?;
     println!("✅ Seeds completed successfully");
   } else {
     println!("⏭️  Skipping seeds (disabled by configuration)");
   }
 
   // Generate schema dump (always to library's internal location)
-  database
+  main_database
     .dump_schema_to_file("config/database/schema.sql")
     .await?;
 

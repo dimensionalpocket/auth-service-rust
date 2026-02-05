@@ -8,9 +8,14 @@ Analysis of current database pool usage in GraphQL contexts and plan for support
 
 ## Current State Analysis
 
+### Database Module Layout
+
+- `src/database/mod.rs` is now a thin module that re-exports `Database`.
+- `Database` itself lives in `src/database/database.rs`.
+
 ### Database Pool Injection Flow
 
-1. **Database Initialization** (`src/database/mod.rs`):
+1. **Database Initialization** (`src/database/database.rs`):
    - `Database` struct contains a single `pub pool: SqlitePool`
    - Pool is created via `Database::new()` or `Database::new_with_pool_size()`
    - Pool is configured with SQLite PRAGMA settings (WAL mode, foreign keys, etc.)
@@ -98,7 +103,7 @@ Analysis of current database pool usage in GraphQL contexts and plan for support
 Create a `DatabaseRegistry` struct that manages multiple named database pools:
 
 ```rust
-// src/database/mod.rs - Add new struct
+// src/database/database_registry.rs - New module
 
 /// Registry for managing multiple database pools
 #[derive(Clone)]
@@ -136,7 +141,7 @@ impl DatabaseRegistry {
 Create an enum to specify which database to use:
 
 ```rust
-// src/database/mod.rs
+// src/database/database_registry.rs
 
 /// Database identifier
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -156,6 +161,18 @@ impl DatabaseName {
     }
   }
 }
+```
+
+Module wiring (so callers can `use crate::database::DatabaseRegistry;`):
+
+```rust
+// src/database/mod.rs
+
+pub mod database;
+pub mod database_registry;
+
+pub use database::Database;
+pub use database_registry::{DatabaseName, DatabaseRegistry};
 ```
 
 ### Updated Schema Building
@@ -282,7 +299,8 @@ pub async fn run(
 
 ### Phase 1: Create DatabaseRegistry Infrastructure
 **Files to Modify**:
-- `src/database/mod.rs` - Add `DatabaseRegistry` and `DatabaseName` types
+- `src/database/database_registry.rs` - New file containing `DatabaseRegistry` and `DatabaseName`
+- `src/database/mod.rs` - Export the new module/types
 
 **Implementation Details**:
 1. Add `DatabaseRegistry` struct with `HashMap<String, SqlitePool>`
