@@ -634,7 +634,7 @@ mod tests {
     let database = result.unwrap();
     assert_eq!(
       std::any::type_name_of_val(&database),
-      "dps_auth_api::database::database::MainDatabase"
+      "dps_auth_api::database::main_database::MainDatabase"
     );
   }
 

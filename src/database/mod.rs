@@ -1,3 +1,3 @@
-pub mod database;
+pub mod main_database;
 
-pub use database::MainDatabase;
+pub use main_database::MainDatabase;
