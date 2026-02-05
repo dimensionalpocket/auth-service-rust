@@ -22,7 +22,7 @@ COPY --from=builder /app/target/release/run_local_server /app/dps-auth-api
 COPY --from=builder /app/target/release/dps-auth-api-migrate /app/dps-auth-api-migrate
 
 # Copy database configuration (migrations, seeds, schema)
-COPY --from=builder /app/config/database /app/config/database
+COPY --from=builder /app/config/databases /app/config/databases
 
 # Copy startup script (will be made executable before copying)
 COPY start.sh /app/start.sh

@@ -29,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Regenerate schema dump after revert
     main_database
-      .dump_schema_to_file("config/database/schema.sql")
+      .dump_schema_to_file("config/databases/main/schema.sql")
       .await?;
 
     println!("🎉 Migration revert completed successfully!");
@@ -50,7 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
   // Generate schema dump (always to library's internal location)
   main_database
-    .dump_schema_to_file("config/database/schema.sql")
+    .dump_schema_to_file("config/databases/main/schema.sql")
     .await?;
 
   println!("🎉 dps-auth-api database migration completed successfully!");

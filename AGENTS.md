@@ -132,9 +132,14 @@ Domain usage is more of a way to organize code than strict boundaries. Cross-dom
 - Query objects work with a database connection (not a pool)
   - Alternatively, a transaction can be passed to the query if the caller has an active transaction
 - The objects returned by queries (models) live in `src/models/`
-- The Database instance is managed by `Database` struct in `src/database/mod.rs`
+- The project uses multiple databases:
+  - The "main" database for core data (users, roles, sites, etc)
+  - A separate "session" database for session management (not yet implemented)
+  - A separate "collection" database for collection data (not yet implemented)
+- The Database instances are managed by `*Database` structs in `src/database/` folder.
+  - There are (will be) multiple database structs: `MainDatabase`, `SessionDatabase`, and `CollectionDatabase`.
 - Use async/await for database operations
-- Database migrations live in `config/database/migrations`
+- Database migrations live in `config/databases/<database_name>/migrations`
   - Each migration has two files: `.sql` (forward) and `.down.sql` (rollback)
   - Migration files contain native SQL code
 

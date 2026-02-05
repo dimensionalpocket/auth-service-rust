@@ -3,7 +3,7 @@ use sqlx::{migrate::MigrateDatabase, sqlite::SqlitePoolOptions, Row, Sqlite, Sql
 use std::collections::HashSet;
 use std::fs;
 
-static MIGRATOR: Migrator = sqlx::migrate!("./config/database/migrations");
+static MIGRATOR: Migrator = sqlx::migrate!("./config/databases/main/migrations");
 
 pub struct MainDatabase {
   pub pool: SqlitePool,
@@ -217,7 +217,7 @@ impl MainDatabase {
   }
 
   pub async fn seed(&self) -> Result<(), Box<dyn std::error::Error>> {
-    let seeds_dir = "config/database/seeds";
+    let seeds_dir = "config/databases/main/seeds";
 
     // Check if seeds directory exists
     if !std::path::Path::new(seeds_dir).exists() {
