@@ -1,7 +1,8 @@
+use crate::database::sqlite_database::SqliteDatabaseCore;
+use crate::types::Database;
 use sqlx::migrate::Migrator;
-use sqlx::{migrate::MigrateDatabase, sqlite::SqlitePoolOptions, Row, Sqlite, SqlitePool};
-use std::collections::HashSet;
-use std::fs;
+use sqlx::Row;
+use sqlx::SqlitePool;
 
 static MIGRATOR: Migrator = sqlx::migrate!("./config/databases/main/migrations");
 
@@ -18,33 +19,15 @@ impl MainDatabase {
     sqlite_file_path: &str,
     pool_size: Option<u32>,
   ) -> Result<Self, sqlx::Error> {
-    // Generate database URL internally
-    let database_url = format!("sqlite:{sqlite_file_path}");
-
-    // Create database if it doesn't exist
-    if !Sqlite::database_exists(&database_url)
-      .await
-      .unwrap_or(false)
-    {
-      Sqlite::create_database(&database_url).await?;
-    }
-
-    let pool = match pool_size {
-      Some(size) => {
-        SqlitePoolOptions::new()
-          .max_connections(size)
-          .acquire_timeout(std::time::Duration::from_secs(2))
-          .connect(&database_url)
-          .await?
-      }
-      None => SqlitePool::connect(&database_url).await?,
-    };
-
-    // Configure SQLite settings after connection
     println!("🔧 Configuring SQLite database: {sqlite_file_path}");
-    Self::configure_sqlite(&pool).await?;
+    let core = SqliteDatabaseCore::new_with_pool_size(
+      sqlite_file_path,
+      pool_size,
+      Self::SQLITE_PRAGMA_COMMANDS,
+    )
+    .await?;
 
-    Ok(MainDatabase { pool })
+    Ok(MainDatabase { pool: core.pool })
   }
 
   /// SQLite PRAGMA commands for optimal performance and data integrity
@@ -76,93 +59,11 @@ impl MainDatabase {
 
   /// Configure SQLite settings for optimal performance and data integrity
   pub async fn configure_sqlite(pool: &SqlitePool) -> Result<(), sqlx::Error> {
-    // Execute each PRAGMA command
-    for command in Self::SQLITE_PRAGMA_COMMANDS.iter() {
-      // println!("   {command}");
-      sqlx::query(command).execute(pool).await?;
-    }
-
-    // Verify critical settings were applied correctly
-    Self::verify_sqlite_config(pool).await?;
-
-    // println!("✅ SQLite configuration completed successfully");
-    Ok(())
-  }
-
-  /// Verify that critical SQLite settings were applied correctly
-  async fn verify_sqlite_config(pool: &SqlitePool) -> Result<(), sqlx::Error> {
-    // Check WAL mode is enabled
-    let journal_mode: String = sqlx::query("PRAGMA journal_mode;")
-      .fetch_one(pool)
-      .await?
-      .get(0);
-
-    if journal_mode.to_uppercase() != "WAL" {
-      eprintln!("⚠️  Warning: WAL mode not enabled, got: {journal_mode}");
-    }
-
-    // Check foreign keys are enabled
-    let foreign_keys: i64 = sqlx::query("PRAGMA foreign_keys;")
-      .fetch_one(pool)
-      .await?
-      .get(0);
-
-    if foreign_keys != 1 {
-      eprintln!("⚠️  Warning: Foreign keys not enabled");
-    }
-
-    println!("✅ SQLite configuration verified");
-    Ok(())
+    SqliteDatabaseCore::configure_sqlite(pool, Self::SQLITE_PRAGMA_COMMANDS).await
   }
 
   pub async fn migrate(&self) -> Result<(), sqlx::migrate::MigrateError> {
-    // Get list of applied migrations (handle case where table doesn't exist yet)
-    // Only get successfully applied migrations
-    let applied = sqlx::query("SELECT version FROM _sqlx_migrations WHERE success = true")
-      .fetch_all(&self.pool)
-      .await
-      .unwrap_or_else(|_| {
-        // Table doesn't exist yet, so no migrations have been applied
-        Vec::new()
-      });
-    let applied_versions: HashSet<_> = applied
-      .iter()
-      .map(|row| row.get::<i64, _>("version"))
-      .collect();
-
-    // Check for pending migrations and log them
-    let mut pending_count = 0;
-    // Note: In testing, we observed that MIGRATOR.iter() can return duplicate entries
-    // for the same migration version. This deduplication ensures each migration
-    // is only logged once, preventing confusing output like:
-    // "Pending migration: 1 - create user roles"
-    // "Pending migration: 1 - create user roles" (duplicate)
-    let mut seen_versions = HashSet::new();
-    for migration in MIGRATOR.iter() {
-      if !applied_versions.contains(&migration.version)
-        && !seen_versions.contains(&migration.version)
-      {
-        println!(
-          "Pending migration: {} - {}",
-          migration.version, migration.description
-        );
-        seen_versions.insert(migration.version);
-        pending_count += 1;
-      }
-    }
-
-    if pending_count == 0 {
-      println!("No pending migrations found");
-      return Ok(());
-    }
-
-    println!("Applying {pending_count} pending migration(s)...");
-
-    // Run the migrations
-    MIGRATOR.run(&self.pool).await?;
-
-    println!("Successfully applied {pending_count} migration(s)");
-    Ok(())
+    SqliteDatabaseCore::migrate(&self.pool, &MIGRATOR).await
   }
 
   /// Revert the last N migrations
@@ -217,118 +118,12 @@ impl MainDatabase {
   }
 
   pub async fn seed(&self) -> Result<(), Box<dyn std::error::Error>> {
-    let seeds_dir = "config/databases/main/seeds";
-
-    // Check if seeds directory exists
-    if !std::path::Path::new(seeds_dir).exists() {
-      println!("No seeds directory found, skipping seeding");
-      return Ok(());
-    }
-
-    // Read all .sql files in seeds directory
-    let mut seed_files = fs::read_dir(seeds_dir)?
-      .filter_map(|entry| {
-        let entry = entry.ok()?;
-        let path = entry.path();
-        if path.extension()? == "sql" {
-          Some(path)
-        } else {
-          None
-        }
-      })
-      .collect::<Vec<_>>();
-
-    // Sort files to ensure consistent execution order
-    seed_files.sort();
-
-    // Execute each seed file
-    for seed_file in seed_files {
-      let sql_content = fs::read_to_string(&seed_file)?;
-      println!("Running seed: {}", seed_file.display());
-
-      // Split by semicolon and execute each statement
-      for (index, statement) in sql_content.split(';').enumerate() {
-        let statement = statement.trim();
-
-        if statement.is_empty() {
-          continue;
-        }
-
-        // Remove comment lines and extract SQL
-        let sql_lines: Vec<&str> = statement
-          .lines()
-          .filter(|line| !line.trim().is_empty() && !line.trim().starts_with("--"))
-          .collect();
-
-        if sql_lines.is_empty() {
-          continue;
-        }
-
-        let clean_sql = sql_lines.join("\n").trim().to_string();
-
-        match sqlx::query(&clean_sql).execute(&self.pool).await {
-          Ok(result) => {
-            println!(
-              "  ✅ Statement {} executed successfully, rows affected: {}",
-              index + 1,
-              result.rows_affected()
-            );
-          }
-          Err(e) => {
-            eprintln!(
-              "❌ Error executing statement {} in seed file: {}",
-              index + 1,
-              seed_file.display()
-            );
-            eprintln!("Error: {e}");
-            eprintln!("SQL that failed:");
-            eprintln!("--- START SQL ---");
-            eprintln!("{clean_sql}");
-            eprintln!("--- END SQL ---");
-            return Err(Box::new(e));
-          }
-        }
-      }
-    }
-
-    println!("✅ Seeds completed successfully");
-    Ok(())
+    SqliteDatabaseCore::seed(&self.pool, "config/databases/main/seeds").await
   }
 
   /// Generate schema dump content as a string
   pub async fn dump_schema_content(&self) -> Result<String, sqlx::Error> {
-    // Query to get all table creation statements
-    let tables = sqlx::query_scalar::<_, String>(
-      "SELECT sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
-    )
-    .fetch_all(&self.pool)
-    .await?;
-
-    // Query to get all index creation statements
-    let indexes = sqlx::query_scalar::<_, String>(
-          "SELECT sql FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%' AND sql IS NOT NULL ORDER BY name"
-      )
-      .fetch_all(&self.pool)
-      .await?;
-
-    // Combine all SQL statements
-    let mut schema_sql = String::new();
-    schema_sql.push_str("-- Database Schema Dump\n");
-    schema_sql.push_str("-- Generated automatically by dps-auth-api-migrate\n\n");
-
-    // Add table creation statements
-    for table_sql in tables {
-      schema_sql.push_str(&table_sql);
-      schema_sql.push_str(";\n\n");
-    }
-
-    // Add index creation statements
-    for index_sql in indexes {
-      schema_sql.push_str(&index_sql);
-      schema_sql.push_str(";\n\n");
-    }
-
-    Ok(schema_sql)
+    SqliteDatabaseCore::dump_schema_content(&self.pool).await
   }
 
   /// Dump schema to a file at the specified path
@@ -336,19 +131,45 @@ impl MainDatabase {
     &self,
     file_path: &str,
   ) -> Result<(), Box<dyn std::error::Error>> {
-    // Generate schema dump using pure Rust/sqlx instead of sqlite3 command
-    let schema_sql = self.dump_schema_content().await?;
+    SqliteDatabaseCore::dump_schema_to_file(&self.pool, file_path).await
+  }
+}
 
-    // Create directory if it doesn't exist
-    if let Some(parent) = std::path::Path::new(file_path).parent() {
-      std::fs::create_dir_all(parent)?;
-    }
+impl Database for MainDatabase {
+  fn pool(&self) -> &SqlitePool {
+    &self.pool
+  }
 
-    // Write schema to specified file
-    std::fs::write(file_path, schema_sql)?;
-    println!("✅ Schema dumped to {file_path}");
+  fn migrations_dir() -> &'static str {
+    "config/databases/main/migrations"
+  }
 
-    Ok(())
+  fn seeds_dir() -> &'static str {
+    "config/databases/main/seeds"
+  }
+
+  fn pragma_commands() -> &'static [&'static str] {
+    Self::SQLITE_PRAGMA_COMMANDS
+  }
+
+  fn migrator() -> &'static Migrator {
+    &MIGRATOR
+  }
+
+  async fn migrate(&self) -> Result<(), sqlx::migrate::MigrateError> {
+    MainDatabase::migrate(self).await
+  }
+
+  async fn seed(&self) -> Result<(), Box<dyn std::error::Error>> {
+    MainDatabase::seed(self).await
+  }
+
+  async fn dump_schema_content(&self) -> Result<String, sqlx::Error> {
+    MainDatabase::dump_schema_content(self).await
+  }
+
+  async fn dump_schema_to_file(&self, file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    MainDatabase::dump_schema_to_file(self, file_path).await
   }
 }
 

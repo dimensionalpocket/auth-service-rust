@@ -1,3 +1,4 @@
+use crate::database::MainDatabase;
 use crate::graphql::schema::AppSchema;
 use crate::services::{LogShutdownStartService, WaitForShutdownSignalService};
 use axum::{middleware::from_fn, routing::get, Router};
@@ -9,7 +10,6 @@ use tower_http::{
   trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
 };
 use tracing::Level;
-use crate::database::MainDatabase;
 
 #[derive(Debug)]
 pub struct DpsAuthApi {
@@ -148,7 +148,9 @@ impl DpsAuthApi {
 
   /// Initialize database connection only (no migrations or seeds).
   /// This method is public for test usage.
-  pub async fn initialize_database(&self) -> Result<crate::database::MainDatabase, DpsAuthApiError> {
+  pub async fn initialize_database(
+    &self,
+  ) -> Result<crate::database::MainDatabase, DpsAuthApiError> {
     MainDatabase::new_with_pool_size(
       &self.config.sqlite_main_file_path,
       Some(self.config.sqlite_main_pool_size as u32),

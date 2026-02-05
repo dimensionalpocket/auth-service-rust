@@ -1,3 +1,5 @@
-- emails
 - multi-database support
+- emails
+- collections (separate database)
 - session management (separate database)
+- captcha on registration and login (cloudflare turnstile)
