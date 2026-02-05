@@ -13,6 +13,7 @@ pub trait Database {
   fn migrator() -> &'static Migrator;
 
   async fn migrate(&self) -> Result<(), sqlx::migrate::MigrateError>;
+  async fn revert(&self, steps: usize) -> Result<usize, sqlx::migrate::MigrateError>;
   async fn seed(&self) -> Result<(), Box<dyn std::error::Error>>;
   async fn dump_schema_content(&self) -> Result<String, sqlx::Error>;
   async fn dump_schema_to_file(&self, file_path: &str) -> Result<(), Box<dyn std::error::Error>>;

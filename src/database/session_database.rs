@@ -64,6 +64,10 @@ impl Database for SessionDatabase {
     SqliteDatabaseCore::migrate(&self.pool, Self::migrator()).await
   }
 
+  async fn revert(&self, steps: usize) -> Result<usize, sqlx::migrate::MigrateError> {
+    SqliteDatabaseCore::revert(&self.pool, Self::migrator(), steps).await
+  }
+
   async fn seed(&self) -> Result<(), Box<dyn std::error::Error>> {
     SqliteDatabaseCore::seed(&self.pool, Self::seeds_dir()).await
   }

@@ -1,7 +1,6 @@
 use crate::database::sqlite_database::SqliteDatabaseCore;
 use crate::types::Database;
 use sqlx::migrate::Migrator;
-use sqlx::Row;
 use sqlx::SqlitePool;
 
 static MIGRATOR: Migrator = sqlx::migrate!("./config/databases/main/migrations");
@@ -78,43 +77,7 @@ impl MainDatabase {
   /// * `Ok(usize)` - Number of migrations successfully reverted
   /// * `Err` - If any migration revert fails
   pub async fn revert(&self, steps: usize) -> Result<usize, sqlx::migrate::MigrateError> {
-    // Get list of applied migrations (checking both success = true and success = 1 for compatibility)
-    let applied =
-      sqlx::query("SELECT version FROM _sqlx_migrations WHERE success != 0 ORDER BY version ASC")
-        .fetch_all(&self.pool)
-        .await
-        .unwrap_or_else(|_| Vec::new());
-
-    if applied.is_empty() {
-      println!("No migrations to revert");
-      return Ok(0);
-    }
-
-    let applied_count = applied.len();
-    let revert_count = steps.min(applied_count);
-
-    println!("Found {applied_count} applied migration(s)");
-    println!("Reverting {revert_count} migration(s)...");
-
-    // Calculate target version
-    // If we want to revert N migrations, we need to go back to the version
-    // that is (applied_count - revert_count) from the start
-    // If reverting all migrations, target is 0 (empty database)
-    let target_version = if revert_count >= applied_count {
-      0 // Revert all migrations
-    } else {
-      // Get the version to revert TO (the one that should remain applied)
-      let target_index = applied_count - revert_count - 1;
-      applied[target_index].get::<i64, _>("version")
-    };
-
-    println!("Target version: {target_version}");
-
-    // Perform the revert operation
-    MIGRATOR.undo(&self.pool, target_version).await?;
-
-    println!("Successfully reverted {revert_count} migration(s)");
-    Ok(revert_count)
+    SqliteDatabaseCore::revert(&self.pool, &MIGRATOR, steps).await
   }
 
   pub async fn seed(&self) -> Result<(), Box<dyn std::error::Error>> {
@@ -158,6 +121,10 @@ impl Database for MainDatabase {
 
   async fn migrate(&self) -> Result<(), sqlx::migrate::MigrateError> {
     MainDatabase::migrate(self).await
+  }
+
+  async fn revert(&self, steps: usize) -> Result<usize, sqlx::migrate::MigrateError> {
+    MainDatabase::revert(self, steps).await
   }
 
   async fn seed(&self) -> Result<(), Box<dyn std::error::Error>> {
