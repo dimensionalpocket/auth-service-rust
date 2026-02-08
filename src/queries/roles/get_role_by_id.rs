@@ -37,7 +37,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_role_by_id_found() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     // Insert test role
@@ -58,7 +59,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_role_by_id_not_found() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let role = GetRoleByIdQuery::run(&mut conn, 999).await.unwrap();

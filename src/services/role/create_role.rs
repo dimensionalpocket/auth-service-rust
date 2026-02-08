@@ -53,7 +53,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_role_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
@@ -82,7 +83,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_role_empty_permissions() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
@@ -102,7 +104,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_role_duplicate_name_fails() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let create_data1 = CreateRoleData {
@@ -131,7 +134,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_role_empty_name_fails() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
@@ -150,7 +154,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_role_whitespace_name_fails() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
@@ -169,7 +174,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_role_invalid_permission_fails() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
@@ -188,7 +194,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_role_multiple_invalid_permissions_fails() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
@@ -211,7 +218,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_role_all_valid_permissions() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let all_permissions: Vec<String> = ROLE_PERMISSIONS
@@ -245,7 +253,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_role_default_role() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {

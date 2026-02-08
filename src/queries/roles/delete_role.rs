@@ -49,7 +49,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_delete_role_success() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create a role first
     let create_data = CreateRoleData {
@@ -85,7 +86,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_delete_role_not_found() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Try to delete non-existent role
     let mut conn = pool.acquire().await.unwrap();
@@ -96,7 +98,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_delete_role_in_use() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create a role
     let role_data = CreateRoleData {

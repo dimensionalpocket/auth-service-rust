@@ -45,7 +45,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_role_permissions_user_without_manage_roles_permission() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create regular user role
     let user_role_id = create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
@@ -72,7 +73,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_role_permissions_user_with_manage_roles_but_not_admin_permission() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create role manager role
     let role_manager_id =
@@ -111,7 +113,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_role_permissions_user_with_admin_management_permission() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create admin manager role
     let admin_manager_id = create_test_role_with_pool(
@@ -154,7 +157,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_role_permissions_admin_user() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create admin role
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["is_admin"]).await;
@@ -190,7 +194,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_role_permissions_unauthenticated() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create session context without user (not authenticated)
     let session_context = SessionContext::new(None);

@@ -78,7 +78,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_user_by_name_with_role_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create role and user
     let role_id = create_test_role_with_pool(&pool, "admin", &["can_view_user_details"]).await;
@@ -100,7 +101,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_user_by_name_with_role_not_found() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Query non-existent user
     let mut conn = pool.acquire().await.unwrap();
@@ -113,7 +115,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_user_by_name_with_role_case_insensitive() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create role and user
     let role_id = create_test_role_with_pool(&pool, "user", &[]).await;
@@ -142,7 +145,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_user_by_name_with_role_permissions() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create role with permissions and user
     let role_id =

@@ -26,7 +26,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_set_default_role_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let role1_data = crate::queries::roles::CreateRoleData {
@@ -79,7 +80,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_set_default_role_not_found() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let result = SetDefaultRoleService::run(&mut conn, 999).await;
@@ -92,7 +94,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_set_default_role_atomic_behavior() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let role1_data = crate::queries::roles::CreateRoleData {

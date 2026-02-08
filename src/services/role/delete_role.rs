@@ -37,7 +37,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_delete_role_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let create_data = crate::queries::roles::CreateRoleData {
@@ -63,7 +64,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_delete_role_not_found() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let result = DeleteRoleService::run(&mut conn, 999).await;
@@ -76,7 +78,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_delete_role_in_use() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let role_data = crate::queries::roles::CreateRoleData {

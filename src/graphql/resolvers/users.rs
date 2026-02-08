@@ -89,7 +89,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_users_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create roles
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_list_users"]).await;
@@ -142,7 +143,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_users_unauthenticated() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create session context without user ID (not authenticated)
     let session_context = SessionContext::new(None);
@@ -158,7 +160,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_users_forbidden() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create role without can_list_users permission
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
@@ -185,7 +188,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_users_empty_database() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create admin role and user
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_list_users"]).await;
@@ -214,7 +218,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_users_nonexistent_user() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create session context for non-existent user
     let session_payload = DpsAuthSessionPayload {

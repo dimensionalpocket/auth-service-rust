@@ -44,7 +44,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_check_user_permission_admin_has_all_permissions() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let admin_role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
     let admin_role_id = admin_role.id;
@@ -80,7 +81,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_check_user_permission_regular_user_specific_permissions() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let user_role =
       create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
@@ -118,7 +120,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_check_user_permission_user_with_no_role() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let user_no_role = User {
       id: 3,
@@ -141,7 +144,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_check_user_permission_invalid_permission() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let admin_role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
     let admin_role_id = admin_role.id;
@@ -175,7 +179,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_check_user_permission_valid_new_permissions() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let role = create_test_role_model_with_pool(
       &pool,
@@ -230,7 +235,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_check_user_permission_admin_bypasses_validation() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let admin_role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
     let admin_role_id = admin_role.id;

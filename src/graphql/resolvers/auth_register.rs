@@ -94,7 +94,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_auth_register_calls_service_with_correct_parameters() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Insert default role first
     {
@@ -165,7 +166,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_auth_register_returns_error_for_duplicate_username() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Insert default role first
     {
@@ -218,7 +220,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_auth_register_validates_input() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Test secret - 32 bytes for AES-256
     let test_secret = vec![
@@ -258,7 +261,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_auth_register_password_confirmation_mismatch() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Test secret - 32 bytes for AES-256
     let test_secret = vec![
@@ -301,7 +305,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_auth_register_sets_cookie() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Insert default role first
     {

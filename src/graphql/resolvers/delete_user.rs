@@ -70,7 +70,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_delete_user_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create roles
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
@@ -124,7 +125,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_delete_user_forbidden() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create role without can_delete_user permission
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
@@ -161,7 +163,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_delete_user_unauthenticated() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create session context with no user (unauthenticated)
     let session_context = SessionContext::new(None);
@@ -183,7 +186,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_delete_user_self_deletion_prevented() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create admin role and user
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
@@ -228,7 +232,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_delete_user_not_found() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create admin role and user
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
@@ -261,7 +266,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_delete_user_nonexistent_session_user() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create target user
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;

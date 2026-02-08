@@ -150,7 +150,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_auth_me_with_authenticated_user() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Setup: Create a test user
     let user = create_test_user_full_with_pool(
@@ -190,7 +191,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_auth_me_with_unauthenticated_user() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let query = AuthMeResolver;
     let session_context = SessionContext::new(None);
 
@@ -206,7 +208,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_auth_me_missing_context() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let query = AuthMeResolver;
 
     let schema = create_test_query_schema(query, Some(pool), None, None);

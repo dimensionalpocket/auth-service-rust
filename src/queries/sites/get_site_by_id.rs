@@ -25,7 +25,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_site_by_id_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     // Create a test site first
@@ -61,7 +62,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_site_by_id_not_found() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Test getting a non-existent site
     let mut conn = pool.acquire().await.unwrap();
@@ -72,7 +74,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_site_by_id_empty_database() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Test getting a site from empty database
     let mut conn = pool.acquire().await.unwrap();
@@ -83,7 +86,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_site_by_id_multiple_sites() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     // Create multiple test sites
@@ -131,7 +135,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_site_by_id_with_null_fields() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     // Create a site with null optional fields

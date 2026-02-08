@@ -21,7 +21,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_delete_user_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let mut conn = pool.acquire().await.unwrap();
@@ -37,7 +38,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_delete_user_not_found() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let mut conn = pool.acquire().await.unwrap();
     let deleted = DeleteUserService::run(&mut conn, 999).await.unwrap();

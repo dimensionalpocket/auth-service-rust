@@ -97,7 +97,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_session_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
@@ -114,7 +115,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_session_blank_username() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let mut conn = pool.acquire().await.unwrap();
     let result = CreateSessionService::run(&mut conn, "", "password123", TEST_SECRET).await;
@@ -125,7 +127,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_session_whitespace_username() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let mut conn = pool.acquire().await.unwrap();
     let result = CreateSessionService::run(&mut conn, "   ", "password123", TEST_SECRET).await;
@@ -136,7 +139,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_session_blank_password() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let mut conn = pool.acquire().await.unwrap();
     let result = CreateSessionService::run(&mut conn, "testuser", "", TEST_SECRET).await;
@@ -150,7 +154,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_session_user_not_found() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let mut conn = pool.acquire().await.unwrap();
     let result =
@@ -162,7 +167,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_session_wrong_password() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
@@ -181,7 +187,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_session_case_insensitive_username() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;

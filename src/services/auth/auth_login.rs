@@ -51,7 +51,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_auth_login_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let mut conn = pool.acquire().await.unwrap();
@@ -69,7 +70,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_auth_login_invalid_credentials() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let mut conn = pool.acquire().await.unwrap();
@@ -83,7 +85,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_auth_login_user_not_found() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let mut conn = pool.acquire().await.unwrap();
     let result = AuthLoginService::run(&mut conn, "nonexistent", "password123", TEST_SECRET).await;

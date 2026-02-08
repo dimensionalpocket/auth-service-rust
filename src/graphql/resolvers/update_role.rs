@@ -130,7 +130,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_role_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create admin role with can_manage_roles permission
     let admin_role_id =
@@ -200,7 +201,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_role_partial_update() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create admin role with can_manage_roles permission
     let admin_role_id =
@@ -263,7 +265,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_role_forbidden() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create user role without can_manage_roles permission
     let user_role_id = create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
@@ -303,7 +306,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_role_unauthenticated() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create session context with no user (unauthenticated)
     let session_context = SessionContext::new(None);
@@ -327,7 +331,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_role_not_found() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create admin role with can_manage_roles permission
     let admin_role_id =
@@ -364,7 +369,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_role_invalid_permission() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create admin role with can_manage_roles permission
     let admin_role_id =
@@ -408,7 +414,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_role_empty_permissions() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create admin role with can_manage_roles permission
     let admin_role_id =

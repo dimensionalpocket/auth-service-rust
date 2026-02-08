@@ -88,7 +88,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_role_success() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create a role first
     let role = create_test_role_model_with_pool(
@@ -133,7 +134,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_role_partial_update() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create a role first
     let role = create_test_role_model_with_pool(
@@ -174,7 +176,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_role_set_permissions_to_empty() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create a role first
     let role = create_test_role_model_with_pool(
@@ -209,7 +212,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_role_not_found() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let update_data = UpdateRoleData {
       id: 999,
@@ -224,7 +228,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_role_no_changes() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create a role first
     let role =
@@ -255,7 +260,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_role_with_all_valid_permissions() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create a role first
     let role = create_test_role_model_with_pool(

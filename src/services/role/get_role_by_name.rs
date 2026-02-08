@@ -20,7 +20,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_role_by_name_delegates_to_query() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 

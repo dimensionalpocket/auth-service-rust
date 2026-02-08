@@ -36,7 +36,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_delete_site_success() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     // Create a site first
@@ -74,7 +75,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_delete_site_not_found() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     // Try to delete non-existent site

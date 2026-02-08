@@ -90,7 +90,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_auth_login_calls_service_with_correct_parameters() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Setup: Create a user
     {
@@ -159,7 +160,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_auth_login_maps_authentication_error() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let test_config = DpsAuthApiConfig {
       port: 0,

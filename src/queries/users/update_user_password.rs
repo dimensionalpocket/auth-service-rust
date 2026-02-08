@@ -64,7 +64,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_password_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Setup: Create a user
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
@@ -100,7 +101,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_password_nonexistent_user() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Test: Try to update password for non-existent user
     let update_data = UpdateUserPasswordData {
@@ -116,7 +118,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_password_timestamp_increases() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Setup: Create a user
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;

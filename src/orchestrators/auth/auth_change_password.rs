@@ -51,7 +51,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_change_authenticated_user_password_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let user = create_test_user_with_pool(&pool, "testuser", user_role_id).await;
@@ -81,7 +82,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_change_authenticated_user_password_unauthenticated() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let session_context = SessionContext::new(None);
 
@@ -105,7 +107,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_change_authenticated_user_password_nonexistent_user() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let session_payload = DpsAuthSessionPayload {
       sub: 999,
@@ -134,7 +137,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_change_authenticated_user_password_wrong_current_password() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let user = create_test_user_with_pool(&pool, "testuser", user_role_id).await;
@@ -166,7 +170,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_change_authenticated_user_password_password_mismatch() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let user = create_test_user_with_pool(&pool, "testuser", user_role_id).await;
@@ -198,7 +203,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_change_authenticated_user_password_invalid_new_password() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let user = create_test_user_with_pool(&pool, "testuser", user_role_id).await;

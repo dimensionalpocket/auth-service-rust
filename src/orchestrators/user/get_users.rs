@@ -48,7 +48,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_list_users_with_permission_check_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_list_users"]).await;
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
@@ -79,7 +80,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_list_users_without_authentication() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let session_context = SessionContext::new(None);
 
@@ -96,7 +98,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_list_users_without_permission() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
 
@@ -122,7 +125,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_list_users_nonexistent_user() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let session_payload = DpsAuthSessionPayload {
       sub: 999,
@@ -144,7 +148,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_list_users_empty_database() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_list_users"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;

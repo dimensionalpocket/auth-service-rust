@@ -8,7 +8,7 @@
  */
 
 #[cfg(any(test, feature = "test-utils"))]
-use crate::database::MainDatabase;
+use crate::database::{Databases, MainDatabase, SessionDatabase};
 use crate::models::{Role, User};
 use crate::queries::roles::{CreateRoleData, CreateRoleQuery, GetDefaultRoleQuery};
 use crate::queries::users::{CreateUserData, CreateUserQuery};
@@ -36,43 +36,58 @@ impl TestEmptyQuery {
   }
 }
 
-pub async fn create_test_database() -> (SqlitePool, NamedTempFile) {
+pub async fn create_test_database() -> (Databases, NamedTempFile, NamedTempFile) {
   create_test_database_with_config(true).await
 }
 
-pub async fn create_test_database_with_pool_size(pool_size: u32) -> (SqlitePool, NamedTempFile) {
+pub async fn create_test_database_with_pool_size(
+  pool_size: u32,
+) -> (Databases, NamedTempFile, NamedTempFile) {
   create_test_database_with_config_and_pool_size(true, pool_size).await
 }
 
 pub async fn create_test_database_with_config(
   configure_sqlite: bool,
-) -> (SqlitePool, NamedTempFile) {
+) -> (Databases, NamedTempFile, NamedTempFile) {
   create_test_database_with_config_and_pool_size(configure_sqlite, 1).await
 }
 
 pub async fn create_test_database_with_config_and_pool_size(
   configure_sqlite: bool,
   pool_size: u32,
-) -> (SqlitePool, NamedTempFile) {
-  let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-  let sqlite_file_path = temp_file.path().display().to_string();
-  let database = MainDatabase::new_with_pool_size(&sqlite_file_path, Some(pool_size))
+) -> (Databases, NamedTempFile, NamedTempFile) {
+  let main_temp_file = NamedTempFile::new().expect("Failed to create temp file");
+  let main_sqlite_file_path = main_temp_file.path().display().to_string();
+
+  let session_temp_file = NamedTempFile::new().expect("Failed to create temp file");
+  let session_sqlite_file_path = session_temp_file.path().display().to_string();
+
+  let database = MainDatabase::new_with_pool_size(&main_sqlite_file_path, Some(pool_size))
     .await
     .expect("Failed to create test database");
-  let pool = database.pool;
+  let main_pool = database.pool;
 
   // Optionally configure SQLite settings
   if configure_sqlite {
-    MainDatabase::configure_sqlite(&pool)
+    MainDatabase::configure_sqlite(&main_pool)
       .await
       .expect("Failed to configure SQLite");
   }
 
   // Run migrations
-  let database = MainDatabase { pool: pool.clone() };
+  let database = MainDatabase {
+    pool: main_pool.clone(),
+  };
   database.migrate().await.expect("Failed to run migrations");
 
-  (pool, temp_file)
+  let session_database = SessionDatabase::new_with_pool_size(&session_sqlite_file_path, Some(1))
+    .await
+    .expect("Failed to create session test database");
+  let session_pool = session_database.pool;
+
+  let databases = Databases::new(main_pool, session_pool);
+
+  (databases, main_temp_file, session_temp_file)
 }
 
 /// Create a test user with default password
@@ -370,7 +385,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_test_user_no_role() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create user without role (will create and use default role automatically)
     let user = create_test_user_full_with_pool(&pool, "testuser", None, "password123", None).await;
@@ -389,7 +405,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_test_user_custom_password() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let role_id = create_test_role_with_pool(&pool, "test_role", &["can_view_user_self"]).await;
 
@@ -403,7 +420,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_test_user_full() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let role_id = create_test_role_with_pool(&pool, "test_role", &["can_view_user_self"]).await;
     let metadata = serde_json::json!({"key": "value"});
@@ -425,7 +443,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_test_role_id() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create role and get ID
     let role_id = create_test_role_with_pool(
@@ -440,7 +459,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_test_role_model() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create role and get full model
     let role = create_test_role_model_with_pool(
@@ -460,7 +480,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_test_role_empty_permissions() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create role with no permissions
     let role = create_test_role_model_with_pool(&pool, "empty_role", &[], false).await;
@@ -472,7 +493,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_test_role_all_permissions() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create role with all available permissions
     let role = create_test_role_model_with_pool(&pool, "admin_role", ROLE_PERMISSIONS, false).await;
@@ -496,7 +518,8 @@ mod tests {
   async fn test_create_test_query_schema_with_pool() {
     use super::*;
 
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let schema = create_test_query_schema(TestEmptyQuery, Some(pool), None, None);
 
     // Verify schema was created successfully
@@ -539,7 +562,8 @@ mod tests {
   async fn test_create_test_query_schema_all_context() {
     use super::*;
 
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let session = SessionContext::new(None);
     let config = DpsAuthApiConfig {
       port: 3000,
@@ -573,7 +597,8 @@ mod tests {
   async fn test_create_test_mutation_schema_with_pool() {
     use super::*;
 
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let schema = create_test_mutation_schema(EmptyMutation, Some(pool), None, None);
 
     // Verify schema was created successfully
@@ -616,7 +641,8 @@ mod tests {
   async fn test_create_test_mutation_schema_all_context() {
     use super::*;
 
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let session = SessionContext::new(None);
     let config = DpsAuthApiConfig {
       port: 3000,
@@ -641,7 +667,8 @@ mod tests {
   async fn test_create_test_user_with_uuid_success() {
     use crate::queries::users::GetUserByUuidQuery;
 
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Test data
     let test_uuid = "550e8400-e29b-41d4-a716-446655440000";

@@ -92,7 +92,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -156,7 +157,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_partial_name_only() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -196,7 +198,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_partial_role_only() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let moderator_role_id = create_test_role_with_pool(&pool, "moderator", &[]).await;
@@ -245,7 +248,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_partial_password_with_confirmation() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -289,7 +293,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_partial_metadata() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -332,7 +337,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_unauthenticated() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let session_context = SessionContext::new(None);
 
@@ -355,7 +361,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_forbidden() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let regular_user = create_test_user_with_pool(&pool, "regular", user_role_id).await;
@@ -386,7 +393,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_not_found() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -417,7 +425,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_validation_error_short_username() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -452,7 +461,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_validation_error_short_password() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -491,7 +501,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_username_conflict() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -527,7 +538,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_password_confirmation_only_password() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -562,7 +574,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_password_confirmation_only_confirmation() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -597,7 +610,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_password_confirmation_mismatch() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -636,7 +650,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_no_updates() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;

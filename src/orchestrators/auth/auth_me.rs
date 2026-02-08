@@ -36,7 +36,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_authenticated_user_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let _user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let user =
@@ -63,7 +64,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_authenticated_user_unauthenticated() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let session_context = SessionContext::new(None);
 

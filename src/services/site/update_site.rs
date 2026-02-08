@@ -48,7 +48,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_site_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let create_data = crate::queries::sites::CreateSiteData {
@@ -90,7 +91,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_site_slug_already_exists() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let data1 = crate::queries::sites::CreateSiteData {
@@ -130,7 +132,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_site_not_found() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let update_data = UpdateSiteData {
@@ -152,7 +155,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_site_invalid_slug() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let create_data = crate::queries::sites::CreateSiteData {

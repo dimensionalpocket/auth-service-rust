@@ -51,7 +51,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_site_with_permission_check_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create admin role and user
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_create_site"]).await;
@@ -86,7 +87,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_site_with_permission_check_unauthenticated() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create session context without user (not authenticated)
     let session_context = SessionContext::new(None);
@@ -112,7 +114,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_site_with_permission_check_nonexistent_user() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create session context for non-existent user
     let session_payload = DpsAuthSessionPayload {
@@ -143,7 +146,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_site_with_permission_check_forbidden() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create user role without can_create_site permission
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;

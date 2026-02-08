@@ -34,7 +34,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_site_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let data = CreateSiteData {
@@ -58,7 +59,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_site_slug_already_exists() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let data1 = CreateSiteData {

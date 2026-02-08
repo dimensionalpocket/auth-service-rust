@@ -61,7 +61,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_password_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let mut conn = pool.acquire().await.unwrap();
@@ -93,7 +94,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_password_invalid_current_password() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let mut conn = pool.acquire().await.unwrap();
@@ -120,7 +122,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_password_password_confirmation_mismatch() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let mut conn = pool.acquire().await.unwrap();
@@ -147,7 +150,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_password_invalid_new_password() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let mut conn = pool.acquire().await.unwrap();
@@ -168,7 +172,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_password_nonexistent_user() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let mut conn = pool.acquire().await.unwrap();
     let result = UpdateUserPasswordService::run(

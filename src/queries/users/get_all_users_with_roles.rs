@@ -62,7 +62,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_all_users_with_roles_empty() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let result = GetAllUsersWithRolesQuery::run(&mut conn).await.unwrap();
@@ -71,7 +72,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_all_users_with_roles_with_data() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Insert test roles
     let admin_role = create_test_role_model_with_pool(&pool, "admin", &[], false).await;
@@ -119,7 +121,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_all_users_with_roles_joins_correctly() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Insert test role
     let test_role = create_test_role_model_with_pool(&pool, "test_role", &[], false).await;

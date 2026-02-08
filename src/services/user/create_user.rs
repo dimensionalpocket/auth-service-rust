@@ -50,7 +50,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_user_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
@@ -70,7 +71,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_user_username_already_exists() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
@@ -89,7 +91,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_user_case_insensitive_username_check() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 

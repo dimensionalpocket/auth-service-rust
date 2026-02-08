@@ -65,7 +65,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_set_default_role_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create test roles
     let role1_id = create_test_role_with_pool(&pool, "role1", &[]).await;
@@ -106,7 +107,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_set_default_role_atomic_behavior() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create test roles
     let role1_id = create_test_role_with_pool(&pool, "role1", &[]).await;
@@ -158,7 +160,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_set_default_role_not_found() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Try to set non-existent role as default
     let mut conn = pool.acquire().await.unwrap();
@@ -169,7 +172,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_set_default_role_timestamp_update() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create test role
     let role_id = create_test_role_with_pool(&pool, "role1", &[]).await;

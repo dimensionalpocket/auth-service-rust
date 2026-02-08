@@ -129,7 +129,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_auth_change_password_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Setup: Create authenticated user
     let session_context = {
@@ -179,7 +180,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_auth_change_password_invalid_current_password() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Setup: Create authenticated user
     let session_context = {
@@ -219,7 +221,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_auth_change_password_password_confirmation_mismatch() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Setup: Create authenticated user
     let session_context = {
@@ -257,7 +260,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_auth_change_password_no_authentication() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Setup: Create session without authentication
     let session_context = SessionContext::new(None);
@@ -289,7 +293,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_auth_change_password_invalid_new_password() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Setup: Create authenticated user
     let session_context = {

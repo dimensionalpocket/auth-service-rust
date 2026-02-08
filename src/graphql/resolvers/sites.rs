@@ -68,7 +68,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_sites_empty() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let query = SitesResolver;
     let schema = create_test_query_schema(query, Some(pool), None, None);
 
@@ -84,7 +85,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_sites_with_data() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create test sites
     let site1_data = CreateSiteData {

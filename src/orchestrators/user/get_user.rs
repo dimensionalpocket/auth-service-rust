@@ -51,7 +51,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_user_details_with_permission_check_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let admin_role_id =
       create_test_role_with_pool(&pool, "admin", &["can_view_user_details"]).await;
@@ -79,7 +80,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_user_details_without_authentication() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let session_context = SessionContext::new(None);
 
@@ -96,7 +98,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_user_details_without_permission() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
 
@@ -122,7 +125,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_user_details_nonexistent_user() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let admin_role_id =
       create_test_role_with_pool(&pool, "admin", &["can_view_user_details"]).await;
@@ -148,7 +152,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_user_details_nonexistent_session_user() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let target_user = create_test_user_with_pool(&pool, "target_user", user_role_id).await;
@@ -173,7 +178,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_user_details_self_access() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let admin_role_id =
       create_test_role_with_pool(&pool, "admin", &["can_view_user_details"]).await;

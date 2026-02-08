@@ -59,7 +59,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_role_success() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let data = CreateRoleData {
       name: "test_role".to_string(),
@@ -85,7 +86,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_role_empty_permissions() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let data = CreateRoleData {
       name: "empty_permissions_role".to_string(),
@@ -103,7 +105,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_role_duplicate_name_fails() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let data1 = CreateRoleData {
       name: "duplicate".to_string(),
@@ -129,7 +132,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_role_default_role() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let data = CreateRoleData {
       name: "default_test_role".to_string(),
@@ -148,7 +152,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_role_many_permissions() {
-    let (pool, _tmp) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let data = CreateRoleData {
       name: "many_permissions_role".to_string(),

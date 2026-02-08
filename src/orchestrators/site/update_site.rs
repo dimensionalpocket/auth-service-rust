@@ -52,7 +52,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_site_with_permission_check_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create admin role and user
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_update_site"]).await;
@@ -103,7 +104,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_site_with_permission_check_forbidden() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create user role without can_update_site permission
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;

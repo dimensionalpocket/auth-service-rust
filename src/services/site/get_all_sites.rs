@@ -21,7 +21,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_all_sites() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let data1 = crate::queries::sites::CreateSiteData {

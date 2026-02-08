@@ -22,7 +22,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_delete_user_by_id_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     // Insert test role first
@@ -72,7 +73,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_delete_user_by_id_not_found() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     // Try to delete non-existent user
@@ -82,7 +84,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_delete_user_by_id_multiple_deletes() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     // Insert test role first

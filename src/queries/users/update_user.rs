@@ -109,7 +109,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_name_only() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Setup: Create a user
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
@@ -149,7 +150,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_role_only() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Setup: Create a user and admin role
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
@@ -191,7 +193,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_password_only() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Setup: Create a user
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
@@ -233,7 +236,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_multiple_fields() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Setup: Create a user and admin role
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
@@ -276,7 +280,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_role_to_different_role() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Setup: Create a user with default role and admin role
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
@@ -318,7 +323,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_no_fields() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Setup: Create a user
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
@@ -358,7 +364,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_nonexistent_user() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Test: Try to update non-existent user
     let update_data = UpdateUserData {
@@ -380,7 +387,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_partial_field_preservation() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Setup: Create a user with all fields
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
@@ -420,7 +428,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_metadata_only() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Setup: Create a user with metadata
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
@@ -464,7 +473,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_user_metadata_to_null() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Setup: Create a user with metadata
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;

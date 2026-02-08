@@ -69,7 +69,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_user_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Insert test role first
     let role = create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
@@ -98,7 +99,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_user_duplicate_uuid_fails() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Insert test role first
     let role = create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
@@ -132,7 +134,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_user_invalid_role_id_fails() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {
@@ -150,7 +153,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_user_with_default_role() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Insert test roles with one default
     create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
@@ -177,7 +181,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_user_with_explicit_role() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Insert test roles with one default
     let admin_role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
@@ -203,7 +208,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_create_user_no_default_role_fails() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Insert test roles with no default
     create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;

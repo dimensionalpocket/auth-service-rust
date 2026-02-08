@@ -101,7 +101,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_set_default_role_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create admin role with can_manage_roles permission
     let admin_role_id =
@@ -166,7 +167,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_set_default_role_atomic_behavior() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create admin role with can_manage_roles permission
     let admin_role_id =
@@ -236,7 +238,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_set_default_role_forbidden() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create user role without can_manage_roles permission
     let user_role_id = create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
@@ -275,7 +278,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_set_default_role_unauthenticated() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create session context with no user (unauthenticated)
     let session_context = SessionContext::new(None);
@@ -299,7 +303,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_set_default_role_not_found() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Create admin role with can_manage_roles permission
     let admin_role_id =

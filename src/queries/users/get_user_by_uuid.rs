@@ -22,7 +22,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_user_by_uuid_found() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     // Insert test role first
     let role = create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
@@ -58,7 +59,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_user_by_uuid_not_found() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
 
     let user_uuid = Uuid::new_v4().to_string();
     let mut conn = pool.acquire().await.unwrap();

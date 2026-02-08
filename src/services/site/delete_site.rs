@@ -25,7 +25,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_delete_site_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let create_data = crate::queries::sites::CreateSiteData {
@@ -56,7 +57,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_delete_site_not_found() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let result = DeleteSiteService::run(&mut conn, 999).await;

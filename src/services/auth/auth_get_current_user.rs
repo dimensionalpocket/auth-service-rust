@@ -47,7 +47,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_get_current_user_with_role() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let admin_role_id = create_test_role_model(&mut conn, "admin", &["can_manage_users"], false)

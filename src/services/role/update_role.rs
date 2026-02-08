@@ -48,7 +48,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_role_success() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let role = create_test_role_model(&mut conn, "test-role", &["can_view_user_self"], false).await;
@@ -77,7 +78,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_role_partial_update() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let role = create_test_role_model(
@@ -109,7 +111,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_role_not_found() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let update_data = UpdateRoleData {
@@ -128,7 +131,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_role_invalid_permission() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let role = create_test_role_model(&mut conn, "test-role", &["can_view_user_self"], false).await;
@@ -150,7 +154,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_role_empty_permissions() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let role = create_test_role_model(
@@ -179,7 +184,8 @@ mod tests {
 
   #[tokio::test]
   async fn test_update_role_all_valid_permissions() {
-    let (pool, _temp_file) = create_test_database().await;
+    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
+    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let role = create_test_role_model(
