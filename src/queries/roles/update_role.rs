@@ -92,7 +92,7 @@ mod tests {
   async fn test_update_role_success() {
     // Create a role first
     let role = create_test_role_model_with_pool(
-      &pool,
+      &main_pool,
       "test-role",
       &["can_view_user_self", "can_list_users"],
       false,
@@ -112,7 +112,7 @@ mod tests {
     // Add a delay to ensure different timestamps
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let updated_role = UpdateRoleQuery::run(&mut conn, update_data)
       .await
       .unwrap()
@@ -135,7 +135,7 @@ mod tests {
   async fn test_update_role_partial_update() {
     // Create a role first
     let role = create_test_role_model_with_pool(
-      &pool,
+      &main_pool,
       "partial-role",
       &["can_view_user_self", "can_list_users"],
       false,
@@ -152,7 +152,7 @@ mod tests {
       permissions: None,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let updated_role = UpdateRoleQuery::run(&mut conn, update_data)
       .await
       .unwrap()
@@ -174,7 +174,7 @@ mod tests {
   async fn test_update_role_set_permissions_to_empty() {
     // Create a role first
     let role = create_test_role_model_with_pool(
-      &pool,
+      &main_pool,
       "empty-permissions-role",
       &["can_view_user_self"],
       false,
@@ -191,7 +191,7 @@ mod tests {
       permissions: Some(vec![]), // Set to empty array
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let updated_role = UpdateRoleQuery::run(&mut conn, update_data)
       .await
       .unwrap()
@@ -211,7 +211,7 @@ mod tests {
       permissions: None,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let result = UpdateRoleQuery::run(&mut conn, update_data).await.unwrap();
     assert!(result.is_none());
   }
@@ -219,9 +219,13 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_update_role_no_changes() {
     // Create a role first
-    let role =
-      create_test_role_model_with_pool(&pool, "no-changes-role", &["can_view_user_self"], false)
-        .await;
+    let role = create_test_role_model_with_pool(
+      &main_pool,
+      "no-changes-role",
+      &["can_view_user_self"],
+      false,
+    )
+    .await;
 
     // Add a delay to ensure different timestamps
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -233,7 +237,7 @@ mod tests {
       permissions: None,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let updated_role = UpdateRoleQuery::run(&mut conn, update_data)
       .await
       .unwrap()
@@ -249,7 +253,7 @@ mod tests {
   async fn test_update_role_with_all_valid_permissions() {
     // Create a role first
     let role = create_test_role_model_with_pool(
-      &pool,
+      &main_pool,
       "all-permissions-role",
       &["can_view_user_self"],
       false,
@@ -268,7 +272,7 @@ mod tests {
       permissions: Some(all_permissions.clone()),
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let updated_role = UpdateRoleQuery::run(&mut conn, update_data)
       .await
       .unwrap()

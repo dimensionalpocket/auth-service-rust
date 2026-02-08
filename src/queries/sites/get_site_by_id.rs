@@ -26,7 +26,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_site_by_id_success() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     // Create a test site first
     let site_data = CreateSiteData {
@@ -62,7 +62,7 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_site_by_id_not_found() {
     // Test getting a non-existent site
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let retrieved_site = GetSiteByIdQuery::run(&mut conn, 999).await.unwrap();
 
     assert!(retrieved_site.is_none());
@@ -71,7 +71,7 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_site_by_id_empty_database() {
     // Test getting a site from empty database
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let retrieved_site = GetSiteByIdQuery::run(&mut conn, 1).await.unwrap();
 
     assert!(retrieved_site.is_none());
@@ -79,7 +79,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_site_by_id_multiple_sites() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     // Create multiple test sites
     let site1_data = CreateSiteData {
@@ -126,7 +126,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_site_by_id_with_null_fields() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     // Create a site with null optional fields
     let site_data = CreateSiteData {

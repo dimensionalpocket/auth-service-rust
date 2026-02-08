@@ -58,12 +58,12 @@ mod tests {
       is_default: false,
     };
     let role = {
-      let mut conn = pool.acquire().await.unwrap();
+      let mut conn = main_pool.acquire().await.unwrap();
       CreateRoleQuery::run(&mut conn, create_data).await.unwrap()
     };
 
     // Delete role and get returned data
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let deleted_role = DeleteRoleQuery::run(&mut conn, role.id).await.unwrap();
 
     // Verify returned data matches original
@@ -86,7 +86,7 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_delete_role_not_found() {
     // Try to delete non-existent role
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let result = DeleteRoleQuery::run(&mut conn, 999).await;
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err(), sqlx::Error::RowNotFound));
@@ -101,7 +101,7 @@ mod tests {
       is_default: false,
     };
     let role = {
-      let mut conn = pool.acquire().await.unwrap();
+      let mut conn = main_pool.acquire().await.unwrap();
       CreateRoleQuery::run(&mut conn, role_data).await.unwrap()
     };
 
@@ -114,12 +114,12 @@ mod tests {
       metadata_json: None,
     };
     {
-      let mut conn = pool.acquire().await.unwrap();
+      let mut conn = main_pool.acquire().await.unwrap();
       CreateUserQuery::run(&mut conn, user_data).await.unwrap();
     }
 
     // Try to delete the role while it's in use - should fail due to foreign key constraint
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let result = DeleteRoleQuery::run(&mut conn, role.id).await;
     assert!(result.is_err());
     // The query should fail due to foreign key constraint

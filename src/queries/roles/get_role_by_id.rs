@@ -37,7 +37,7 @@ mod tests {
   use super::*;
   #[dps_auth_db_test]
   async fn test_get_role_by_id_found() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     // Insert test role
     let role_id = sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE)")
@@ -57,7 +57,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_role_by_id_not_found() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let role = GetRoleByIdQuery::run(&mut conn, 999).await.unwrap();
 

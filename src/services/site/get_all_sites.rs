@@ -22,7 +22,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_all_sites() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let data1 = crate::queries::sites::CreateSiteData {
       slug: "test1".to_string(),

@@ -39,10 +39,10 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_default_role_found() {
     // Insert test roles with one default
-    create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&main_pool, "admin", &["is_admin"], false).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let role = GetDefaultRoleQuery::run(&mut conn).await.unwrap();
 
     assert!(role.is_some());
@@ -54,10 +54,10 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_default_role_not_found() {
     // Insert test roles with no default
-    create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
-    create_test_role_model_with_pool(&pool, "moderator", &["can_moderate"], false).await;
+    create_test_role_model_with_pool(&main_pool, "admin", &["is_admin"], false).await;
+    create_test_role_model_with_pool(&main_pool, "moderator", &["can_moderate"], false).await;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let role = GetDefaultRoleQuery::run(&mut conn).await.unwrap();
 
     assert!(role.is_none());
@@ -65,7 +65,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_default_role_empty_table() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let role = GetDefaultRoleQuery::run(&mut conn).await.unwrap();
 
     assert!(role.is_none());

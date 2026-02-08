@@ -57,8 +57,8 @@ mod tests {
   async fn test_get_site_details_with_permission_check_success() {
     // Create admin role and user
     let admin_role_id =
-      create_test_role_with_pool(&pool, "admin", &["can_view_site_details"]).await;
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+      create_test_role_with_pool(&main_pool, "admin", &["can_view_site_details"]).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -69,7 +69,7 @@ mod tests {
       metadata_json: Some("{\"description\": \"Test site\"}".to_string()),
     };
     let site = {
-      let mut conn = pool.acquire().await.unwrap();
+      let mut conn = main_pool.acquire().await.unwrap();
       CreateSiteQuery::run(&mut conn, create_data).await.unwrap()
     };
 
@@ -82,7 +82,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     // Test site details retrieval
-    let result = GetSiteOrchestrator::run(&pool, session_context, site.id).await;
+    let result = GetSiteOrchestrator::run(&main_pool, session_context, site.id).await;
 
     assert!(result.is_ok());
     let retrieved_site = result.unwrap();
@@ -96,8 +96,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_site_details_with_permission_check_forbidden() {
     // Create user role without can_view_site_details permission
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
-    let regular_user = create_test_user_with_pool(&pool, "user", user_role_id).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    let regular_user = create_test_user_with_pool(&main_pool, "user", user_role_id).await;
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -108,7 +108,7 @@ mod tests {
       metadata_json: None,
     };
     let site = {
-      let mut conn = pool.acquire().await.unwrap();
+      let mut conn = main_pool.acquire().await.unwrap();
       CreateSiteQuery::run(&mut conn, create_data).await.unwrap()
     };
 
@@ -121,7 +121,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     // Test site details retrieval
-    let result = GetSiteOrchestrator::run(&pool, session_context, site.id).await;
+    let result = GetSiteOrchestrator::run(&main_pool, session_context, site.id).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -136,8 +136,8 @@ mod tests {
   async fn test_get_site_details_with_permission_check_site_not_found() {
     // Create admin role and user
     let admin_role_id =
-      create_test_role_with_pool(&pool, "admin", &["can_view_site_details"]).await;
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+      create_test_role_with_pool(&main_pool, "admin", &["can_view_site_details"]).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -148,7 +148,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     // Test site details retrieval for non-existent site
-    let result = GetSiteOrchestrator::run(&pool, session_context, 999).await;
+    let result = GetSiteOrchestrator::run(&main_pool, session_context, 999).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {

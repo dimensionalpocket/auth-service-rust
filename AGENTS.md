@@ -165,7 +165,7 @@ Domain usage is more of a way to organize code than strict boundaries. Cross-dom
 - Prefer `#[dps_auth_db_test]` (from `dps-auth-test-macros`) for tests that need a SQLite pool
 - The macro wraps the function in `#[tokio::test]` and injects:
   - `databases` (main + session)
-  - `pool` (`SqlitePool`, cloned from `databases.main()`)
+  - `main_pool` (`SqlitePool`, cloned from `databases.main()`)
 - Usage in unit tests (inside `#[cfg(test)] mod tests { ... }`):
 
 ```rust
@@ -173,7 +173,7 @@ use dps_auth_test_macros::dps_auth_db_test;
 
 #[dps_auth_db_test]
 async fn test_something() {
-  // use `pool` (and `databases` if needed)
+  // use `main_pool` (and `databases` if needed)
 }
 ```
 
@@ -185,7 +185,7 @@ use dps_auth_test_macros::dps_auth_db_test;
 
 #[dps_auth_db_test]
 async fn test_something() {
-  // use `pool`
+  // use `main_pool`
 }
 ```
 

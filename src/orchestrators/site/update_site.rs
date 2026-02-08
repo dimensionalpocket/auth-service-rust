@@ -53,8 +53,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_update_site_with_permission_check_success() {
     // Create admin role and user
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_update_site"]).await;
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_update_site"]).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -65,7 +65,7 @@ mod tests {
       metadata_json: None,
     };
     let site = {
-      let mut conn = pool.acquire().await.unwrap();
+      let mut conn = main_pool.acquire().await.unwrap();
       CreateSiteQuery::run(&mut conn, create_data).await.unwrap()
     };
 
@@ -87,7 +87,8 @@ mod tests {
       metadata_json: Some(Some("{\"updated\": true}".to_string())),
     };
 
-    let result = UpdateSiteOrchestrator::run(&pool, session_context, site.id, update_data).await;
+    let result =
+      UpdateSiteOrchestrator::run(&main_pool, session_context, site.id, update_data).await;
 
     assert!(result.is_ok());
     let updated_site = result.unwrap();
@@ -102,8 +103,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_update_site_with_permission_check_forbidden() {
     // Create user role without can_update_site permission
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
-    let regular_user = create_test_user_with_pool(&pool, "user", user_role_id).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    let regular_user = create_test_user_with_pool(&main_pool, "user", user_role_id).await;
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -114,7 +115,7 @@ mod tests {
       metadata_json: None,
     };
     let site = {
-      let mut conn = pool.acquire().await.unwrap();
+      let mut conn = main_pool.acquire().await.unwrap();
       CreateSiteQuery::run(&mut conn, create_data).await.unwrap()
     };
 
@@ -136,7 +137,8 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateSiteOrchestrator::run(&pool, session_context, site.id, update_data).await;
+    let result =
+      UpdateSiteOrchestrator::run(&main_pool, session_context, site.id, update_data).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {

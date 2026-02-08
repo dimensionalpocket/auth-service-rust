@@ -47,8 +47,9 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_role_permissions_user_without_manage_roles_permission() {
     // Create regular user role
-    let user_role_id = create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
-    let regular_user = create_test_user_with_pool(&pool, "user", user_role_id).await;
+    let user_role_id =
+      create_test_role_with_pool(&main_pool, "user", &["can_view_user_self"]).await;
+    let regular_user = create_test_user_with_pool(&main_pool, "user", user_role_id).await;
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -59,7 +60,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = RolePermissionsResolver;
-    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
+    let schema = create_test_query_schema(query, Some(main_pool), Some(session_context), None);
 
     let result = schema.execute("{ rolePermissions }").await;
 
@@ -73,9 +74,9 @@ mod tests {
   async fn test_role_permissions_user_with_manage_roles_but_not_admin_permission() {
     // Create role manager role
     let role_manager_id =
-      create_test_role_with_pool(&pool, "role_manager", &["can_manage_roles"]).await;
+      create_test_role_with_pool(&main_pool, "role_manager", &["can_manage_roles"]).await;
     let role_manager_user =
-      create_test_user_with_pool(&pool, "role_manager", role_manager_id).await;
+      create_test_user_with_pool(&main_pool, "role_manager", role_manager_id).await;
 
     // Create session context for role manager
     let session_payload = DpsAuthSessionPayload {
@@ -86,7 +87,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = RolePermissionsResolver;
-    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
+    let schema = create_test_query_schema(query, Some(main_pool), Some(session_context), None);
 
     let result = schema.execute("{ rolePermissions }").await;
 
@@ -110,13 +111,13 @@ mod tests {
   async fn test_role_permissions_user_with_admin_management_permission() {
     // Create admin manager role
     let admin_manager_id = create_test_role_with_pool(
-      &pool,
+      &main_pool,
       "admin_manager",
       &["can_manage_roles", "can_manage_admin_role_permission"],
     )
     .await;
     let admin_manager_user =
-      create_test_user_with_pool(&pool, "admin_manager", admin_manager_id).await;
+      create_test_user_with_pool(&main_pool, "admin_manager", admin_manager_id).await;
 
     // Create session context for admin manager
     let session_payload = DpsAuthSessionPayload {
@@ -127,7 +128,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = RolePermissionsResolver;
-    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
+    let schema = create_test_query_schema(query, Some(main_pool), Some(session_context), None);
 
     let result = schema.execute("{ rolePermissions }").await;
 
@@ -150,8 +151,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_role_permissions_admin_user() {
     // Create admin role
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["is_admin"]).await;
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["is_admin"]).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
 
     // Create session context for admin
     let session_payload = DpsAuthSessionPayload {
@@ -162,7 +163,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = RolePermissionsResolver;
-    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
+    let schema = create_test_query_schema(query, Some(main_pool), Some(session_context), None);
 
     let result = schema.execute("{ rolePermissions }").await;
 
@@ -187,7 +188,7 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let query = RolePermissionsResolver;
-    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
+    let schema = create_test_query_schema(query, Some(main_pool), Some(session_context), None);
 
     let result = schema.execute("{ rolePermissions }").await;
 

@@ -52,9 +52,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_user_success() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let user = CreateUserService::run(&mut conn, "testuser", "password123")
       .await
       .unwrap();
@@ -70,9 +70,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_user_username_already_exists() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     CreateUserService::run(&mut conn, "testuser", "password123")
       .await
       .unwrap();
@@ -87,9 +87,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_user_case_insensitive_username_check() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     CreateUserService::run(&mut conn, "testuser", "password123")
       .await
       .unwrap();

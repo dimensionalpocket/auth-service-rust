@@ -68,11 +68,11 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_set_default_role_success() {
     // Create test roles
-    let role1_id = create_test_role_with_pool(&pool, "role1", &[]).await;
-    let role2_id = create_test_role_with_pool(&pool, "role2", &[]).await;
+    let role1_id = create_test_role_with_pool(&main_pool, "role1", &[]).await;
+    let role2_id = create_test_role_with_pool(&main_pool, "role2", &[]).await;
 
     // Set role1 as default
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let result = SetDefaultRoleQuery::run(&mut conn, role1_id).await.unwrap();
 
     assert!(result.is_some());
@@ -107,11 +107,11 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_set_default_role_atomic_behavior() {
     // Create test roles
-    let role1_id = create_test_role_with_pool(&pool, "role1", &[]).await;
-    let role2_id = create_test_role_with_pool(&pool, "role2", &[]).await;
+    let role1_id = create_test_role_with_pool(&main_pool, "role1", &[]).await;
+    let role2_id = create_test_role_with_pool(&main_pool, "role2", &[]).await;
 
     // Set role1 as default first
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     SetDefaultRoleQuery::run(&mut conn, role1_id).await.unwrap();
 
     // Then set role2 as default
@@ -157,7 +157,7 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_set_default_role_not_found() {
     // Try to set non-existent role as default
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let result = SetDefaultRoleQuery::run(&mut conn, 999).await.unwrap();
 
     assert!(result.is_none());
@@ -166,14 +166,14 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_set_default_role_timestamp_update() {
     // Create test role
-    let role_id = create_test_role_with_pool(&pool, "role1", &[]).await;
+    let role_id = create_test_role_with_pool(&main_pool, "role1", &[]).await;
 
     // Get original role to check timestamp
     let original_role_row = sqlx::query(
             "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?"
         )
         .bind(role_id)
-        .fetch_one(&pool)
+        .fetch_one(&main_pool)
         .await
         .unwrap();
     let permissions_json: Option<String> = original_role_row.try_get("permissions_json").unwrap();
@@ -195,7 +195,7 @@ mod tests {
     tokio::time::sleep(tokio::time::Duration::from_millis(1050)).await;
 
     // Set role as default
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let result = SetDefaultRoleQuery::run(&mut conn, role_id).await.unwrap();
 
     assert!(result.is_some());

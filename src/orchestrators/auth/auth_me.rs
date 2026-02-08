@@ -36,9 +36,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_authenticated_user_success() {
-    let _user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
+    let _user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
     let user =
-      create_test_user_full_with_pool(&pool, "testuser", Some(1), "password123", None).await;
+      create_test_user_full_with_pool(&main_pool, "testuser", Some(1), "password123", None).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: user.id,
@@ -47,7 +47,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = AuthMeOrchestrator::run(&pool, session_context).await;
+    let result = AuthMeOrchestrator::run(&main_pool, session_context).await;
 
     assert!(result.is_ok());
     let auth_me_result = result.unwrap();
@@ -63,7 +63,7 @@ mod tests {
   async fn test_get_authenticated_user_unauthenticated() {
     let session_context = SessionContext::new(None);
 
-    let result = AuthMeOrchestrator::run(&pool, session_context).await;
+    let result = AuthMeOrchestrator::run(&main_pool, session_context).await;
 
     assert!(result.is_ok());
     assert!(result.unwrap().is_none());

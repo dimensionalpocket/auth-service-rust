@@ -50,11 +50,11 @@ mod tests {
     sqlx::query("SELECT 1")
       .execute(databases.main())
       .await
-      .expect("Main pool should execute query");
+      .expect("Main main_pool should execute query");
     sqlx::query("SELECT 1")
       .execute(databases.session())
       .await
-      .expect("Session pool should execute query");
+      .expect("Session main_pool should execute query");
   }
 
   #[dps_auth_db_test]

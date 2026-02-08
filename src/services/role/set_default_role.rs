@@ -27,7 +27,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_set_default_role_success() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let role1_data = crate::queries::roles::CreateRoleData {
       name: "role1".to_string(),
@@ -79,7 +79,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_set_default_role_not_found() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let result = SetDefaultRoleService::run(&mut conn, 999).await;
     assert!(result.is_err());
@@ -91,7 +91,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_set_default_role_atomic_behavior() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let role1_data = crate::queries::roles::CreateRoleData {
       name: "atomic-role1".to_string(),

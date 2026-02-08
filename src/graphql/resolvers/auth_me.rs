@@ -152,7 +152,7 @@ mod tests {
   async fn test_auth_me_with_authenticated_user() {
     // Setup: Create a test user
     let user = create_test_user_full_with_pool(
-      &pool,
+      &main_pool,
       "testuser",
       None, // Will create and use default role
       "test_password",
@@ -169,7 +169,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(payload.clone()));
 
-    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
+    let schema = create_test_query_schema(query, Some(main_pool), Some(session_context), None);
 
     let result = schema
       .execute(
@@ -191,7 +191,7 @@ mod tests {
     let query = AuthMeResolver;
     let session_context = SessionContext::new(None);
 
-    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
+    let schema = create_test_query_schema(query, Some(main_pool), Some(session_context), None);
 
     let result = schema.execute("{ authMe { user { id uuid name } } }").await;
 
@@ -205,7 +205,7 @@ mod tests {
   async fn test_auth_me_missing_context() {
     let query = AuthMeResolver;
 
-    let schema = create_test_query_schema(query, Some(pool), None, None);
+    let schema = create_test_query_schema(query, Some(main_pool), None, None);
     let result = schema.execute("{ authMe { user { id uuid name } } }").await;
 
     // Should succeed with null response when no session context

@@ -388,14 +388,15 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_create_test_user_no_role() {
     // Create user without role (will create and use default role automatically)
-    let user = create_test_user_full_with_pool(&pool, "testuser", None, "password123", None).await;
+    let user =
+      create_test_user_full_with_pool(&main_pool, "testuser", None, "password123", None).await;
 
     assert_eq!(user.name, "testuser");
     // Should have the default role ID (created automatically)
     assert!(user.role_id > 0);
 
     // Verify that default role is created automatically
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let default_role = GetDefaultRoleQuery::run(&mut conn).await.unwrap().unwrap();
     assert_eq!(user.role_id, default_role.id);
     assert_eq!(default_role.name, "user");
@@ -404,11 +405,12 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_test_user_custom_password() {
-    let role_id = create_test_role_with_pool(&pool, "test_role", &["can_view_user_self"]).await;
+    let role_id =
+      create_test_role_with_pool(&main_pool, "test_role", &["can_view_user_self"]).await;
 
     // Create user with custom password
     let user =
-      create_test_user_with_pool_and_password(&pool, "testuser", role_id, "custompass").await;
+      create_test_user_with_pool_and_password(&main_pool, "testuser", role_id, "custompass").await;
 
     assert_eq!(user.name, "testuser");
     assert_eq!(user.role_id, role_id);
@@ -416,12 +418,13 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_test_user_full() {
-    let role_id = create_test_role_with_pool(&pool, "test_role", &["can_view_user_self"]).await;
+    let role_id =
+      create_test_role_with_pool(&main_pool, "test_role", &["can_view_user_self"]).await;
     let metadata = serde_json::json!({"key": "value"});
 
     // Create user with all parameters
     let user = create_test_user_full_with_pool(
-      &pool,
+      &main_pool,
       "testuser",
       Some(role_id),
       "password123",
@@ -438,7 +441,7 @@ mod tests {
   async fn test_create_test_role_id() {
     // Create role and get ID
     let role_id = create_test_role_with_pool(
-      &pool,
+      &main_pool,
       "test_role",
       &["can_view_user_self", "can_list_users"],
     )
@@ -451,7 +454,7 @@ mod tests {
   async fn test_create_test_role_model() {
     // Create role and get full model
     let role = create_test_role_model_with_pool(
-      &pool,
+      &main_pool,
       "test_role",
       &["can_view_user_self", "can_list_users"],
       true,
@@ -468,7 +471,7 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_create_test_role_empty_permissions() {
     // Create role with no permissions
-    let role = create_test_role_model_with_pool(&pool, "empty_role", &[], false).await;
+    let role = create_test_role_model_with_pool(&main_pool, "empty_role", &[], false).await;
 
     assert_eq!(role.name, "empty_role");
     assert!(!role.is_default);
@@ -478,7 +481,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_create_test_role_all_permissions() {
     // Create role with all available permissions
-    let role = create_test_role_model_with_pool(&pool, "admin_role", ROLE_PERMISSIONS, false).await;
+    let role =
+      create_test_role_model_with_pool(&main_pool, "admin_role", ROLE_PERMISSIONS, false).await;
 
     assert_eq!(role.name, "admin_role");
     assert_eq!(role.permissions.len(), ROLE_PERMISSIONS.len());
@@ -499,7 +503,7 @@ mod tests {
   async fn test_create_test_query_schema_with_pool() {
     use super::*;
 
-    let schema = create_test_query_schema(TestEmptyQuery, Some(pool), None, None);
+    let schema = create_test_query_schema(TestEmptyQuery, Some(main_pool), None, None);
 
     // Verify schema was created successfully
     assert!(schema.execute("{ dummy }").await.is_ok());
@@ -554,7 +558,8 @@ mod tests {
       session_ttl_seconds: 3600,
     };
 
-    let schema = create_test_query_schema(TestEmptyQuery, Some(pool), Some(session), Some(config));
+    let schema =
+      create_test_query_schema(TestEmptyQuery, Some(main_pool), Some(session), Some(config));
 
     // Verify schema was created successfully
     assert!(schema.execute("{ dummy }").await.is_ok());
@@ -574,7 +579,7 @@ mod tests {
   async fn test_create_test_mutation_schema_with_pool() {
     use super::*;
 
-    let schema = create_test_mutation_schema(EmptyMutation, Some(pool), None, None);
+    let schema = create_test_mutation_schema(EmptyMutation, Some(main_pool), None, None);
 
     // Verify schema was created successfully
     assert!(schema.execute("{ dummy }").await.is_ok());
@@ -630,7 +635,7 @@ mod tests {
     };
 
     let schema =
-      create_test_mutation_schema(EmptyMutation, Some(pool), Some(session), Some(config));
+      create_test_mutation_schema(EmptyMutation, Some(main_pool), Some(session), Some(config));
 
     // Verify schema was created successfully
     assert!(schema.execute("{ dummy }").await.is_ok());
@@ -648,7 +653,7 @@ mod tests {
 
     // Create user with specific UUID
     let user = create_test_user_with_pool_and_uuid(
-      &pool,
+      &main_pool,
       test_uuid,
       test_username,
       None, // Use default role
@@ -665,7 +670,7 @@ mod tests {
     assert_eq!(user.metadata_json, Some(test_metadata.to_string()));
 
     // Verify user can be retrieved by UUID
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let retrieved_user = GetUserByUuidQuery::run(&mut conn, test_uuid).await.unwrap();
     assert!(retrieved_user.is_some());
     let retrieved_user = retrieved_user.unwrap();

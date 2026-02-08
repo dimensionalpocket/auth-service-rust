@@ -26,7 +26,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_delete_site_success() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let create_data = crate::queries::sites::CreateSiteData {
       slug: "delete-test".to_string(),
@@ -56,7 +56,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_delete_site_not_found() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let result = DeleteSiteService::run(&mut conn, 999).await;
     assert!(result.is_err());

@@ -68,7 +68,7 @@ mod tests {
       is_default: false,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let role = CreateRoleQuery::run(&mut conn, data).await.unwrap();
 
     assert_eq!(role.name, "test_role");
@@ -89,7 +89,7 @@ mod tests {
       is_default: true,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let role = CreateRoleQuery::run(&mut conn, data).await.unwrap();
 
     assert_eq!(role.name, "empty_permissions_role");
@@ -106,7 +106,7 @@ mod tests {
     };
 
     {
-      let mut conn = pool.acquire().await.unwrap();
+      let mut conn = main_pool.acquire().await.unwrap();
       CreateRoleQuery::run(&mut conn, data1).await.unwrap();
     }
 
@@ -116,7 +116,7 @@ mod tests {
       is_default: false,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let result = CreateRoleQuery::run(&mut conn, data2).await;
     assert!(result.is_err());
   }
@@ -129,7 +129,7 @@ mod tests {
       is_default: true,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let role = CreateRoleQuery::run(&mut conn, data).await.unwrap();
 
     assert_eq!(role.name, "default_test_role");
@@ -163,7 +163,7 @@ mod tests {
       is_default: false,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let role = CreateRoleQuery::run(&mut conn, data).await.unwrap();
 
     assert_eq!(role.name, "many_permissions_role");

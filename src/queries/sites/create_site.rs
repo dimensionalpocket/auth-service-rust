@@ -51,7 +51,7 @@ mod tests {
   use super::*;
   #[dps_auth_db_test]
   async fn test_create_site_success() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let data = CreateSiteData {
       slug: "example".to_string(),
@@ -74,7 +74,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_site_duplicate_slug_fails() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let data1 = CreateSiteData {
       slug: "duplicate".to_string(),
@@ -100,7 +100,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_site_nullable_fields() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let data = CreateSiteData {
       slug: "nullable".to_string(),

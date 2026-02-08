@@ -91,13 +91,13 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_users_success() {
     // Create roles
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_list_users"]).await;
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_list_users"]).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
 
     // Create users
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
-    let _regular_user = create_test_user_with_pool(&pool, "user1", user_role_id).await;
-    let _another_user = create_test_user_with_pool(&pool, "user2", user_role_id).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let _regular_user = create_test_user_with_pool(&main_pool, "user1", user_role_id).await;
+    let _another_user = create_test_user_with_pool(&main_pool, "user2", user_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -108,7 +108,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = UsersResolver;
-    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
+    let schema = create_test_query_schema(query, Some(main_pool), Some(session_context), None);
 
     let result = schema
       .execute("{ users { id uuid name role { id name permissions } createdTs updatedTs } }")
@@ -145,7 +145,7 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let query = UsersResolver;
-    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
+    let schema = create_test_query_schema(query, Some(main_pool), Some(session_context), None);
 
     let result = schema.execute("{ users { id name } }").await;
 
@@ -156,10 +156,10 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_users_forbidden() {
     // Create role without can_list_users permission
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
 
     // Create regular user
-    let regular_user = create_test_user_with_pool(&pool, "user1", user_role_id).await;
+    let regular_user = create_test_user_with_pool(&main_pool, "user1", user_role_id).await;
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -170,7 +170,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = UsersResolver;
-    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
+    let schema = create_test_query_schema(query, Some(main_pool), Some(session_context), None);
 
     let result = schema.execute("{ users { id name } }").await;
 
@@ -181,8 +181,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_users_empty_database() {
     // Create admin role and user
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_list_users"]).await;
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_list_users"]).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -193,7 +193,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = UsersResolver;
-    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
+    let schema = create_test_query_schema(query, Some(main_pool), Some(session_context), None);
 
     let result = schema.execute("{ users { id name role { name } } }").await;
 
@@ -216,7 +216,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = UsersResolver;
-    let schema = create_test_query_schema(query, Some(pool), Some(session_context), None);
+    let schema = create_test_query_schema(query, Some(main_pool), Some(session_context), None);
 
     let result = schema.execute("{ users { id name } }").await;
 

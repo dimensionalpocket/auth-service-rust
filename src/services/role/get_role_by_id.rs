@@ -22,10 +22,10 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_role_by_id_delegates_to_query() {
-    let role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
+    let role = create_test_role_model_with_pool(&main_pool, "admin", &["is_admin"], false).await;
     let role_id = role.id;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let role = GetRoleByIdService::run(&mut conn, role_id).await.unwrap();
 
     assert!(role.is_some());

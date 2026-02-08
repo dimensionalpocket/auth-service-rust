@@ -51,8 +51,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_change_authenticated_user_password_success() {
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
-    let user = create_test_user_with_pool(&pool, "testuser", user_role_id).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    let user = create_test_user_with_pool(&main_pool, "testuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: user.id,
@@ -62,7 +62,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let result = AuthChangePasswordOrchestrator::run(
-      &pool,
+      &main_pool,
       session_context,
       "password123",
       "newpassword456",
@@ -82,7 +82,7 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let result = AuthChangePasswordOrchestrator::run(
-      &pool,
+      &main_pool,
       session_context,
       "password123",
       "newpassword456",
@@ -109,7 +109,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let result = AuthChangePasswordOrchestrator::run(
-      &pool,
+      &main_pool,
       session_context,
       "password123",
       "newpassword456",
@@ -128,8 +128,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_change_authenticated_user_password_wrong_current_password() {
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
-    let user = create_test_user_with_pool(&pool, "testuser", user_role_id).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    let user = create_test_user_with_pool(&main_pool, "testuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: user.id,
@@ -139,7 +139,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let result = AuthChangePasswordOrchestrator::run(
-      &pool,
+      &main_pool,
       session_context,
       "wrongpassword",
       "newpassword456",
@@ -158,8 +158,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_change_authenticated_user_password_password_mismatch() {
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
-    let user = create_test_user_with_pool(&pool, "testuser", user_role_id).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    let user = create_test_user_with_pool(&main_pool, "testuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: user.id,
@@ -169,7 +169,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let result = AuthChangePasswordOrchestrator::run(
-      &pool,
+      &main_pool,
       session_context,
       "password123",
       "newpassword456",
@@ -188,8 +188,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_change_authenticated_user_password_invalid_new_password() {
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
-    let user = create_test_user_with_pool(&pool, "testuser", user_role_id).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    let user = create_test_user_with_pool(&main_pool, "testuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: user.id,
@@ -199,7 +199,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let result =
-      AuthChangePasswordOrchestrator::run(&pool, session_context, "password123", "123", "123")
+      AuthChangePasswordOrchestrator::run(&main_pool, session_context, "password123", "123", "123")
         .await;
 
     assert!(result.is_err());

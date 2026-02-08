@@ -54,7 +54,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_role_success() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
       name: "test_role".to_string(),
@@ -82,7 +82,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_role_empty_permissions() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
       name: "empty_permissions_role".to_string(),
@@ -101,7 +101,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_role_duplicate_name_fails() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let create_data1 = CreateRoleData {
       name: "duplicate".to_string(),
@@ -129,7 +129,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_role_empty_name_fails() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
       name: "".to_string(),
@@ -147,7 +147,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_role_whitespace_name_fails() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
       name: "   ".to_string(),
@@ -165,7 +165,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_role_invalid_permission_fails() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
       name: "invalid_permission_role".to_string(),
@@ -183,7 +183,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_role_multiple_invalid_permissions_fails() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
       name: "multiple_invalid_role".to_string(),
@@ -205,7 +205,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_role_all_valid_permissions() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let all_permissions: Vec<String> = ROLE_PERMISSIONS
       .iter()
@@ -238,7 +238,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_role_default_role() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
       name: "default_test_role".to_string(),

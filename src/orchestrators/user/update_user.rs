@@ -80,10 +80,10 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_with_permission_check_success() {
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_edit_user"]).await;
 
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
-    let target_user = create_test_user_with_pool(&pool, "targetuser", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let target_user = create_test_user_with_pool(&main_pool, "targetuser", admin_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -101,7 +101,7 @@ mod tests {
       metadata_json: Some(r#"{"updated": true}"#.to_string()),
     };
 
-    let result = UpdateUserOrchestrator::run(&pool, session_context, input).await;
+    let result = UpdateUserOrchestrator::run(&main_pool, session_context, input).await;
 
     assert!(result.is_ok());
     let user_with_role = result.unwrap();
@@ -117,8 +117,8 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_with_permission_check_unauthenticated() {
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
-    let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    let target_user = create_test_user_with_pool(&main_pool, "targetuser", user_role_id).await;
 
     let session_context = SessionContext::new(None);
 
@@ -131,7 +131,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&pool, session_context, input).await;
+    let result = UpdateUserOrchestrator::run(&main_pool, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -144,8 +144,8 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_with_permission_check_session_user_not_found() {
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
-    let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    let target_user = create_test_user_with_pool(&main_pool, "targetuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: 999,
@@ -163,7 +163,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&pool, session_context, input).await;
+    let result = UpdateUserOrchestrator::run(&main_pool, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -176,10 +176,10 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_with_permission_check_forbidden() {
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
 
-    let regular_user = create_test_user_with_pool(&pool, "regular", user_role_id).await;
-    let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
+    let regular_user = create_test_user_with_pool(&main_pool, "regular", user_role_id).await;
+    let target_user = create_test_user_with_pool(&main_pool, "targetuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: regular_user.id,
@@ -197,7 +197,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&pool, session_context, input).await;
+    let result = UpdateUserOrchestrator::run(&main_pool, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -210,8 +210,8 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_with_permission_check_target_user_not_found() {
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_edit_user"]).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -229,7 +229,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&pool, session_context, input).await;
+    let result = UpdateUserOrchestrator::run(&main_pool, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -242,11 +242,11 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_with_permission_check_validation_error() {
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_edit_user"]).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
 
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
-    let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    let target_user = create_test_user_with_pool(&main_pool, "targetuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -264,7 +264,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&pool, session_context, input).await;
+    let result = UpdateUserOrchestrator::run(&main_pool, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -277,11 +277,11 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_with_permission_check_password_validation_error() {
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_edit_user"]).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
 
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
-    let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    let target_user = create_test_user_with_pool(&main_pool, "targetuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -299,7 +299,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&pool, session_context, input).await;
+    let result = UpdateUserOrchestrator::run(&main_pool, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -312,12 +312,12 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_with_permission_check_username_conflict() {
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_edit_user"]).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
 
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
-    let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
-    let _existing_user = create_test_user_with_pool(&pool, "existinguser", user_role_id).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    let target_user = create_test_user_with_pool(&main_pool, "targetuser", user_role_id).await;
+    let _existing_user = create_test_user_with_pool(&main_pool, "existinguser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -335,7 +335,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&pool, session_context, input).await;
+    let result = UpdateUserOrchestrator::run(&main_pool, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -348,11 +348,11 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_password_confirmation_missing() {
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_edit_user"]).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
 
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
-    let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    let target_user = create_test_user_with_pool(&main_pool, "targetuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -370,7 +370,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&pool, session_context, input).await;
+    let result = UpdateUserOrchestrator::run(&main_pool, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -383,11 +383,11 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_password_confirmation_mismatch() {
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_edit_user"]).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
 
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
-    let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    let target_user = create_test_user_with_pool(&main_pool, "targetuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -405,7 +405,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&pool, session_context, input).await;
+    let result = UpdateUserOrchestrator::run(&main_pool, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -418,11 +418,11 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_password_confirmation_match() {
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_edit_user"]).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
 
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
-    let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    let target_user = create_test_user_with_pool(&main_pool, "targetuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -440,7 +440,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&pool, session_context, input).await;
+    let result = UpdateUserOrchestrator::run(&main_pool, session_context, input).await;
 
     assert!(result.is_ok());
     let user_with_role = result.unwrap();

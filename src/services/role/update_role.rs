@@ -50,7 +50,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_role_success() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let role = create_test_role_model(&mut conn, "test-role", &["can_view_user_self"], false).await;
     let role_id = role.id;
@@ -78,7 +78,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_role_partial_update() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let role = create_test_role_model(
       &mut conn,
@@ -109,7 +109,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_role_not_found() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let update_data = UpdateRoleData {
       id: 999,
@@ -127,7 +127,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_role_invalid_permission() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let role = create_test_role_model(&mut conn, "test-role", &["can_view_user_self"], false).await;
     let role_id = role.id;
@@ -148,7 +148,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_role_empty_permissions() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let role = create_test_role_model(
       &mut conn,
@@ -176,7 +176,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_role_all_valid_permissions() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let role = create_test_role_model(
       &mut conn,

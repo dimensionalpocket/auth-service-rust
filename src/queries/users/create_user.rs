@@ -72,7 +72,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_create_user_success() {
     // Insert test role first
-    let role = create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    let role =
+      create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
     let role_id = role.id;
 
     let user_uuid = Uuid::new_v4().to_string();
@@ -84,7 +85,7 @@ mod tests {
       metadata_json: Some(r#"{"test": true}"#.to_string()),
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
 
     assert_eq!(user.uuid, user_uuid);
@@ -99,7 +100,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_create_user_duplicate_uuid_fails() {
     // Insert test role first
-    let role = create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    let role =
+      create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
     let role_id = role.id;
 
     let user_uuid = Uuid::new_v4().to_string();
@@ -111,7 +113,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     // First user should succeed
     CreateUserQuery::run(&mut conn, create_data1).await.unwrap();
 
@@ -139,7 +141,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let result = CreateUserQuery::run(&mut conn, create_data).await;
     assert!(result.is_err()); // Should fail due to foreign key constraint
   }
@@ -147,8 +149,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_create_user_with_default_role() {
     // Insert test roles with one default
-    create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&main_pool, "admin", &["is_admin"], false).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
 
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {
@@ -159,7 +161,7 @@ mod tests {
       metadata_json: Some(r#"{"test": true}"#.to_string()),
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
 
     assert_eq!(user.uuid, user_uuid);
@@ -172,9 +174,10 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_create_user_with_explicit_role() {
     // Insert test roles with one default
-    let admin_role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
+    let admin_role =
+      create_test_role_model_with_pool(&main_pool, "admin", &["is_admin"], false).await;
     let admin_role_id = admin_role.id;
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
 
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {
@@ -185,7 +188,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
 
     assert_eq!(user.uuid, user_uuid);
@@ -196,8 +199,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_create_user_no_default_role_fails() {
     // Insert test roles with no default
-    create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
-    create_test_role_model_with_pool(&pool, "moderator", &["can_moderate"], false).await;
+    create_test_role_model_with_pool(&main_pool, "admin", &["is_admin"], false).await;
+    create_test_role_model_with_pool(&main_pool, "moderator", &["can_moderate"], false).await;
 
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {
@@ -208,7 +211,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let result = CreateUserQuery::run(&mut conn, create_data).await;
     assert!(result.is_err()); // Should fail because no default role exists
   }

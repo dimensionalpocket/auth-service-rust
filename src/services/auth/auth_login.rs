@@ -53,8 +53,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_auth_login_success() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
-    let mut conn = pool.acquire().await.unwrap();
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    let mut conn = main_pool.acquire().await.unwrap();
     CreateUserService::run(&mut conn, "testuser", "password123")
       .await
       .unwrap();
@@ -69,8 +69,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_auth_login_invalid_credentials() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
-    let mut conn = pool.acquire().await.unwrap();
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    let mut conn = main_pool.acquire().await.unwrap();
     CreateUserService::run(&mut conn, "testuser", "password123")
       .await
       .unwrap();
@@ -81,7 +81,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_auth_login_user_not_found() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let result = AuthLoginService::run(&mut conn, "nonexistent", "password123", TEST_SECRET).await;
 
     assert!(result.is_err());

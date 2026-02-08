@@ -23,7 +23,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_delete_user_by_id_success() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     // Insert test role first
     let role_result = sqlx::query(
@@ -72,7 +72,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_delete_user_by_id_not_found() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     // Try to delete non-existent user
     let deleted = DeleteUserByIdQuery::run(&mut conn, 999).await.unwrap();
@@ -81,7 +81,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_delete_user_by_id_multiple_deletes() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     // Insert test role first
     let role_result = sqlx::query(

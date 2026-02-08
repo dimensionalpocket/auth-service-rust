@@ -14,12 +14,12 @@ async fn test_complete_user_creation_flow() {
   // Setup test database
 
   // Create test roles using test utilities
-  let _admin_role_id = create_test_role_with_pool(&pool, "admin", &[]).await;
-  let _user_role_id = create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
+  let _admin_role_id = create_test_role_with_pool(&main_pool, "admin", &[]).await;
+  let _user_role_id = create_test_role_with_pool(&main_pool, "user", &["can_view_user_self"]).await;
 
   // Get user role
   let role = {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     GetRoleByNameQuery::run(&mut conn, "user")
       .await
       .unwrap()
@@ -28,7 +28,7 @@ async fn test_complete_user_creation_flow() {
 
   // Create user using test utility (this tests the complete flow)
   let created_user = create_test_user_full_with_pool(
-    &pool,
+    &main_pool,
     "Test User",
     Some(role.id),
     "test_password",
@@ -41,7 +41,7 @@ async fn test_complete_user_creation_flow() {
   assert_eq!(created_user.role_id, role.id);
 
   // Verify user can be retrieved by UUID
-  let mut conn = pool.acquire().await.unwrap();
+  let mut conn = main_pool.acquire().await.unwrap();
   let retrieved_user = GetUserByUuidQuery::run(&mut conn, &created_user.uuid)
     .await
     .unwrap()
@@ -56,11 +56,11 @@ async fn test_default_roles_seeded() {
   // Setup test database
 
   // Create test roles using test utilities to simulate seeding
-  create_test_role_with_pool(&pool, "admin", &[]).await;
-  create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
+  create_test_role_with_pool(&main_pool, "admin", &[]).await;
+  create_test_role_with_pool(&main_pool, "user", &["can_view_user_self"]).await;
 
   // Verify default roles exist
-  let mut conn = pool.acquire().await.unwrap();
+  let mut conn = main_pool.acquire().await.unwrap();
   let roles = GetAllRolesQuery::run(&mut conn).await.unwrap();
 
   assert_eq!(roles.len(), 2);
@@ -84,7 +84,7 @@ async fn test_foreign_key_constraint_enforced() {
     metadata_json: None,
   };
 
-  let mut conn = pool.acquire().await.unwrap();
+  let mut conn = main_pool.acquire().await.unwrap();
   let result = CreateUserQuery::run(&mut conn, create_data).await;
 
   // Should fail due to foreign key constraint

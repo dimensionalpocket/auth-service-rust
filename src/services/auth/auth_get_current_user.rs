@@ -49,7 +49,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_current_user_with_role() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let admin_role_id = create_test_role_model(&mut conn, "admin", &["can_manage_users"], false)
       .await

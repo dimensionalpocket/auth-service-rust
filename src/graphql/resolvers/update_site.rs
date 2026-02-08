@@ -141,10 +141,10 @@ mod tests {
   async fn test_update_site_success() {
     // Create admin role with can_update_site permission
     let admin_role_id =
-      create_test_role_with_pool(&pool, "admin", &["is_admin", "can_update_site"]).await;
+      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_update_site"]).await;
 
     // Create admin user
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
     let admin_user_id = admin_user.id;
 
     // Create a site first
@@ -156,7 +156,7 @@ mod tests {
       metadata_json: Some(r#"{"description": "Test site"}"#.to_string()),
     };
     let site = {
-      let mut conn = pool.acquire().await.unwrap();
+      let mut conn = main_pool.acquire().await.unwrap();
       CreateSiteQuery::run(&mut conn, create_data).await.unwrap()
     };
 
@@ -169,7 +169,8 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateSiteResolver;
-    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
+    let schema =
+      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -216,10 +217,11 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_update_site_forbidden() {
     // Create user role without can_update_site permission
-    let user_role_id = create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
+    let user_role_id =
+      create_test_role_with_pool(&main_pool, "user", &["can_view_user_self"]).await;
 
     // Create regular user
-    let user = create_test_user_with_pool(&pool, "user", user_role_id).await;
+    let user = create_test_user_with_pool(&main_pool, "user", user_role_id).await;
     let user_id = user.id;
 
     // Create session context for regular user
@@ -231,7 +233,8 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateSiteResolver;
-    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
+    let schema =
+      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -253,7 +256,8 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let mutation = UpdateSiteResolver;
-    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
+    let schema =
+      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -273,10 +277,10 @@ mod tests {
   async fn test_update_site_not_found() {
     // Create admin role with can_update_site permission
     let admin_role_id =
-      create_test_role_with_pool(&pool, "admin", &["is_admin", "can_update_site"]).await;
+      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_update_site"]).await;
 
     // Create admin user
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
     let admin_user_id = admin_user.id;
 
     // Create session context for admin user
@@ -288,7 +292,8 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateSiteResolver;
-    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
+    let schema =
+      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -308,10 +313,10 @@ mod tests {
   async fn test_update_site_invalid_slug() {
     // Create admin role with can_update_site permission
     let admin_role_id =
-      create_test_role_with_pool(&pool, "admin", &["is_admin", "can_update_site"]).await;
+      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_update_site"]).await;
 
     // Create admin user
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
     let admin_user_id = admin_user.id;
 
     // Create a site first
@@ -323,7 +328,7 @@ mod tests {
       metadata_json: None,
     };
     let site = {
-      let mut conn = pool.acquire().await.unwrap();
+      let mut conn = main_pool.acquire().await.unwrap();
       CreateSiteQuery::run(&mut conn, create_data).await.unwrap()
     };
 
@@ -336,7 +341,8 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateSiteResolver;
-    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
+    let schema =
+      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
 
     let query = r#"
       mutation {

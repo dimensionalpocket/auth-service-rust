@@ -57,12 +57,12 @@ mod tests {
   async fn test_get_all_roles_with_permission_check_admin_success() {
     // Create admin role and user
     let admin_role_id =
-      create_test_role_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
 
     // Create some roles to retrieve
-    create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
-    create_test_role_with_pool(&pool, "editor", &["can_edit_content"]).await;
+    create_test_role_with_pool(&main_pool, "user", &["can_view_user_self"]).await;
+    create_test_role_with_pool(&main_pool, "editor", &["can_edit_content"]).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -72,7 +72,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetRolesOrchestrator::run(&pool, session_context).await;
+    let result = GetRolesOrchestrator::run(&main_pool, session_context).await;
 
     assert!(result.is_ok());
     let roles = result.unwrap();
@@ -86,12 +86,13 @@ mod tests {
   async fn test_get_all_roles_with_permission_check_role_editor_success() {
     // Create role editor role and user
     let role_editor_id =
-      create_test_role_with_pool(&pool, "role_editor", &["can_edit_user_role"]).await;
-    let role_editor_user = create_test_user_with_pool(&pool, "role_editor", role_editor_id).await;
+      create_test_role_with_pool(&main_pool, "role_editor", &["can_edit_user_role"]).await;
+    let role_editor_user =
+      create_test_user_with_pool(&main_pool, "role_editor", role_editor_id).await;
 
     // Create some roles to retrieve
-    create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
-    create_test_role_with_pool(&pool, "editor", &["can_edit_content"]).await;
+    create_test_role_with_pool(&main_pool, "user", &["can_view_user_self"]).await;
+    create_test_role_with_pool(&main_pool, "editor", &["can_edit_content"]).await;
 
     // Create session context for role editor user
     let session_payload = DpsAuthSessionPayload {
@@ -101,7 +102,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetRolesOrchestrator::run(&pool, session_context).await;
+    let result = GetRolesOrchestrator::run(&main_pool, session_context).await;
 
     assert!(result.is_ok());
     let roles = result.unwrap();
@@ -116,7 +117,7 @@ mod tests {
     // Create session context without user (not authenticated)
     let session_context = SessionContext::new(None);
 
-    let result = GetRolesOrchestrator::run(&pool, session_context).await;
+    let result = GetRolesOrchestrator::run(&main_pool, session_context).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -137,7 +138,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetRolesOrchestrator::run(&pool, session_context).await;
+    let result = GetRolesOrchestrator::run(&main_pool, session_context).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -151,8 +152,9 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_all_roles_with_permission_check_forbidden() {
     // Create user role without required permissions
-    let user_role_id = create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
-    let regular_user = create_test_user_with_pool(&pool, "user", user_role_id).await;
+    let user_role_id =
+      create_test_role_with_pool(&main_pool, "user", &["can_view_user_self"]).await;
+    let regular_user = create_test_user_with_pool(&main_pool, "user", user_role_id).await;
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -162,7 +164,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetRolesOrchestrator::run(&pool, session_context).await;
+    let result = GetRolesOrchestrator::run(&main_pool, session_context).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -177,8 +179,8 @@ mod tests {
   async fn test_get_all_roles_with_permission_check_empty_database() {
     // Create admin role and user
     let admin_role_id =
-      create_test_role_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -188,7 +190,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetRolesOrchestrator::run(&pool, session_context).await;
+    let result = GetRolesOrchestrator::run(&main_pool, session_context).await;
 
     assert!(result.is_ok());
     let roles = result.unwrap();

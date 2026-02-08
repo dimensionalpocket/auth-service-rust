@@ -55,9 +55,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_user_success_name_only() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -88,10 +88,10 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_success_role_only() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["is_admin"]).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["is_admin"]).await;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -122,9 +122,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_user_success_password_only() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -161,9 +161,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_user_success_metadata_only() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -197,10 +197,10 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_success_metadata_to_null() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["is_admin"]).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["is_admin"]).await;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -231,10 +231,10 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_success_multiple_fields() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["is_admin"]).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["is_admin"]).await;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -274,9 +274,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_user_no_updates() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -314,7 +314,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let result = UpdateUserService::run(&mut conn, 999, update_data, None).await;
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -327,9 +327,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_user_username_validation_empty() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -359,9 +359,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_user_username_validation_too_short() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -391,9 +391,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_user_username_validation_too_long() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -424,9 +424,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_user_username_validation_invalid_chars() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -458,9 +458,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_user_username_already_exists() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let user1 = CreateUserQuery::run(
       &mut conn,
       CreateUserData {
@@ -507,9 +507,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_user_password_validation_too_short() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let user = CreateUserService::run(&mut conn, "testuser", "password123")
       .await
       .unwrap();
@@ -535,9 +535,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_user_password_validation_too_long() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let user = CreateUserService::run(&mut conn, "testuser", "password123")
       .await
       .unwrap();
@@ -563,9 +563,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_user_same_username_no_conflict() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let user = CreateUserService::run(&mut conn, "testuser", "password123")
       .await
       .unwrap();

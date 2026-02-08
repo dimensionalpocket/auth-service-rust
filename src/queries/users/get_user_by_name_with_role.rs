@@ -79,11 +79,11 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_user_by_name_with_role_success() {
     // Create role and user
-    let role_id = create_test_role_with_pool(&pool, "admin", &["can_view_user_details"]).await;
-    let user = create_test_user_with_pool(&pool, "testuser", role_id).await;
+    let role_id = create_test_role_with_pool(&main_pool, "admin", &["can_view_user_details"]).await;
+    let user = create_test_user_with_pool(&main_pool, "testuser", role_id).await;
 
     // Query user with role
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let result = GetUserByNameWithRoleQuery::run(&mut conn, "testuser")
       .await
       .unwrap();
@@ -99,7 +99,7 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_user_by_name_with_role_not_found() {
     // Query non-existent user
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let result = GetUserByNameWithRoleQuery::run(&mut conn, "nonexistent")
       .await
       .unwrap();
@@ -110,11 +110,11 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_user_by_name_with_role_case_insensitive() {
     // Create role and user
-    let role_id = create_test_role_with_pool(&pool, "user", &[]).await;
-    create_test_user_with_pool(&pool, "TestUser", role_id).await;
+    let role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    create_test_user_with_pool(&main_pool, "TestUser", role_id).await;
 
     // Query with different cases
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let result_lower = GetUserByNameWithRoleQuery::run(&mut conn, "testuser")
       .await
       .unwrap();
@@ -138,11 +138,11 @@ mod tests {
   async fn test_get_user_by_name_with_role_permissions() {
     // Create role with permissions and user
     let role_id =
-      create_test_role_with_pool(&pool, "admin", &["is_admin", "can_view_user_details"]).await;
-    let _user = create_test_user_with_pool(&pool, "adminuser", role_id).await;
+      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_view_user_details"]).await;
+    let _user = create_test_user_with_pool(&main_pool, "adminuser", role_id).await;
 
     // Query user with role
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let result = GetUserByNameWithRoleQuery::run(&mut conn, "adminuser")
       .await
       .unwrap();

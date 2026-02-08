@@ -72,12 +72,12 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_delete_user_success() {
     // Create roles
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_delete_user"]).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
 
     // Create users
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
-    let target_user = create_test_user_with_pool(&pool, "target_user", user_role_id).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let target_user = create_test_user_with_pool(&main_pool, "target_user", user_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -88,8 +88,12 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = DeleteUserResolver;
-    let schema =
-      create_test_mutation_schema(mutation, Some(pool.clone()), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      Some(main_pool.clone()),
+      Some(session_context),
+      None,
+    );
 
     let query = format!(
       r#"
@@ -114,7 +118,7 @@ mod tests {
     // Verify user is actually deleted from database
     let deleted_user = sqlx::query("SELECT COUNT(*) as count FROM users WHERE id = ?")
       .bind(target_user.id)
-      .fetch_one(&pool)
+      .fetch_one(&main_pool)
       .await
       .unwrap()
       .get::<i64, _>("count");
@@ -124,11 +128,11 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_delete_user_forbidden() {
     // Create role without can_delete_user permission
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
 
     // Create regular user
-    let regular_user = create_test_user_with_pool(&pool, "user1", user_role_id).await;
-    let target_user = create_test_user_with_pool(&pool, "target_user", user_role_id).await;
+    let regular_user = create_test_user_with_pool(&main_pool, "user1", user_role_id).await;
+    let target_user = create_test_user_with_pool(&main_pool, "target_user", user_role_id).await;
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -139,8 +143,12 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = DeleteUserResolver;
-    let schema =
-      create_test_mutation_schema(mutation, Some(pool.clone()), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      Some(main_pool.clone()),
+      Some(session_context),
+      None,
+    );
 
     let query = format!(
       r#"
@@ -162,8 +170,12 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let mutation = DeleteUserResolver;
-    let schema =
-      create_test_mutation_schema(mutation, Some(pool.clone()), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      Some(main_pool.clone()),
+      Some(session_context),
+      None,
+    );
 
     let query = r#"
             mutation {
@@ -179,8 +191,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_delete_user_self_deletion_prevented() {
     // Create admin role and user
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_delete_user"]).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -191,8 +203,12 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = DeleteUserResolver;
-    let schema =
-      create_test_mutation_schema(mutation, Some(pool.clone()), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      Some(main_pool.clone()),
+      Some(session_context),
+      None,
+    );
 
     let query = format!(
       r#"
@@ -212,7 +228,7 @@ mod tests {
     // Verify user still exists
     let user_still_exists = sqlx::query("SELECT COUNT(*) as count FROM users WHERE id = ?")
       .bind(admin_user.id)
-      .fetch_one(&pool)
+      .fetch_one(&main_pool)
       .await
       .unwrap()
       .get::<i64, _>("count");
@@ -222,8 +238,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_delete_user_not_found() {
     // Create admin role and user
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_delete_user"]).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -234,8 +250,12 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = DeleteUserResolver;
-    let schema =
-      create_test_mutation_schema(mutation, Some(pool.clone()), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      Some(main_pool.clone()),
+      Some(session_context),
+      None,
+    );
 
     let query = r#"
             mutation {
@@ -253,8 +273,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_delete_user_nonexistent_session_user() {
     // Create target user
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
-    let target_user = create_test_user_with_pool(&pool, "target_user", user_role_id).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    let target_user = create_test_user_with_pool(&main_pool, "target_user", user_role_id).await;
 
     // Create session context for non-existent user
     let session_payload = DpsAuthSessionPayload {
@@ -265,8 +285,12 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = DeleteUserResolver;
-    let schema =
-      create_test_mutation_schema(mutation, Some(pool.clone()), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      Some(main_pool.clone()),
+      Some(session_context),
+      None,
+    );
 
     let query = format!(
       r#"

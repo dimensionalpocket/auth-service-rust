@@ -25,7 +25,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_user_by_name_found() {
     // Insert test role first
-    let role = create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    let role =
+      create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
     let role_id = role.id;
 
     // Insert test user
@@ -38,11 +39,11 @@ mod tests {
       .bind(None::<String>)
       .bind(1234567890)
       .bind(1234567890)
-      .execute(&pool)
+      .execute(&main_pool)
       .await
       .unwrap();
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let user = GetUserByNameQuery::run(&mut conn, "TestUser")
       .await
       .unwrap();
@@ -59,7 +60,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_user_by_name_case_insensitive() {
     // Insert test role first
-    let role = create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    let role =
+      create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
     let role_id = role.id;
 
     // Insert test user with mixed case
@@ -72,12 +74,12 @@ mod tests {
       .bind(None::<String>)
       .bind(1234567890)
       .bind(1234567890)
-      .execute(&pool)
+      .execute(&main_pool)
       .await
       .unwrap();
 
     // Should find user regardless of case
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let user_lower = GetUserByNameQuery::run(&mut conn, "testuser")
       .await
       .unwrap();
@@ -99,7 +101,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_user_by_name_not_found() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let user = GetUserByNameQuery::run(&mut conn, "NonExistentUser")
       .await
       .unwrap();

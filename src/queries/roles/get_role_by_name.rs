@@ -41,11 +41,11 @@ mod tests {
   async fn test_get_role_by_name_found() {
     // Insert test role
     sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE)")
-      .execute(&pool)
+      .execute(&main_pool)
       .await
       .unwrap();
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let role = GetRoleByNameQuery::run(&mut conn, "admin").await.unwrap();
 
     assert!(role.is_some());
@@ -57,7 +57,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_role_by_name_not_found() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let role = GetRoleByNameQuery::run(&mut conn, "nonexistent")
       .await
       .unwrap();
@@ -68,10 +68,10 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_role_by_name_case_sensitive() {
     // Insert test role
-    create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
+    create_test_role_model_with_pool(&main_pool, "admin", &["is_admin"], false).await;
 
     // Should not find with different case
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let role = GetRoleByNameQuery::run(&mut conn, "ADMIN").await.unwrap();
     assert!(role.is_none());
   }

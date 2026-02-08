@@ -49,7 +49,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_site_success() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let create_data = crate::queries::sites::CreateSiteData {
       slug: "update-test".to_string(),
@@ -90,7 +90,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_site_slug_already_exists() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let data1 = crate::queries::sites::CreateSiteData {
       slug: "site1".to_string(),
@@ -129,7 +129,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_site_not_found() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let update_data = UpdateSiteData {
       id: 999,
@@ -150,7 +150,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_site_invalid_slug() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let create_data = crate::queries::sites::CreateSiteData {
       slug: "valid-site".to_string(),

@@ -23,14 +23,14 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_all_sites_empty() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let sites = GetAllSitesQuery::run(&mut conn).await.unwrap();
     assert_eq!(sites.len(), 0);
   }
 
   #[dps_auth_db_test]
   async fn test_get_all_sites_with_data() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     // Create test sites
     let site1_data = CreateSiteData {

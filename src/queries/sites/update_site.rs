@@ -99,7 +99,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_site_success() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -141,7 +141,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_site_partial_update() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -194,14 +194,14 @@ mod tests {
       metadata_json: None,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let result = UpdateSiteQuery::run(&mut conn, update_data).await.unwrap();
     assert!(result.is_none());
   }
 
   #[dps_auth_db_test]
   async fn test_update_site_no_changes() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     // Create a site first
     let create_data = CreateSiteData {

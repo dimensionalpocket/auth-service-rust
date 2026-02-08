@@ -104,14 +104,14 @@ mod tests {
   async fn test_set_default_role_success() {
     // Create admin role with can_manage_roles permission
     let admin_role_id =
-      create_test_role_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
+      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_manage_roles"]).await;
 
     // Create admin user
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
 
     // Create a role first
     let role_id = create_test_role_with_pool(
-      &pool,
+      &main_pool,
       "test-role",
       &["can_view_user_self", "can_list_users"],
     )
@@ -126,7 +126,8 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = SetDefaultRoleResolver;
-    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
+    let schema =
+      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -167,14 +168,14 @@ mod tests {
   async fn test_set_default_role_atomic_behavior() {
     // Create admin role with can_manage_roles permission
     let admin_role_id =
-      create_test_role_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
+      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_manage_roles"]).await;
 
     // Create admin user
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
 
     // Create two roles
-    let role1_id = create_test_role_with_pool(&pool, "role1", &["can_view_user_self"]).await;
-    let role2_id = create_test_role_with_pool(&pool, "role2", &["can_list_users"]).await;
+    let role1_id = create_test_role_with_pool(&main_pool, "role1", &["can_view_user_self"]).await;
+    let role2_id = create_test_role_with_pool(&main_pool, "role2", &["can_list_users"]).await;
 
     // Create session context for admin user
     let session_payload = ServiceSessionPayload {
@@ -185,8 +186,12 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = SetDefaultRoleResolver;
-    let schema =
-      create_test_mutation_schema(mutation, Some(pool.clone()), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      Some(main_pool.clone()),
+      Some(session_context),
+      None,
+    );
 
     // Set first role as default
     let query1 = r#"
@@ -217,7 +222,7 @@ mod tests {
     assert!(result2.errors.is_empty());
 
     // Verify only role2 is default now using the existing query utilities
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let role1_check = GetRoleByIdQuery::run(&mut conn, role1_id)
       .await
       .unwrap()
@@ -234,13 +239,15 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_set_default_role_forbidden() {
     // Create user role without can_manage_roles permission
-    let user_role_id = create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
+    let user_role_id =
+      create_test_role_with_pool(&main_pool, "user", &["can_view_user_self"]).await;
 
     // Create regular user
-    let user = create_test_user_with_pool(&pool, "user", user_role_id).await;
+    let user = create_test_user_with_pool(&main_pool, "user", user_role_id).await;
 
     // Create a role first
-    let role_id = create_test_role_with_pool(&pool, "test-role", &["can_view_user_self"]).await;
+    let role_id =
+      create_test_role_with_pool(&main_pool, "test-role", &["can_view_user_self"]).await;
 
     // Create session context for regular user
     let session_payload = ServiceSessionPayload {
@@ -251,7 +258,8 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = SetDefaultRoleResolver;
-    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
+    let schema =
+      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -274,7 +282,8 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let mutation = SetDefaultRoleResolver;
-    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
+    let schema =
+      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -294,10 +303,10 @@ mod tests {
   async fn test_set_default_role_not_found() {
     // Create admin role with can_manage_roles permission
     let admin_role_id =
-      create_test_role_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
+      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_manage_roles"]).await;
 
     // Create admin user
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = ServiceSessionPayload {
@@ -308,7 +317,8 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = SetDefaultRoleResolver;
-    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
+    let schema =
+      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
 
     let query = r#"
       mutation {

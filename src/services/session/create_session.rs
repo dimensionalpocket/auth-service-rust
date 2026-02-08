@@ -99,7 +99,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_session_success() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
     let user = CreateUserService::run(&mut conn, "testuser", "password123")
@@ -115,7 +115,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_session_blank_username() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let result = CreateSessionService::run(&mut conn, "", "password123", TEST_SECRET).await;
 
     assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
@@ -124,7 +124,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_session_whitespace_username() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let result = CreateSessionService::run(&mut conn, "   ", "password123", TEST_SECRET).await;
 
     assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
@@ -133,7 +133,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_session_blank_password() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let result = CreateSessionService::run(&mut conn, "testuser", "", TEST_SECRET).await;
 
     assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
@@ -145,7 +145,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_session_user_not_found() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let result =
       CreateSessionService::run(&mut conn, "nonexistent", "password123", TEST_SECRET).await;
 
@@ -155,7 +155,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_session_wrong_password() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
     CreateUserService::run(&mut conn, "testuser", "correct_password")
@@ -173,7 +173,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_session_case_insensitive_username() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
     let user = CreateUserService::run(&mut conn, "TestUser", "password123")

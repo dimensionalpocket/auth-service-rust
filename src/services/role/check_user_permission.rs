@@ -46,7 +46,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_check_user_permission_admin_has_all_permissions() {
-    let admin_role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
+    let admin_role =
+      create_test_role_model_with_pool(&main_pool, "admin", &["is_admin"], false).await;
     let admin_role_id = admin_role.id;
 
     let admin_user = User {
@@ -60,7 +61,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     assert!(
       CheckUserPermissionService::run(&mut conn, &admin_user, "can_list_users")
         .await
@@ -81,7 +82,7 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_check_user_permission_regular_user_specific_permissions() {
     let user_role =
-      create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+      create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
     let user_role_id = user_role.id;
 
     let regular_user = User {
@@ -95,7 +96,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     assert!(
       CheckUserPermissionService::run(&mut conn, &regular_user, "can_view_user_self")
         .await
@@ -127,7 +128,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     assert!(
       !CheckUserPermissionService::run(&mut conn, &user_no_role, "can_list_users")
         .await
@@ -137,7 +138,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_check_user_permission_invalid_permission() {
-    let admin_role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
+    let admin_role =
+      create_test_role_model_with_pool(&main_pool, "admin", &["is_admin"], false).await;
     let admin_role_id = admin_role.id;
 
     let admin_user = User {
@@ -151,7 +153,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     assert!(
       !CheckUserPermissionService::run(&mut conn, &admin_user, "invalid_permission")
         .await
@@ -170,7 +172,7 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_check_user_permission_valid_new_permissions() {
     let role = create_test_role_model_with_pool(
-      &pool,
+      &main_pool,
       "role_manager",
       &["can_edit_user_role", "can_manage_roles"],
       false,
@@ -189,7 +191,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     assert!(
       CheckUserPermissionService::run(&mut conn, &role_manager_user, "can_edit_user_role")
         .await
@@ -222,7 +224,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_check_user_permission_admin_bypasses_validation() {
-    let admin_role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
+    let admin_role =
+      create_test_role_model_with_pool(&main_pool, "admin", &["is_admin"], false).await;
     let admin_role_id = admin_role.id;
 
     let admin_user = User {
@@ -236,7 +239,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     assert!(
       CheckUserPermissionService::run(&mut conn, &admin_user, "can_edit_user_role")
         .await

@@ -38,7 +38,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_delete_role_success() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let create_data = crate::queries::roles::CreateRoleData {
       name: "test-delete-role".to_string(),
@@ -63,7 +63,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_delete_role_not_found() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let result = DeleteRoleService::run(&mut conn, 999).await;
     assert!(result.is_err());
@@ -75,7 +75,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_delete_role_in_use() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let role_data = crate::queries::roles::CreateRoleData {
       name: "test-in-use-role".to_string(),

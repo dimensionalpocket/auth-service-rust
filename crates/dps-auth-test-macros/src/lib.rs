@@ -101,9 +101,9 @@ pub fn dps_auth_db_test(attr: TokenStream, item: TokenStream) -> TokenStream {
           #pool_size,
         )
         .await;
-      let pool = databases.main().clone();
+      let main_pool = databases.main().clone();
       let _ = &databases;
-      let _ = &pool;
+      let _ = &main_pool;
 
       #block
     }

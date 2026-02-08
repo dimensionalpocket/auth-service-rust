@@ -48,12 +48,12 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_list_users_with_permission_check_success() {
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_list_users"]).await;
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_list_users"]).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
 
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
-    let regular_user = create_test_user_with_pool(&pool, "user1", user_role_id).await;
-    let _another_user = create_test_user_with_pool(&pool, "user2", user_role_id).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let regular_user = create_test_user_with_pool(&main_pool, "user1", user_role_id).await;
+    let _another_user = create_test_user_with_pool(&main_pool, "user2", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -62,7 +62,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetUsersOrchestrator::run(&pool, session_context).await;
+    let result = GetUsersOrchestrator::run(&main_pool, session_context).await;
 
     assert!(result.is_ok());
     let users = result.unwrap();
@@ -79,7 +79,7 @@ mod tests {
   async fn test_list_users_without_authentication() {
     let session_context = SessionContext::new(None);
 
-    let result = GetUsersOrchestrator::run(&pool, session_context).await;
+    let result = GetUsersOrchestrator::run(&main_pool, session_context).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -92,9 +92,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_list_users_without_permission() {
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
 
-    let regular_user = create_test_user_with_pool(&pool, "user1", user_role_id).await;
+    let regular_user = create_test_user_with_pool(&main_pool, "user1", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: regular_user.id,
@@ -103,7 +103,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetUsersOrchestrator::run(&pool, session_context).await;
+    let result = GetUsersOrchestrator::run(&main_pool, session_context).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -123,7 +123,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetUsersOrchestrator::run(&pool, session_context).await;
+    let result = GetUsersOrchestrator::run(&main_pool, session_context).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -136,8 +136,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_list_users_empty_database() {
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_list_users"]).await;
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_list_users"]).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -146,7 +146,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetUsersOrchestrator::run(&pool, session_context).await;
+    let result = GetUsersOrchestrator::run(&main_pool, session_context).await;
 
     assert!(result.is_ok());
     let users = result.unwrap();

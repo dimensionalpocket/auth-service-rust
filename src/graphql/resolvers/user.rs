@@ -90,7 +90,7 @@ mod tests {
   async fn test_get_user_details_success() {
     // Insert admin role with can_view_user_details permission
     let admin_role = create_test_role_model_with_pool(
-      &pool,
+      &main_pool,
       "admin",
       &["is_admin", "can_view_user_details"],
       false,
@@ -99,13 +99,18 @@ mod tests {
     let admin_role_id = admin_role.id;
 
     // Insert user role without special permissions
-    let user_role = create_test_role_model_with_pool(&pool, "user", &[], true).await;
+    let user_role = create_test_role_model_with_pool(&main_pool, "user", &[], true).await;
     let user_role_id = user_role.id;
 
     // Insert admin user
-    let admin_user =
-      create_test_user_full_with_pool(&pool, "admin", Some(admin_role_id), "test_password", None)
-        .await;
+    let admin_user = create_test_user_full_with_pool(
+      &main_pool,
+      "admin",
+      Some(admin_role_id),
+      "test_password",
+      None,
+    )
+    .await;
     let admin_user_id = admin_user.id;
 
     // Create test user
@@ -117,7 +122,7 @@ mod tests {
       metadata_json: None,
     };
     let target_user = {
-      let mut conn = pool.acquire().await.unwrap();
+      let mut conn = main_pool.acquire().await.unwrap();
       CreateUserQuery::run(&mut conn, create_data).await.unwrap()
     }; // Connection released before schema.execute()
 
@@ -130,7 +135,8 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query_resolver = UserResolver;
-    let schema = create_test_query_schema(query_resolver, Some(pool), Some(session_context), None);
+    let schema =
+      create_test_query_schema(query_resolver, Some(main_pool), Some(session_context), None);
 
     let query = format!(
       r#"
@@ -170,13 +176,18 @@ mod tests {
   async fn test_get_user_details_forbidden() {
     // Insert user role without can_view_user_details permission
     let user_role =
-      create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+      create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
     let user_role_id = user_role.id;
 
     // Insert regular user
-    let user =
-      create_test_user_full_with_pool(&pool, "user", Some(user_role_id), "test_password", None)
-        .await;
+    let user = create_test_user_full_with_pool(
+      &main_pool,
+      "user",
+      Some(user_role_id),
+      "test_password",
+      None,
+    )
+    .await;
     let user_id = user.id;
 
     // Create session context for regular user
@@ -188,7 +199,8 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query_resolver = UserResolver;
-    let schema = create_test_query_schema(query_resolver, Some(pool), Some(session_context), None);
+    let schema =
+      create_test_query_schema(query_resolver, Some(main_pool), Some(session_context), None);
 
     let query = r#"
             query {
@@ -210,7 +222,8 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let query_resolver = UserResolver;
-    let schema = create_test_query_schema(query_resolver, Some(pool), Some(session_context), None);
+    let schema =
+      create_test_query_schema(query_resolver, Some(main_pool), Some(session_context), None);
 
     let query = r#"
             query {
@@ -230,7 +243,7 @@ mod tests {
   async fn test_get_user_details_not_found() {
     // Insert admin role with can_view_user_details permission
     let admin_role = create_test_role_model_with_pool(
-      &pool,
+      &main_pool,
       "admin",
       &["is_admin", "can_view_user_details"],
       false,
@@ -239,9 +252,14 @@ mod tests {
     let admin_role_id = admin_role.id;
 
     // Insert admin user
-    let admin_user =
-      create_test_user_full_with_pool(&pool, "admin", Some(admin_role_id), "test_password", None)
-        .await;
+    let admin_user = create_test_user_full_with_pool(
+      &main_pool,
+      "admin",
+      Some(admin_role_id),
+      "test_password",
+      None,
+    )
+    .await;
     let admin_user_id = admin_user.id;
 
     // Create session context for admin user
@@ -253,7 +271,8 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query_resolver = UserResolver;
-    let schema = create_test_query_schema(query_resolver, Some(pool), Some(session_context), None);
+    let schema =
+      create_test_query_schema(query_resolver, Some(main_pool), Some(session_context), None);
 
     let query = r#"
             query {

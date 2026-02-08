@@ -65,9 +65,9 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_update_user_password_success() {
     // Setup: Create a user
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
     let user = create_test_user_full_with_pool(
-      &pool,
+      &main_pool,
       "test-uuid",
       None,
       &GeneratePasswordHashService::run("oldpassword").unwrap(),
@@ -84,7 +84,7 @@ mod tests {
       password_hash: new_password_hash,
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let updated_user = UpdateUserPasswordQuery::run(&mut conn, user.id, update_data)
       .await
       .unwrap();
@@ -103,7 +103,7 @@ mod tests {
       password_hash: GeneratePasswordHashService::run("newpassword").unwrap(),
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let result = UpdateUserPasswordQuery::run(&mut conn, 999, update_data).await;
 
     // Verify: Should return error
@@ -113,9 +113,9 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_update_user_password_timestamp_increases() {
     // Setup: Create a user
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
     let user = create_test_user_full_with_pool(
-      &pool,
+      &main_pool,
       "test-uuid",
       None,
       &GeneratePasswordHashService::run("oldpassword").unwrap(),
@@ -128,7 +128,7 @@ mod tests {
       password_hash: GeneratePasswordHashService::run("newpassword").unwrap(),
     };
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let updated_user = UpdateUserPasswordQuery::run(&mut conn, user.id, update_data)
       .await
       .unwrap();

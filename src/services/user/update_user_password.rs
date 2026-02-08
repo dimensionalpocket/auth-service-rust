@@ -63,8 +63,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_password_success() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
-    let mut conn = pool.acquire().await.unwrap();
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    let mut conn = main_pool.acquire().await.unwrap();
     let user = CreateUserService::run(&mut conn, "testuser", "oldpassword123")
       .await
       .unwrap();
@@ -93,8 +93,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_password_invalid_current_password() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
-    let mut conn = pool.acquire().await.unwrap();
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    let mut conn = main_pool.acquire().await.unwrap();
     let user = CreateUserService::run(&mut conn, "testuser", "correctpassword")
       .await
       .unwrap();
@@ -118,8 +118,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_password_password_confirmation_mismatch() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
-    let mut conn = pool.acquire().await.unwrap();
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    let mut conn = main_pool.acquire().await.unwrap();
     let user = CreateUserService::run(&mut conn, "testuser", "currentpassword")
       .await
       .unwrap();
@@ -143,8 +143,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_password_invalid_new_password() {
-    create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
-    let mut conn = pool.acquire().await.unwrap();
+    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    let mut conn = main_pool.acquire().await.unwrap();
     let user = CreateUserService::run(&mut conn, "testuser", "currentpassword")
       .await
       .unwrap();
@@ -162,7 +162,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_password_nonexistent_user() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let result = UpdateUserPasswordService::run(
       &mut conn,
       999,

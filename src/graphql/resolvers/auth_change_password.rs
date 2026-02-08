@@ -131,7 +131,7 @@ mod tests {
   async fn test_auth_change_password_success() {
     // Setup: Create authenticated user
     let session_context = {
-      let mut conn = pool.acquire().await.unwrap();
+      let mut conn = main_pool.acquire().await.unwrap();
       create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
       create_authenticated_session(&mut conn, "testuser", "oldpassword123")
         .await
@@ -140,7 +140,8 @@ mod tests {
 
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
-    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
+    let schema =
+      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
 
     // Test: Change password
     let query = r#"
@@ -179,7 +180,7 @@ mod tests {
   async fn test_auth_change_password_invalid_current_password() {
     // Setup: Create authenticated user
     let session_context = {
-      let mut conn = pool.acquire().await.unwrap();
+      let mut conn = main_pool.acquire().await.unwrap();
       create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
       create_authenticated_session(&mut conn, "testuser", "correctpassword")
         .await
@@ -188,7 +189,8 @@ mod tests {
 
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
-    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
+    let schema =
+      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
 
     // Test: Try to change with wrong current password
     let query = r#"
@@ -217,7 +219,7 @@ mod tests {
   async fn test_auth_change_password_password_confirmation_mismatch() {
     // Setup: Create authenticated user
     let session_context = {
-      let mut conn = pool.acquire().await.unwrap();
+      let mut conn = main_pool.acquire().await.unwrap();
       create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
       create_authenticated_session(&mut conn, "testuser", "currentpassword")
         .await
@@ -226,7 +228,8 @@ mod tests {
 
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
-    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
+    let schema =
+      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
 
     // Test: Try to change with mismatched confirmation
     let query = r#"
@@ -256,7 +259,8 @@ mod tests {
 
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
-    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
+    let schema =
+      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
 
     // Test: Try to change password without authentication
     let query = r#"
@@ -283,7 +287,7 @@ mod tests {
   async fn test_auth_change_password_invalid_new_password() {
     // Setup: Create authenticated user
     let session_context = {
-      let mut conn = pool.acquire().await.unwrap();
+      let mut conn = main_pool.acquire().await.unwrap();
       create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
       create_authenticated_session(&mut conn, "testuser", "currentpassword")
         .await
@@ -292,7 +296,8 @@ mod tests {
 
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
-    let schema = create_test_mutation_schema(mutation, Some(pool), Some(session_context), None);
+    let schema =
+      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
 
     // Test: Try to change with invalid new password (too short)
     let query = r#"

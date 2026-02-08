@@ -64,7 +64,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_all_users_with_roles_empty() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     let result = GetAllUsersWithRolesQuery::run(&mut conn).await.unwrap();
     assert_eq!(result.len(), 0);
@@ -73,13 +73,13 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_all_users_with_roles_with_data() {
     // Insert test roles
-    let admin_role = create_test_role_model_with_pool(&pool, "admin", &[], false).await;
+    let admin_role = create_test_role_model_with_pool(&main_pool, "admin", &[], false).await;
     let user_role =
-      create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+      create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
 
-    // Only acquire connection after pool usage
-    // as this will empty the pool (size is 1 in tests)
-    let mut conn = pool.acquire().await.unwrap();
+    // Only acquire connection after main_pool usage
+    // as this will empty the main_pool (size is 1 in tests)
+    let mut conn = main_pool.acquire().await.unwrap();
 
     // Insert test users
     sqlx::query("INSERT INTO users (uuid, name, role_id, password_hash, metadata_json, created_ts, updated_ts) VALUES (?, ?, ?, ?, ?, ?, ?)")
@@ -119,9 +119,9 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_all_users_with_roles_joins_correctly() {
     // Insert test role
-    let test_role = create_test_role_model_with_pool(&pool, "test_role", &[], false).await;
+    let test_role = create_test_role_model_with_pool(&main_pool, "test_role", &[], false).await;
 
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     // Insert test user
     sqlx::query("INSERT INTO users (uuid, name, role_id, password_hash, metadata_json, created_ts, updated_ts) VALUES (?, ?, ?, ?, ?, ?, ?)")

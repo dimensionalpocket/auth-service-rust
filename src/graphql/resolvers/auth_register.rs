@@ -96,7 +96,7 @@ mod tests {
   async fn test_auth_register_calls_service_with_correct_parameters() {
     // Insert default role first
     {
-      let mut conn = pool.acquire().await.unwrap();
+      let mut conn = main_pool.acquire().await.unwrap();
       create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
     }
 
@@ -120,7 +120,7 @@ mod tests {
     };
 
     let mutation = AuthRegisterResolver;
-    let schema = create_test_mutation_schema(mutation, Some(pool), None, Some(test_config));
+    let schema = create_test_mutation_schema(mutation, Some(main_pool), None, Some(test_config));
 
     let query = r#"
       mutation {
@@ -165,7 +165,7 @@ mod tests {
   async fn test_auth_register_returns_error_for_duplicate_username() {
     // Insert default role first
     {
-      let mut conn = pool.acquire().await.unwrap();
+      let mut conn = main_pool.acquire().await.unwrap();
       create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
     }
 
@@ -189,7 +189,7 @@ mod tests {
     };
 
     let mutation = AuthRegisterResolver;
-    let schema = create_test_mutation_schema(mutation, Some(pool), None, Some(test_config));
+    let schema = create_test_mutation_schema(mutation, Some(main_pool), None, Some(test_config));
 
     let query = r#"
       mutation {
@@ -234,7 +234,7 @@ mod tests {
     };
 
     let mutation = AuthRegisterResolver;
-    let schema = create_test_mutation_schema(mutation, Some(pool), None, Some(test_config));
+    let schema = create_test_mutation_schema(mutation, Some(main_pool), None, Some(test_config));
 
     // Test empty username
     let query = r#"
@@ -272,7 +272,7 @@ mod tests {
     };
 
     let mutation = AuthRegisterResolver;
-    let schema = create_test_mutation_schema(mutation, Some(pool), None, Some(test_config));
+    let schema = create_test_mutation_schema(mutation, Some(main_pool), None, Some(test_config));
 
     // Test password confirmation mismatch
     let query = r#"
@@ -295,7 +295,7 @@ mod tests {
   async fn test_auth_register_sets_cookie() {
     // Insert default role first
     {
-      let mut conn = pool.acquire().await.unwrap();
+      let mut conn = main_pool.acquire().await.unwrap();
       create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
     }
 
@@ -319,7 +319,7 @@ mod tests {
     };
 
     let mutation = AuthRegisterResolver;
-    let schema = create_test_mutation_schema(mutation, Some(pool), None, Some(test_config));
+    let schema = create_test_mutation_schema(mutation, Some(main_pool), None, Some(test_config));
 
     let query = r#"
       mutation {

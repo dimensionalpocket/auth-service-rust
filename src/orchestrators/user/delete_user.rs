@@ -57,11 +57,11 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_delete_user_with_permission_check_success() {
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_delete_user"]).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
 
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
-    let target_user = create_test_user_with_pool(&pool, "target_user", user_role_id).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let target_user = create_test_user_with_pool(&main_pool, "target_user", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -70,12 +70,12 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = DeleteUserOrchestrator::run(&pool, session_context, target_user.id).await;
+    let result = DeleteUserOrchestrator::run(&main_pool, session_context, target_user.id).await;
 
     assert!(result.is_ok());
 
     let deleted_user = {
-      let mut conn = pool.acquire().await.unwrap();
+      let mut conn = main_pool.acquire().await.unwrap();
       GetUserByIdQuery::run(&mut conn, target_user.id)
         .await
         .unwrap()
@@ -87,7 +87,7 @@ mod tests {
   async fn test_delete_user_without_authentication() {
     let session_context = SessionContext::new(None);
 
-    let result = DeleteUserOrchestrator::run(&pool, session_context, 123).await;
+    let result = DeleteUserOrchestrator::run(&main_pool, session_context, 123).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -100,10 +100,10 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_delete_user_without_permission() {
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
 
-    let regular_user = create_test_user_with_pool(&pool, "user1", user_role_id).await;
-    let target_user = create_test_user_with_pool(&pool, "target_user", user_role_id).await;
+    let regular_user = create_test_user_with_pool(&main_pool, "user1", user_role_id).await;
+    let target_user = create_test_user_with_pool(&main_pool, "target_user", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: regular_user.id,
@@ -112,7 +112,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = DeleteUserOrchestrator::run(&pool, session_context, target_user.id).await;
+    let result = DeleteUserOrchestrator::run(&main_pool, session_context, target_user.id).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -125,8 +125,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_delete_user_self_deletion_prevented() {
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_delete_user"]).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -135,7 +135,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = DeleteUserOrchestrator::run(&pool, session_context, admin_user.id).await;
+    let result = DeleteUserOrchestrator::run(&main_pool, session_context, admin_user.id).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -144,7 +144,7 @@ mod tests {
     }
 
     let user_still_exists = {
-      let mut conn = pool.acquire().await.unwrap();
+      let mut conn = main_pool.acquire().await.unwrap();
       GetUserByIdQuery::run(&mut conn, admin_user.id)
         .await
         .unwrap()
@@ -154,8 +154,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_delete_user_nonexistent_target() {
-    let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
-    let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
+    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_delete_user"]).await;
+    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -164,7 +164,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = DeleteUserOrchestrator::run(&pool, session_context, 999).await;
+    let result = DeleteUserOrchestrator::run(&main_pool, session_context, 999).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -177,8 +177,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_delete_user_nonexistent_session_user() {
-    let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
-    let target_user = create_test_user_with_pool(&pool, "target_user", user_role_id).await;
+    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    let target_user = create_test_user_with_pool(&main_pool, "target_user", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: 999,
@@ -187,7 +187,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = DeleteUserOrchestrator::run(&pool, session_context, target_user.id).await;
+    let result = DeleteUserOrchestrator::run(&main_pool, session_context, target_user.id).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {

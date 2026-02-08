@@ -92,7 +92,7 @@ mod tests {
   async fn test_auth_login_calls_service_with_correct_parameters() {
     // Setup: Create a user
     {
-      let mut conn = pool.acquire().await.unwrap();
+      let mut conn = main_pool.acquire().await.unwrap();
       create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
       CreateUserService::run(&mut conn, "testuser", "password123")
         .await
@@ -112,7 +112,7 @@ mod tests {
       session_ttl_seconds: 3600,
     };
     let schema =
-      create_test_mutation_schema(AuthLoginResolver, Some(pool), None, Some(test_config));
+      create_test_mutation_schema(AuthLoginResolver, Some(main_pool), None, Some(test_config));
 
     // Test: Call the mutation
     let query = r#"
@@ -169,7 +169,7 @@ mod tests {
       session_ttl_seconds: 3600,
     };
     let schema =
-      create_test_mutation_schema(AuthLoginResolver, Some(pool), None, Some(test_config));
+      create_test_mutation_schema(AuthLoginResolver, Some(main_pool), None, Some(test_config));
 
     // Test: Call with non-existent user
     let query = r#"
@@ -194,7 +194,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_auth_login_maps_database_error() {
-    // Create a schema without database pool to trigger database error
+    // Create a schema without database main_pool to trigger database error
     let test_config = DpsAuthApiConfig {
       port: 0,
       sqlite_main_file_path: "test.db".to_string(),
@@ -230,7 +230,7 @@ mod tests {
     let error_message = &result.errors[0].message;
     assert_eq!(
       error_message, "Internal server error",
-      "Expected 'Internal server error' for missing database pool, but got: {error_message}"
+      "Expected 'Internal server error' for missing database main_pool, but got: {error_message}"
     );
 
     // Verify it's not our mapped authentication error

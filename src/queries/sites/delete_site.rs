@@ -38,7 +38,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_delete_site_success() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -75,7 +75,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_delete_site_not_found() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
 
     // Try to delete non-existent site
     let result = DeleteSiteQuery::run(&mut conn, 999).await;

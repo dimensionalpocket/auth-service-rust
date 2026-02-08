@@ -25,7 +25,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_user_by_id_found() {
     // Insert test role first
-    let role = create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
+    let role =
+      create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
     let role_id = role.id;
 
     // Insert test user
@@ -38,11 +39,11 @@ mod tests {
       .bind("{\"test\": true}")
       .bind(1234567890)
       .bind(1234567890)
-      .execute(&pool)
+      .execute(&main_pool)
       .await
       .unwrap()
       .last_insert_rowid();
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let user = GetUserByIdQuery::run(&mut conn, user_id).await.unwrap();
 
     assert!(user.is_some());
@@ -57,7 +58,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_user_by_id_not_found() {
-    let mut conn = pool.acquire().await.unwrap();
+    let mut conn = main_pool.acquire().await.unwrap();
     let user = GetUserByIdQuery::run(&mut conn, 999).await.unwrap();
 
     assert!(user.is_none());
