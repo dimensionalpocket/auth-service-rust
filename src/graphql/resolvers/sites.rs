@@ -62,11 +62,13 @@ impl SitesResolver {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::queries::sites::{CreateSiteData, CreateSiteQuery};
   use crate::test_utils::create_test_query_schema;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_sites_empty() {
     let query = SitesResolver;
     let schema = create_test_query_schema(query, Some(pool), None, None);
@@ -81,7 +83,7 @@ mod tests {
     assert_eq!(sites.len(), 0);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_sites_with_data() {
     // Create test sites
     let site1_data = CreateSiteData {

@@ -42,13 +42,15 @@ impl UpdateSiteOrchestrator {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::queries::sites::{CreateSiteData, CreateSiteQuery, UpdateSiteData};
   use crate::test_utils::{create_test_role_with_pool, create_test_user_with_pool};
   use dps_auth_session::DpsAuthSessionPayload;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_site_with_permission_check_success() {
     // Create admin role and user
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_update_site"]).await;
@@ -97,7 +99,7 @@ mod tests {
     assert_eq!(site.protocol, "http");
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_site_with_permission_check_forbidden() {
     // Create user role without can_update_site permission
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;

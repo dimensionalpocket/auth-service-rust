@@ -29,8 +29,10 @@ impl CreateSiteService {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_create_site_success() {
     let mut conn = pool.acquire().await.unwrap();
 
@@ -53,7 +55,7 @@ mod tests {
     assert_eq!(site.created_ts, site.updated_ts);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_create_site_slug_already_exists() {
     let mut conn = pool.acquire().await.unwrap();
 

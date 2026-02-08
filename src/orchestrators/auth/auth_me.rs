@@ -27,12 +27,14 @@ impl AuthMeOrchestrator {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{create_test_role_with_pool, create_test_user_full_with_pool};
   use dps_auth_session::DpsAuthSessionPayload;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_authenticated_user_success() {
     let _user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let user =
@@ -57,7 +59,7 @@ mod tests {
     assert_eq!(result_data.session_exp, 2000);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_authenticated_user_unauthenticated() {
     let session_context = SessionContext::new(None);
 

@@ -42,11 +42,13 @@ impl UpdateRoleService {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::models::ROLE_PERMISSIONS;
   use crate::test_utils::create_test_role_model;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_role_success() {
     let mut conn = pool.acquire().await.unwrap();
 
@@ -74,7 +76,7 @@ mod tests {
     assert!(permissions.contains(&"can_delete_user".to_string()));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_role_partial_update() {
     let mut conn = pool.acquire().await.unwrap();
 
@@ -105,7 +107,7 @@ mod tests {
     assert!(permissions.contains(&"can_list_users".to_string()));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_role_not_found() {
     let mut conn = pool.acquire().await.unwrap();
 
@@ -123,7 +125,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_role_invalid_permission() {
     let mut conn = pool.acquire().await.unwrap();
 
@@ -144,7 +146,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_role_empty_permissions() {
     let mut conn = pool.acquire().await.unwrap();
 
@@ -172,7 +174,7 @@ mod tests {
     assert_eq!(updated_role.permissions.len(), 0);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_role_all_valid_permissions() {
     let mut conn = pool.acquire().await.unwrap();
 

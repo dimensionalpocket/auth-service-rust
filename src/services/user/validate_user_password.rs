@@ -28,15 +28,17 @@ impl ValidateUserPasswordService {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_validate_password_empty() {
     let result = ValidateUserPasswordService::run("");
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("cannot be empty"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_validate_password_too_short() {
     let result = ValidateUserPasswordService::run("12345");
     assert!(result.is_err());
@@ -46,7 +48,7 @@ mod tests {
       .contains("at least 6 characters"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_validate_password_too_long() {
     let result = ValidateUserPasswordService::run(&"a".repeat(129));
     assert!(result.is_err());
@@ -56,7 +58,7 @@ mod tests {
       .contains("longer than 128 characters"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_validate_password_valid() {
     assert!(ValidateUserPasswordService::run("123456").is_ok());
     assert!(ValidateUserPasswordService::run("password123").is_ok());

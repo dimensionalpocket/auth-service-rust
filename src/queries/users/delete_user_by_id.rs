@@ -15,11 +15,13 @@ impl DeleteUserByIdQuery {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use sqlx::Row;
   use uuid::Uuid;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_delete_user_by_id_success() {
     let mut conn = pool.acquire().await.unwrap();
 
@@ -68,7 +70,7 @@ mod tests {
     assert_eq!(user_exists, 0);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_delete_user_by_id_not_found() {
     let mut conn = pool.acquire().await.unwrap();
 
@@ -77,7 +79,7 @@ mod tests {
     assert!(!deleted);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_delete_user_by_id_multiple_deletes() {
     let mut conn = pool.acquire().await.unwrap();
 

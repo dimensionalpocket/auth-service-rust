@@ -59,6 +59,8 @@ impl DeleteUserResolver {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
@@ -67,7 +69,7 @@ mod tests {
   use dps_auth_session::DpsAuthSessionPayload;
   use sqlx::Row;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_delete_user_success() {
     // Create roles
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
@@ -119,7 +121,7 @@ mod tests {
     assert_eq!(deleted_user, 0);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_delete_user_forbidden() {
     // Create role without can_delete_user permission
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
@@ -154,7 +156,7 @@ mod tests {
     assert!(result.errors[0].message.contains("Forbidden"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_delete_user_unauthenticated() {
     // Create session context with no user (unauthenticated)
     let session_context = SessionContext::new(None);
@@ -174,7 +176,7 @@ mod tests {
     assert!(result.errors[0].message.contains("Authentication required"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_delete_user_self_deletion_prevented() {
     // Create admin role and user
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
@@ -217,7 +219,7 @@ mod tests {
     assert_eq!(user_still_exists, 1);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_delete_user_not_found() {
     // Create admin role and user
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
@@ -248,7 +250,7 @@ mod tests {
       .contains("User with ID 999 not found"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_delete_user_nonexistent_session_user() {
     // Create target user
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;

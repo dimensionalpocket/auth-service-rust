@@ -86,6 +86,9 @@ pub fn dps_auth_db_test(attr: TokenStream, item: TokenStream) -> TokenStream {
 
   let configure_sqlite = args.configure_sqlite.unwrap_or(true);
   let pool_size = args.pool_size.unwrap_or(1);
+  // Default to `crate` so unit tests can work without extra args.
+  // For integration tests (tests/*.rs), either pass `crate_path = dps_auth_api`
+  // or alias `dps_auth_api::test_utils` as `test_utils` in the test crate.
   let crate_path: syn::Path = args.crate_path.unwrap_or_else(|| syn::parse_quote!(crate));
 
   let expanded = quote! {

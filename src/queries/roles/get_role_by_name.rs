@@ -32,10 +32,12 @@ impl GetRoleByNameQuery {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::test_utils::create_test_role_model_with_pool;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_role_by_name_found() {
     // Insert test role
     sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE)")
@@ -53,7 +55,7 @@ mod tests {
     assert!(!role.is_default);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_role_by_name_not_found() {
     let mut conn = pool.acquire().await.unwrap();
     let role = GetRoleByNameQuery::run(&mut conn, "nonexistent")
@@ -63,7 +65,7 @@ mod tests {
     assert!(role.is_none());
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_role_by_name_case_sensitive() {
     // Insert test role
     create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;

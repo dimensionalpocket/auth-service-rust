@@ -78,6 +78,8 @@ impl RolesResolver {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use crate::graphql::resolvers::RolesResolver;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
@@ -85,7 +87,7 @@ mod tests {
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_roles_admin_success() {
     // Create admin role and user
     let admin_role_id =
@@ -127,7 +129,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_roles_role_editor_success() {
     // Create role editor role and user
     let role_editor_id =
@@ -169,7 +171,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_roles_unauthenticated() {
     // Create session context without user (not authenticated)
     let session_context = SessionContext::new(None);
@@ -185,7 +187,7 @@ mod tests {
     assert!(result.errors[0].message.contains("Authentication error"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_roles_forbidden() {
     // Create user role without required permissions
     let user_role_id = create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
@@ -210,7 +212,7 @@ mod tests {
     assert!(result.errors[0].message.contains("Authorization error"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_roles_empty_database() {
     // Create admin role and user
     let admin_role_id =

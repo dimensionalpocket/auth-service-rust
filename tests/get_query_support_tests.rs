@@ -2,11 +2,13 @@ use axum::{
   body::Body,
   http::{Request, StatusCode},
 };
+use dps_auth_api::test_utils;
 use dps_auth_api::DpsAuthApi;
+use dps_auth_test_macros::dps_auth_db_test;
 use tempfile::NamedTempFile;
 use tower::ServiceExt;
 
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_graphql_get_query_support() {
   let temp_file = NamedTempFile::new().unwrap();
   let db_path = temp_file.path().to_str().unwrap();
@@ -51,7 +53,7 @@ async fn test_graphql_get_query_support() {
   assert!(body_str.contains("data"));
 }
 
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_graphql_post_still_works() {
   let temp_file = NamedTempFile::new().unwrap();
   let db_path = temp_file.path().to_str().unwrap();
@@ -96,7 +98,7 @@ async fn test_graphql_post_still_works() {
   assert!(body_str.contains("data"));
 }
 
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_graphql_get_with_variables() {
   let temp_file = NamedTempFile::new().unwrap();
   let db_path = temp_file.path().to_str().unwrap();

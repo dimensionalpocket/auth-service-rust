@@ -52,22 +52,24 @@ impl ValidateSiteSlugService {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_validate_slug_empty() {
     let result = ValidateSiteSlugService::run("");
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("cannot be empty"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_validate_slug_whitespace_only() {
     let result = ValidateSiteSlugService::run("   ");
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("cannot be empty"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_validate_slug_too_short() {
     let result = ValidateSiteSlugService::run("ab");
     assert!(result.is_err());
@@ -77,7 +79,7 @@ mod tests {
       .contains("at least 3 characters"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_validate_slug_too_long() {
     let result = ValidateSiteSlugService::run(&"a".repeat(21));
     assert!(result.is_err());
@@ -87,7 +89,7 @@ mod tests {
       .contains("longer than 20 characters"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_validate_slug_invalid_start() {
     let result = ValidateSiteSlugService::run("123example");
     assert!(result.is_err());
@@ -97,7 +99,7 @@ mod tests {
       .contains("must start with a letter"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_validate_slug_invalid_end() {
     let result = ValidateSiteSlugService::run("example-");
     assert!(result.is_err());
@@ -107,14 +109,14 @@ mod tests {
       .contains("must end with a letter or number"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_validate_slug_invalid_characters() {
     let result = ValidateSiteSlugService::run("test@example");
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("can only contain"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_validate_slug_valid_cases() {
     assert!(ValidateSiteSlugService::run("example").is_ok());
     assert!(ValidateSiteSlugService::run("test-site-123").is_ok());

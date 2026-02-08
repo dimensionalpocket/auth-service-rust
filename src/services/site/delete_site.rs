@@ -18,11 +18,13 @@ impl DeleteSiteService {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::services::site::create_site::CreateSiteService;
   use crate::services::site::get_all_sites::GetAllSitesService;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_delete_site_success() {
     let mut conn = pool.acquire().await.unwrap();
 
@@ -52,7 +54,7 @@ mod tests {
     assert_eq!(all_sites.len(), 0);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_delete_site_not_found() {
     let mut conn = pool.acquire().await.unwrap();
 

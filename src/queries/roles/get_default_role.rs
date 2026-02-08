@@ -31,10 +31,12 @@ impl GetDefaultRoleQuery {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::test_utils::create_test_role_model_with_pool;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_default_role_found() {
     // Insert test roles with one default
     create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
@@ -49,7 +51,7 @@ mod tests {
     assert!(role.is_default);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_default_role_not_found() {
     // Insert test roles with no default
     create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
@@ -61,7 +63,7 @@ mod tests {
     assert!(role.is_none());
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_default_role_empty_table() {
     let mut conn = pool.acquire().await.unwrap();
     let role = GetDefaultRoleQuery::run(&mut conn).await.unwrap();

@@ -42,12 +42,14 @@ impl GetUserOrchestrator {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{create_test_role_with_pool, create_test_user_with_pool};
   use dps_auth_session::DpsAuthSessionPayload;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_user_details_with_permission_check_success() {
     let admin_role_id =
       create_test_role_with_pool(&pool, "admin", &["can_view_user_details"]).await;
@@ -73,7 +75,7 @@ mod tests {
     assert_eq!(user_details.user.role_id, user_role_id);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_user_details_without_authentication() {
     let session_context = SessionContext::new(None);
 
@@ -88,7 +90,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_user_details_without_permission() {
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
 
@@ -112,7 +114,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_user_details_nonexistent_user() {
     let admin_role_id =
       create_test_role_with_pool(&pool, "admin", &["can_view_user_details"]).await;
@@ -136,7 +138,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_user_details_nonexistent_session_user() {
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let target_user = create_test_user_with_pool(&pool, "target_user", user_role_id).await;
@@ -159,7 +161,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_user_details_self_access() {
     let admin_role_id =
       create_test_role_with_pool(&pool, "admin", &["can_view_user_details"]).await;

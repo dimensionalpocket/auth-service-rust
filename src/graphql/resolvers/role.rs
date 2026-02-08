@@ -83,6 +83,8 @@ impl RoleResolver {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
@@ -91,7 +93,7 @@ mod tests {
   };
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_role_success() {
     // Create admin role with can_manage_roles permission
     let admin_role_id =
@@ -159,7 +161,7 @@ mod tests {
     assert!(permission_strings.contains(&"can_edit_profile".to_string()));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_role_forbidden() {
     // Create user role without can_manage_roles permission
     let user_role_id = create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
@@ -196,7 +198,7 @@ mod tests {
     assert!(result.errors[0].message.contains("Forbidden"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_role_unauthenticated() {
     // Create session context with no user (unauthenticated)
     let session_context = SessionContext::new(None);
@@ -218,7 +220,7 @@ mod tests {
     assert!(result.errors[0].message.contains("Authentication required"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_role_not_found() {
     // Create admin role with can_manage_roles permission
     let admin_role_id =

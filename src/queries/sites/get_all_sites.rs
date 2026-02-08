@@ -16,17 +16,19 @@ impl GetAllSitesQuery {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::queries::sites::{CreateSiteData, CreateSiteQuery};
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_all_sites_empty() {
     let mut conn = pool.acquire().await.unwrap();
     let sites = GetAllSitesQuery::run(&mut conn).await.unwrap();
     assert_eq!(sites.len(), 0);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_all_sites_with_data() {
     let mut conn = pool.acquire().await.unwrap();
 

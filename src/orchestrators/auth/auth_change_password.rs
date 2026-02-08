@@ -42,12 +42,14 @@ impl AuthChangePasswordOrchestrator {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{create_test_role_with_pool, create_test_user_with_pool};
   use dps_auth_session::DpsAuthSessionPayload;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_change_authenticated_user_password_success() {
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let user = create_test_user_with_pool(&pool, "testuser", user_role_id).await;
@@ -75,7 +77,7 @@ mod tests {
     assert_ne!(updated_user.password_hash, user.password_hash);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_change_authenticated_user_password_unauthenticated() {
     let session_context = SessionContext::new(None);
 
@@ -97,7 +99,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_change_authenticated_user_password_nonexistent_user() {
     let session_payload = DpsAuthSessionPayload {
       sub: 999,
@@ -124,7 +126,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_change_authenticated_user_password_wrong_current_password() {
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let user = create_test_user_with_pool(&pool, "testuser", user_role_id).await;
@@ -154,7 +156,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_change_authenticated_user_password_password_mismatch() {
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let user = create_test_user_with_pool(&pool, "testuser", user_role_id).await;
@@ -184,7 +186,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_change_authenticated_user_password_invalid_new_password() {
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let user = create_test_user_with_pool(&pool, "testuser", user_role_id).await;

@@ -26,11 +26,13 @@ impl Databases {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::database::{MainDatabase, SessionDatabase};
   use tempfile::NamedTempFile;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_databases_creation_and_accessors() {
     let main_file = NamedTempFile::new().expect("Failed to create temp file");
     let session_file = NamedTempFile::new().expect("Failed to create temp file");
@@ -55,7 +57,7 @@ mod tests {
       .expect("Session pool should execute query");
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_databases_pools_are_separate() {
     let main_file = NamedTempFile::new().expect("Failed to create temp file");
     let session_file = NamedTempFile::new().expect("Failed to create temp file");
@@ -83,7 +85,7 @@ mod tests {
     let _ = err;
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_databases_clone_and_concurrent_access() {
     let main_file = NamedTempFile::new().expect("Failed to create temp file");
     let session_file = NamedTempFile::new().expect("Failed to create temp file");

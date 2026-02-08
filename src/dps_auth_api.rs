@@ -233,6 +233,8 @@ impl DpsAuthApi {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use axum::{
     body::Body,
@@ -258,7 +260,7 @@ mod tests {
     DpsAuthApi::new(config).unwrap()
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_initialize_database_success() {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
@@ -269,7 +271,7 @@ mod tests {
     assert!(result.is_ok());
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_initialize_database_invalid_path() {
     let server = create_test_server("/invalid/path/that/does/not/exist/test.db");
 
@@ -277,7 +279,7 @@ mod tests {
     assert!(matches!(result, Err(DpsAuthApiError::DatabaseError(_))));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_initialize_database_uses_configured_path() {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
@@ -291,7 +293,7 @@ mod tests {
     assert!(result.is_ok());
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_start_method_setup_phases() {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
@@ -312,7 +314,7 @@ mod tests {
     assert!(listener_result.is_ok());
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_start_method_database_error_propagation() {
     let server = create_test_server("/invalid/path/test.db");
 
@@ -322,7 +324,7 @@ mod tests {
     assert!(matches!(result, Err(DpsAuthApiError::DatabaseError(_))));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_create_app_method() {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
@@ -338,7 +340,7 @@ mod tests {
     );
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_build_router_basic_structure() {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
@@ -354,7 +356,7 @@ mod tests {
     );
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_build_router_root_endpoint() {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
@@ -376,7 +378,7 @@ mod tests {
     assert_eq!(&body[..], b"OK");
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_build_router_health_endpoint() {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
@@ -403,7 +405,7 @@ mod tests {
     assert_eq!(&body[..], b"OK");
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_build_router_graphql_endpoint() {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
@@ -438,7 +440,7 @@ mod tests {
     assert!(body_str.contains("data"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_build_router_404_handler() {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
@@ -466,7 +468,7 @@ mod tests {
     assert_eq!(body_str, "NOT FOUND");
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_build_router_404_handler_with_query_string() {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
@@ -494,7 +496,7 @@ mod tests {
     assert_eq!(body_str, "NOT FOUND");
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_build_router_404_handler_with_post_method() {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
@@ -526,7 +528,7 @@ mod tests {
 
   // Phase 3C Tests - Network binding and shutdown handling
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_bind_listener_success() {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
@@ -540,7 +542,7 @@ mod tests {
     assert!(addr.port() > 0); // Should get an actual port
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_bind_listener_uses_configured_port() {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
@@ -556,7 +558,7 @@ mod tests {
 
   // Phase 3E Tests - Database operation separation
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_migrate_database_success() {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
@@ -567,7 +569,7 @@ mod tests {
     assert!(result.is_ok());
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_migrate_database_invalid_path() {
     let server = create_test_server("/invalid/path/that/does/not/exist/test.db");
 
@@ -575,7 +577,7 @@ mod tests {
     assert!(matches!(result, Err(DpsAuthApiError::DatabaseError(_))));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_seed_database_success() {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
@@ -591,7 +593,7 @@ mod tests {
     assert!(seed_result.is_ok());
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_seed_database_invalid_path() {
     let server = create_test_server("/invalid/path/that/does/not/exist/test.db");
 
@@ -599,7 +601,7 @@ mod tests {
     assert!(matches!(result, Err(DpsAuthApiError::DatabaseError(_))));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_database_operations_separation() {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
@@ -621,7 +623,7 @@ mod tests {
     assert!(seed_result.is_ok());
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_initialize_database_is_public() {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();
@@ -640,7 +642,7 @@ mod tests {
     );
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_cors_headers_with_credentials() {
     let temp_file = NamedTempFile::new().unwrap();
     let db_path = temp_file.path().to_str().unwrap();

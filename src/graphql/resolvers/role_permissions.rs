@@ -34,6 +34,8 @@ impl RolePermissionsResolver {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::models::role::ROLE_PERMISSIONS;
@@ -42,7 +44,7 @@ mod tests {
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_role_permissions_user_without_manage_roles_permission() {
     // Create regular user role
     let user_role_id = create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
@@ -67,7 +69,7 @@ mod tests {
       .contains("Forbidden: Insufficient permissions"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_role_permissions_user_with_manage_roles_but_not_admin_permission() {
     // Create role manager role
     let role_manager_id =
@@ -104,7 +106,7 @@ mod tests {
     assert_eq!(permission_strings.len(), ROLE_PERMISSIONS.len() - 1); // All except is_admin
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_role_permissions_user_with_admin_management_permission() {
     // Create admin manager role
     let admin_manager_id = create_test_role_with_pool(
@@ -145,7 +147,7 @@ mod tests {
     assert_eq!(permission_strings.len(), ROLE_PERMISSIONS.len()); // All permissions
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_role_permissions_admin_user() {
     // Create admin role
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["is_admin"]).await;
@@ -179,7 +181,7 @@ mod tests {
     assert_eq!(permission_strings.len(), ROLE_PERMISSIONS.len()); // All permissions
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_role_permissions_unauthenticated() {
     // Create session context without user (not authenticated)
     let session_context = SessionContext::new(None);

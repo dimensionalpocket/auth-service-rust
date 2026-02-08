@@ -4,7 +4,9 @@ use axum::{
   Router,
 };
 use dps_auth_api::dps_auth_api::DpsAuthApi;
+use dps_auth_api::test_utils;
 use dps_auth_api::test_utils::create_test_user_via_mutation;
+use dps_auth_test_macros::dps_auth_db_test;
 use dps_config::DpsConfig;
 use tower::ServiceExt;
 
@@ -90,7 +92,7 @@ async fn parse_graphql_response(response: axum::response::Response<Body>) -> ser
   serde_json::from_str(&body_str).unwrap()
 }
 
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_root_endpoint() {
   let app = create_app().await;
 
@@ -107,7 +109,7 @@ async fn test_root_endpoint() {
   assert_eq!(&body[..], b"OK");
 }
 
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_health_endpoint() {
   let app = create_app().await;
 
@@ -129,7 +131,7 @@ async fn test_health_endpoint() {
   assert_eq!(&body[..], b"OK");
 }
 
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_graphql_endpoint() {
   let app = create_app().await;
 
@@ -159,7 +161,7 @@ async fn test_graphql_endpoint() {
   assert!(body_str.contains("data"));
 }
 
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_create_session_mutation_success() {
   let app = create_app().await;
 
@@ -214,7 +216,7 @@ async fn test_create_session_mutation_success() {
   assert!(!body_str.contains("errors"));
 }
 
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_create_session_mutation_invalid_credentials() {
   let app = create_app().await;
 
@@ -260,7 +262,7 @@ async fn test_create_session_mutation_invalid_credentials() {
   assert!(body_str.contains("Invalid credentials"));
 }
 
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_create_session_mutation_with_missing_user() {
   let app = create_app().await;
 
@@ -302,7 +304,7 @@ async fn test_create_session_mutation_with_missing_user() {
   assert!(body_str.contains("Invalid credentials"));
 }
 
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_get_auth_me_integration_authenticated() {
   let app = create_app().await;
 
@@ -371,7 +373,7 @@ async fn test_get_auth_me_integration_authenticated() {
   assert!(!data["data"]["authMe"].is_null());
 }
 
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_get_auth_me_integration_invalid_token() {
   let app = create_app().await;
 
@@ -405,7 +407,7 @@ async fn test_get_auth_me_integration_invalid_token() {
   assert!(data["data"]["authMe"].is_null());
 }
 
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_404_handler_returns_not_found() {
   let app = create_app().await;
 
@@ -425,7 +427,7 @@ async fn test_404_handler_returns_not_found() {
   assert_eq!(body_str, "NOT FOUND");
 }
 
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_404_handler_with_query_string() {
   let app = create_app().await;
 
@@ -445,7 +447,7 @@ async fn test_404_handler_with_query_string() {
   assert_eq!(body_str, "NOT FOUND");
 }
 
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_404_handler_with_post_method() {
   let app = create_app().await;
 
@@ -469,7 +471,7 @@ async fn test_404_handler_with_post_method() {
 
 // ===== NEW SESSION TESTS =====
 
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_get_auth_me_with_cookie_authentication() {
   let app = create_app().await;
 
@@ -511,7 +513,7 @@ async fn test_get_auth_me_with_cookie_authentication() {
   assert!(data["data"]["authMe"]["sessionExp"].as_i64().unwrap() > 0);
 }
 
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_session_header_precedence_over_cookie() {
   let app = create_app().await;
 
@@ -557,7 +559,7 @@ async fn test_session_header_precedence_over_cookie() {
   assert!(!data["data"]["authMe"].is_null());
 }
 
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_session_invalid_header_no_cookie_fallback() {
   let app = create_app().await;
 
@@ -592,7 +594,7 @@ async fn test_session_invalid_header_no_cookie_fallback() {
   assert!(data["data"]["authMe"].is_null());
 }
 
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_session_expired_token_handling() {
   let app = create_app().await;
 

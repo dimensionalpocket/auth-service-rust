@@ -160,6 +160,39 @@ Domain usage is more of a way to organize code than strict boundaries. Cross-dom
 - Use `serial_test` crate for tests that rely on mutable ENV variables, or tests that otherwise cannot run in parallel
 - **Timestamp Testing**: Database timestamp columns (`created_ts`, `updated_ts`) store seconds since Unix epoch. Any tests requiring timestamp differences must use delays of at least 1 second (e.g., `tokio::time::sleep(tokio::time::Duration::from_secs(1)).await`)
 
+#### DB Test Macro
+
+- Prefer `#[dps_auth_db_test]` (from `dps-auth-test-macros`) for tests that need a SQLite pool
+- The macro wraps the function in `#[tokio::test]` and injects:
+  - `databases` (main + session)
+  - `pool` (`SqlitePool`, cloned from `databases.main()`)
+- Usage in unit tests (inside `#[cfg(test)] mod tests { ... }`):
+
+```rust
+use dps_auth_test_macros::dps_auth_db_test;
+
+#[dps_auth_db_test]
+async fn test_something() {
+  // use `pool` (and `databases` if needed)
+}
+```
+
+- Usage in integration tests (`tests/*.rs`): add this once per file so the macro can resolve `crate::test_utils`:
+
+```rust
+use dps_auth_api::test_utils as test_utils;
+use dps_auth_test_macros::dps_auth_db_test;
+
+#[dps_auth_db_test]
+async fn test_something() {
+  // use `pool`
+}
+```
+
+- Optional macro args:
+  - `pool_size = <int>`
+  - `configure_sqlite = <bool>`
+
 ## Code Style Guidelines
 
 ### General

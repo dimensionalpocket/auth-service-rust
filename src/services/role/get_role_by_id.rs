@@ -15,10 +15,12 @@ impl GetRoleByIdService {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::test_utils::create_test_role_model_with_pool;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_role_by_id_delegates_to_query() {
     let role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
     let role_id = role.id;

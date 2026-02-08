@@ -66,12 +66,14 @@ impl GetRolePermissionsOrchestrator {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{create_test_role_with_pool, create_test_user_with_pool};
   use dps_auth_session::DpsAuthSessionPayload;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_all_role_permissions_with_permission_check_without_manage_roles() {
     // Create regular user without can_manage_roles
     let user_role_id = create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
@@ -96,7 +98,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_all_role_permissions_with_permission_check_role_manager() {
     // Create role manager with can_manage_roles but not can_manage_admin_role_permission
     let role_manager_id =
@@ -121,7 +123,7 @@ mod tests {
     assert_eq!(permissions.len(), ROLE_PERMISSIONS.len() - 1);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_all_role_permissions_with_permission_check_admin_manager() {
     // Create admin manager with both permissions
     let admin_manager_id = create_test_role_with_pool(
@@ -151,7 +153,7 @@ mod tests {
     assert_eq!(permissions.len(), ROLE_PERMISSIONS.len());
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_all_role_permissions_with_permission_check_admin() {
     // Create admin user (with is_admin, bypasses can_manage_roles requirement)
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["is_admin"]).await;
@@ -173,7 +175,7 @@ mod tests {
     assert_eq!(permissions.len(), ROLE_PERMISSIONS.len());
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_all_role_permissions_with_permission_check_unauthenticated() {
     // Create session context without user (not authenticated)
     let session_context = SessionContext::new(None);

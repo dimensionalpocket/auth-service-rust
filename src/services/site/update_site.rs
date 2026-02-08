@@ -42,10 +42,12 @@ impl UpdateSiteService {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::services::site::create_site::CreateSiteService;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_site_success() {
     let mut conn = pool.acquire().await.unwrap();
 
@@ -86,7 +88,7 @@ mod tests {
     assert_eq!(updated_site.created_ts, site.created_ts);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_site_slug_already_exists() {
     let mut conn = pool.acquire().await.unwrap();
 
@@ -125,7 +127,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_site_not_found() {
     let mut conn = pool.acquire().await.unwrap();
 
@@ -146,7 +148,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_site_invalid_slug() {
     let mut conn = pool.acquire().await.unwrap();
 

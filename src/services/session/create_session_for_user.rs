@@ -15,6 +15,8 @@ impl CreateSessionForUserService {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::services::CreateUserService;
   use crate::test_utils::create_test_role_model_with_pool;
@@ -26,7 +28,7 @@ mod tests {
     0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74, 0x4d, 0xb8,
   ];
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_create_session_for_user_success() {
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
@@ -45,7 +47,7 @@ mod tests {
     assert_eq!(payload.sub, user.id);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_create_session_for_user_different_users() {
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 

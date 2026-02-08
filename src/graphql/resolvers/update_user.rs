@@ -82,6 +82,8 @@ impl UpdateUserResolver {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
@@ -89,7 +91,7 @@ mod tests {
   };
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_success() {
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -151,7 +153,7 @@ mod tests {
     assert!(user_data["updatedTs"].as_i64().unwrap() > 0);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_partial_name_only() {
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -189,7 +191,7 @@ mod tests {
     assert_eq!(user_data["name"].as_str().unwrap(), "updatedname");
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_partial_role_only() {
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let moderator_role_id = create_test_role_with_pool(&pool, "moderator", &[]).await;
@@ -236,7 +238,7 @@ mod tests {
     assert_eq!(user_data["role"]["name"].as_str().unwrap(), "moderator");
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_partial_password_with_confirmation() {
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -278,7 +280,7 @@ mod tests {
     assert_eq!(user_data["name"].as_str().unwrap(), "targetuser");
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_partial_metadata() {
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -319,7 +321,7 @@ mod tests {
     );
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_unauthenticated() {
     let session_context = SessionContext::new(None);
 
@@ -340,7 +342,7 @@ mod tests {
     assert!(result.errors[0].message.contains("Authentication required"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_forbidden() {
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let regular_user = create_test_user_with_pool(&pool, "regular", user_role_id).await;
@@ -369,7 +371,7 @@ mod tests {
     assert!(result.errors[0].message.contains("Forbidden"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_not_found() {
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -398,7 +400,7 @@ mod tests {
     assert!(result.errors[0].message.contains("not found"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_validation_error_short_username() {
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -431,7 +433,7 @@ mod tests {
     assert!(result.errors[0].message.contains("Validation error"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_validation_error_short_password() {
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -468,7 +470,7 @@ mod tests {
     assert!(result.errors[0].message.contains("Validation error"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_username_conflict() {
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -502,7 +504,7 @@ mod tests {
     assert!(result.errors[0].message.contains("already in use"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_password_confirmation_only_password() {
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -535,7 +537,7 @@ mod tests {
     assert!(result.errors[0].message.contains("must both be provided"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_password_confirmation_only_confirmation() {
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -568,7 +570,7 @@ mod tests {
     assert!(result.errors[0].message.contains("must both be provided"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_password_confirmation_mismatch() {
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -605,7 +607,7 @@ mod tests {
     assert!(result.errors[0].message.contains("do not match"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_no_updates() {
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;

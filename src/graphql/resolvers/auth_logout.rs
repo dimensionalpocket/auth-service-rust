@@ -36,10 +36,12 @@ impl AuthLogoutResolver {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::test_utils::create_test_mutation_schema;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_auth_logout_success() {
     // Test config
     let test_config = DpsAuthApiConfig {
@@ -83,7 +85,7 @@ mod tests {
     );
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_auth_logout_sets_cookie_header() {
     // Test config with secure cookie
     let test_config = DpsAuthApiConfig {
@@ -157,7 +159,7 @@ mod tests {
     );
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_auth_logout_insecure_cookie() {
     // Test config with insecure cookie
     let test_config = DpsAuthApiConfig {

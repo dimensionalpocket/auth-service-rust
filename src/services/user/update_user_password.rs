@@ -55,11 +55,13 @@ impl UpdateUserPasswordService {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::services::user::create_user::CreateUserService;
   use crate::test_utils::create_test_role_model_with_pool;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_password_success() {
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let mut conn = pool.acquire().await.unwrap();
@@ -89,7 +91,7 @@ mod tests {
     assert!(!is_old_password_valid);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_password_invalid_current_password() {
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let mut conn = pool.acquire().await.unwrap();
@@ -114,7 +116,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_password_password_confirmation_mismatch() {
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let mut conn = pool.acquire().await.unwrap();
@@ -139,7 +141,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_password_invalid_new_password() {
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let mut conn = pool.acquire().await.unwrap();
@@ -158,7 +160,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_password_nonexistent_user() {
     let mut conn = pool.acquire().await.unwrap();
     let result = UpdateUserPasswordService::run(

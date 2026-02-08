@@ -4,7 +4,9 @@ use axum::{
   Router,
 };
 use dps_auth_api::dps_auth_api::DpsAuthApi;
+use dps_auth_api::test_utils;
 use dps_auth_api::test_utils::create_test_user_via_mutation;
+use dps_auth_test_macros::dps_auth_db_test;
 use dps_config::DpsConfig;
 use tower::ServiceExt;
 
@@ -48,7 +50,7 @@ async fn create_app() -> Router {
 // ===== PASSWORD LOGGING SECURITY TESTS =====
 
 #[tracing_test::traced_test]
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_auth_login_no_password_in_logs() {
   let app = create_app().await;
 
@@ -84,7 +86,7 @@ async fn test_auth_login_no_password_in_logs() {
 }
 
 #[tracing_test::traced_test]
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_auth_register_no_password_in_logs() {
   let app = create_app().await;
 
@@ -119,7 +121,7 @@ async fn test_auth_register_no_password_in_logs() {
 // ===== HTTP LOGGING TESTS (TraceLayer) =====
 
 #[tracing_test::traced_test]
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_http_logging_get_request_logged() {
   let app = create_app().await;
 
@@ -141,7 +143,7 @@ async fn test_http_logging_get_request_logged() {
 }
 
 #[tracing_test::traced_test]
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_http_logging_post_request_logged() {
   let app = create_app().await;
 
@@ -166,7 +168,7 @@ async fn test_http_logging_post_request_logged() {
 }
 
 #[tracing_test::traced_test]
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_http_logging_graphql_get_request_logged() {
   let app = create_app().await;
 
@@ -190,7 +192,7 @@ async fn test_http_logging_graphql_get_request_logged() {
 }
 
 #[tracing_test::traced_test]
-#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
+#[dps_auth_db_test]
 async fn test_http_logging_404_request_logged() {
   let app = create_app().await;
 

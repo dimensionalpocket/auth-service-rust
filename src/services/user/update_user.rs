@@ -46,12 +46,14 @@ impl UpdateUserService {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::queries::users::{CreateUserData, CreateUserQuery};
   use crate::services::user::create_user::CreateUserService;
   use crate::test_utils::{create_test_role_model_with_pool, create_test_role_with_pool};
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_success_name_only() {
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
@@ -84,7 +86,7 @@ mod tests {
     assert!(updated_user.updated_ts >= user.updated_ts);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate, pool_size = 1)]
+  #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_success_role_only() {
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["is_admin"]).await;
@@ -118,7 +120,7 @@ mod tests {
     assert!(updated_user.updated_ts >= user.updated_ts);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_success_password_only() {
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
@@ -157,7 +159,7 @@ mod tests {
     assert!(updated_user.updated_ts >= user.updated_ts);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_success_metadata_only() {
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
@@ -193,7 +195,7 @@ mod tests {
     assert!(updated_user.updated_ts >= user.updated_ts);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate, pool_size = 1)]
+  #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_success_metadata_to_null() {
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["is_admin"]).await;
@@ -227,7 +229,7 @@ mod tests {
     assert!(updated_user.updated_ts >= user.updated_ts);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate, pool_size = 1)]
+  #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_success_multiple_fields() {
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["is_admin"]).await;
@@ -270,7 +272,7 @@ mod tests {
     assert!(updated_user.updated_ts >= user.updated_ts);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_no_updates() {
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
@@ -302,7 +304,7 @@ mod tests {
     assert_eq!(updated_user.metadata_json, user.metadata_json);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_user_not_found() {
     let update_data = UpdateUserData {
       id: 999,
@@ -323,7 +325,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_username_validation_empty() {
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
@@ -355,7 +357,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_username_validation_too_short() {
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
@@ -387,7 +389,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_username_validation_too_long() {
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
@@ -420,7 +422,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_username_validation_invalid_chars() {
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
@@ -454,7 +456,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_username_already_exists() {
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
@@ -503,7 +505,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_password_validation_too_short() {
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
@@ -531,7 +533,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_password_validation_too_long() {
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
@@ -559,7 +561,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_user_same_username_no_conflict() {
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 

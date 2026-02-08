@@ -79,6 +79,8 @@ impl UsersResolver {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
@@ -86,7 +88,7 @@ mod tests {
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_users_success() {
     // Create roles
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_list_users"]).await;
@@ -137,7 +139,7 @@ mod tests {
     assert_eq!(names, vec!["admin", "user1", "user2"]);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_users_unauthenticated() {
     // Create session context without user ID (not authenticated)
     let session_context = SessionContext::new(None);
@@ -151,7 +153,7 @@ mod tests {
     assert!(result.errors[0].message.contains("Authentication required"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_users_forbidden() {
     // Create role without can_list_users permission
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
@@ -176,7 +178,7 @@ mod tests {
     assert!(result.errors[0].message.contains("Forbidden"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_users_empty_database() {
     // Create admin role and user
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_list_users"]).await;
@@ -203,7 +205,7 @@ mod tests {
     assert_eq!(users[0]["role"]["name"].as_str().unwrap(), "admin");
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_users_nonexistent_user() {
     // Create session context for non-existent user
     let session_payload = DpsAuthSessionPayload {

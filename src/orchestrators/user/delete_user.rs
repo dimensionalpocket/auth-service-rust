@@ -47,13 +47,15 @@ impl DeleteUserOrchestrator {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::queries::users::GetUserByIdQuery;
   use crate::test_utils::{create_test_role_with_pool, create_test_user_with_pool};
   use dps_auth_session::DpsAuthSessionPayload;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_delete_user_with_permission_check_success() {
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
@@ -81,7 +83,7 @@ mod tests {
     assert!(deleted_user.is_none());
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_delete_user_without_authentication() {
     let session_context = SessionContext::new(None);
 
@@ -96,7 +98,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_delete_user_without_permission() {
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
 
@@ -121,7 +123,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_delete_user_self_deletion_prevented() {
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -150,7 +152,7 @@ mod tests {
     assert!(user_still_exists.is_some());
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_delete_user_nonexistent_target() {
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -173,7 +175,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_delete_user_nonexistent_session_user() {
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let target_user = create_test_user_with_pool(&pool, "target_user", user_role_id).await;

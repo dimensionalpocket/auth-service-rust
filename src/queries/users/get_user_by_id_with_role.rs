@@ -71,10 +71,12 @@ impl GetUserByIdWithRoleQuery {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::test_utils::{create_test_role_with_pool, create_test_user_with_pool};
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_user_by_id_with_role_success() {
     // Create role and user
     let role_id = create_test_role_with_pool(&pool, "admin", &["can_view_user_details"]).await;
@@ -94,7 +96,7 @@ mod tests {
     assert_eq!(user_with_role.user.role_id, role_id);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_user_by_id_with_role_not_found() {
     // Query non-existent user
     let mut conn = pool.acquire().await.unwrap();
@@ -103,7 +105,7 @@ mod tests {
     assert!(result.is_none());
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_user_by_id_with_role_different_roles() {
     // Create different roles
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &[]).await;
@@ -129,7 +131,7 @@ mod tests {
     assert_eq!(user_result.unwrap().role.name, "user");
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_user_by_id_with_role_joined_correctly() {
     // Create role
     let role_id = create_test_role_with_pool(&pool, "test_role", &[]).await;

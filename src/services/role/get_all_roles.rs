@@ -15,10 +15,12 @@ impl GetAllRolesService {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::test_utils::create_test_role_model_with_pool;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_all_roles_delegates_to_query() {
     create_test_role_model_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"], false)
       .await;
@@ -39,7 +41,7 @@ mod tests {
     assert!(roles[1].has_permission("can_view_user_self"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_all_roles_empty_table() {
     let mut conn = pool.acquire().await.unwrap();
 

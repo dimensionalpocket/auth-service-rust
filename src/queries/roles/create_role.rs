@@ -54,8 +54,10 @@ impl CreateRoleQuery {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_create_role_success() {
     let data = CreateRoleData {
       name: "test_role".to_string(),
@@ -79,7 +81,7 @@ mod tests {
     assert!(role.permissions.contains(&"can_list_users".to_string()));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_create_role_empty_permissions() {
     let data = CreateRoleData {
       name: "empty_permissions_role".to_string(),
@@ -95,7 +97,7 @@ mod tests {
     assert_eq!(role.permissions.len(), 0);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_create_role_duplicate_name_fails() {
     let data1 = CreateRoleData {
       name: "duplicate".to_string(),
@@ -119,7 +121,7 @@ mod tests {
     assert!(result.is_err());
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_create_role_default_role() {
     let data = CreateRoleData {
       name: "default_test_role".to_string(),
@@ -136,7 +138,7 @@ mod tests {
     assert!(role.permissions.contains(&"can_view_user_self".to_string()));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_create_role_many_permissions() {
     let data = CreateRoleData {
       name: "many_permissions_role".to_string(),

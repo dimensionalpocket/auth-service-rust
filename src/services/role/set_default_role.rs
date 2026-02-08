@@ -17,13 +17,15 @@ impl SetDefaultRoleService {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::queries::roles::GetDefaultRoleQuery;
   use crate::services::role::create_role::CreateRoleService;
   use crate::services::role::get_all_roles::GetAllRolesService;
   use crate::services::role::get_role_by_id::GetRoleByIdService;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_set_default_role_success() {
     let mut conn = pool.acquire().await.unwrap();
 
@@ -75,7 +77,7 @@ mod tests {
     assert!(!current_role1.unwrap().is_default);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_set_default_role_not_found() {
     let mut conn = pool.acquire().await.unwrap();
 
@@ -87,7 +89,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_set_default_role_atomic_behavior() {
     let mut conn = pool.acquire().await.unwrap();
 

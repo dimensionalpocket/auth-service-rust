@@ -31,10 +31,12 @@ impl ServerTimestampResolver {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::test_utils::create_test_query_schema;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_server_timestamp_calls_service() {
     let query = ServerTimestampResolver;
     let schema = create_test_query_schema(query, None, None, None);
@@ -47,7 +49,7 @@ mod tests {
     assert!(timestamp > 0);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_server_timestamp_returns_string() {
     let query = ServerTimestampResolver;
     let schema = create_test_query_schema(query, None, None, None);

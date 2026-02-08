@@ -46,12 +46,14 @@ impl GetRolesOrchestrator {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{create_test_role_with_pool, create_test_user_with_pool};
   use dps_auth_session::DpsAuthSessionPayload;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_all_roles_with_permission_check_admin_success() {
     // Create admin role and user
     let admin_role_id =
@@ -80,7 +82,7 @@ mod tests {
     assert!(roles.iter().any(|r| r.name == "editor"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_all_roles_with_permission_check_role_editor_success() {
     // Create role editor role and user
     let role_editor_id =
@@ -109,7 +111,7 @@ mod tests {
     assert!(roles.iter().any(|r| r.name == "editor"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_all_roles_with_permission_check_unauthenticated() {
     // Create session context without user (not authenticated)
     let session_context = SessionContext::new(None);
@@ -125,7 +127,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_all_roles_with_permission_check_nonexistent_user() {
     // Create session context for non-existent user
     let session_payload = DpsAuthSessionPayload {
@@ -146,7 +148,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_all_roles_with_permission_check_forbidden() {
     // Create user role without required permissions
     let user_role_id = create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
@@ -171,7 +173,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_all_roles_with_permission_check_empty_database() {
     // Create admin role and user
     let admin_role_id =

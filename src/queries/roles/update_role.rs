@@ -82,11 +82,13 @@ impl UpdateRoleQuery {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::models::ROLE_PERMISSIONS;
   use crate::test_utils::create_test_role_model_with_pool;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_role_success() {
     // Create a role first
     let role = create_test_role_model_with_pool(
@@ -129,7 +131,7 @@ mod tests {
     assert_eq!(updated_role.created_ts, role.created_ts);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_role_partial_update() {
     // Create a role first
     let role = create_test_role_model_with_pool(
@@ -168,7 +170,7 @@ mod tests {
     assert!(updated_role.updated_ts > role.updated_ts);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_role_set_permissions_to_empty() {
     // Create a role first
     let role = create_test_role_model_with_pool(
@@ -201,7 +203,7 @@ mod tests {
     assert!(updated_role.updated_ts > role.updated_ts);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_role_not_found() {
     let update_data = UpdateRoleData {
       id: 999,
@@ -214,7 +216,7 @@ mod tests {
     assert!(result.is_none());
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_role_no_changes() {
     // Create a role first
     let role =
@@ -243,7 +245,7 @@ mod tests {
     assert!(updated_role.updated_ts > role.updated_ts); // updated_ts should still change
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_update_role_with_all_valid_permissions() {
     // Create a role first
     let role = create_test_role_model_with_pool(

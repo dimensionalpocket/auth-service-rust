@@ -87,10 +87,12 @@ impl AuthRegisterResolver {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::test_utils::{create_test_mutation_schema, create_test_role_model};
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_auth_register_calls_service_with_correct_parameters() {
     // Insert default role first
     {
@@ -159,7 +161,7 @@ mod tests {
     );
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_auth_register_returns_error_for_duplicate_username() {
     // Insert default role first
     {
@@ -210,7 +212,7 @@ mod tests {
     assert!(result.errors[0].message.contains("already in use"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_auth_register_validates_input() {
     // Test secret - 32 bytes for AES-256
     let test_secret = vec![
@@ -248,7 +250,7 @@ mod tests {
     assert!(!result.errors.is_empty());
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_auth_register_password_confirmation_mismatch() {
     // Test secret - 32 bytes for AES-256
     let test_secret = vec![
@@ -289,7 +291,7 @@ mod tests {
     assert!(result.errors[0].message.contains("Passwords do not match"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_auth_register_sets_cookie() {
     // Insert default role first
     {

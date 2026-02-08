@@ -76,6 +76,8 @@ fn map_session_error_to_user_message(error: &SessionError) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::services::CreateUserService;
   use crate::test_utils::{create_test_mutation_schema, create_test_role_model};
@@ -86,7 +88,7 @@ mod tests {
     0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74, 0x4d, 0xb8,
   ];
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_auth_login_calls_service_with_correct_parameters() {
     // Setup: Create a user
     {
@@ -153,7 +155,7 @@ mod tests {
     );
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_auth_login_maps_authentication_error() {
     let test_config = DpsAuthApiConfig {
       port: 0,
@@ -190,7 +192,7 @@ mod tests {
     assert_eq!(result.errors[0].message, "Invalid credentials");
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_auth_login_maps_database_error() {
     // Create a schema without database pool to trigger database error
     let test_config = DpsAuthApiConfig {
@@ -238,7 +240,7 @@ mod tests {
     );
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_map_session_error_to_user_message() {
     use dps_auth_session::DpsAuthSessionError;
 

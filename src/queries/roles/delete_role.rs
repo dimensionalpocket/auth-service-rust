@@ -41,13 +41,15 @@ impl DeleteRoleQuery {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::queries::roles::{CreateRoleData, CreateRoleQuery};
   use crate::queries::users::{CreateUserData, CreateUserQuery};
 
   use sqlx::Row;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_delete_role_success() {
     // Create a role first
     let create_data = CreateRoleData {
@@ -81,7 +83,7 @@ mod tests {
     assert_eq!(count, 0);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_delete_role_not_found() {
     // Try to delete non-existent role
     let mut conn = pool.acquire().await.unwrap();
@@ -90,7 +92,7 @@ mod tests {
     assert!(matches!(result.unwrap_err(), sqlx::Error::RowNotFound));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_delete_role_in_use() {
     // Create a role
     let role_data = CreateRoleData {

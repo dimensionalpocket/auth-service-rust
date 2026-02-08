@@ -15,10 +15,12 @@ impl GetAllSitesService {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::services::site::create_site::CreateSiteService;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_get_all_sites() {
     let mut conn = pool.acquire().await.unwrap();
 

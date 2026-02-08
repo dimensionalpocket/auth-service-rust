@@ -39,12 +39,14 @@ impl GetUsersOrchestrator {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{create_test_role_with_pool, create_test_user_with_pool};
   use dps_auth_session::DpsAuthSessionPayload;
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_list_users_with_permission_check_success() {
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_list_users"]).await;
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
@@ -73,7 +75,7 @@ mod tests {
     assert!(user_in_list);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_list_users_without_authentication() {
     let session_context = SessionContext::new(None);
 
@@ -88,7 +90,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_list_users_without_permission() {
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
 
@@ -112,7 +114,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_list_users_nonexistent_user() {
     let session_payload = DpsAuthSessionPayload {
       sub: 999,
@@ -132,7 +134,7 @@ mod tests {
     }
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_list_users_empty_database() {
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_list_users"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;

@@ -87,6 +87,8 @@ impl AuthChangePasswordResolver {
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
   use crate::middleware::session::{SessionContext, SessionPayload};
   use crate::services::{AuthLoginService, CreateUserService};
@@ -125,7 +127,7 @@ mod tests {
     (session_context, user.id)
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_auth_change_password_success() {
     // Setup: Create authenticated user
     let session_context = {
@@ -173,7 +175,7 @@ mod tests {
     assert!(response["updatedTs"].as_i64().unwrap() > 0);
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_auth_change_password_invalid_current_password() {
     // Setup: Create authenticated user
     let session_context = {
@@ -211,7 +213,7 @@ mod tests {
       .contains("Current password is incorrect"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_auth_change_password_password_confirmation_mismatch() {
     // Setup: Create authenticated user
     let session_context = {
@@ -247,7 +249,7 @@ mod tests {
     assert!(result.errors[0].message.contains("Passwords do not match"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_auth_change_password_no_authentication() {
     // Setup: Create session without authentication
     let session_context = SessionContext::new(None);
@@ -277,7 +279,7 @@ mod tests {
     assert!(result.errors[0].message.contains("Authentication required"));
   }
 
-  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
+  #[dps_auth_db_test]
   async fn test_auth_change_password_invalid_new_password() {
     // Setup: Create authenticated user
     let session_context = {
