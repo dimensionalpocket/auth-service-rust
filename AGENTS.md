@@ -253,7 +253,7 @@ fn example() -> Result<(), UserError> {
 ### Test Utilities
 
 - Shared test utilities are available in `src/test_utils/mod.rs`
-- Use `create_test_user()`, `create_test_user_with_password()`, `create_test_user_full()`, `create_test_role()`, `create_test_role_model()`, and `create_test_user_via_mutation()` for creating test data
+- Use `create_test_user_with_*()`, `create_test_user_with_*_and_password()`, `create_test_user_full_with_*()`, `create_test_role_with_*()`, `create_test_role_model_with_*()`, and `create_test_user_via_mutation()` for creating test data (suffixes change based on what's used to create data: a Databases instance, or a connection)
 - Database setup utilities (`create_test_databases()`, `create_test_databases_with_pool_size()`, etc.) are also in `src/test_utils/mod.rs`
 - Do not create local `create_test_*` functions in test modules - use the shared utilities instead
 

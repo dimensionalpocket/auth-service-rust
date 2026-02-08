@@ -80,7 +80,7 @@ mod tests {
 
   use super::*;
   use crate::services::CreateUserService;
-  use crate::test_utils::{create_test_mutation_schema, create_test_role_model, TestEmptyQuery};
+  use crate::test_utils::{create_test_mutation_schema, create_test_role_model_with_conn, TestEmptyQuery};
   use async_graphql::{EmptySubscription, Schema};
 
   // Test secret - 32 bytes for AES-256 (base64-decoded from QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=)
@@ -94,7 +94,7 @@ mod tests {
     // Setup: Create a user
     {
       let mut conn = main_pool.acquire().await.unwrap();
-      create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+      create_test_role_model_with_conn(&mut conn, "user", &["can_view_user_self"], true).await;
       CreateUserService::run(&mut conn, "testuser", "password123")
         .await
         .unwrap();

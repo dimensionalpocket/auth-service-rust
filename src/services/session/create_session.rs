@@ -88,7 +88,7 @@ mod tests {
 
   use super::*;
   use crate::services::CreateUserService;
-  use crate::test_utils::create_test_role_model;
+  use crate::test_utils::create_test_role_model_with_conn;
   use dps_auth_session::DpsAuthSession;
 
   // Test secret - 32 bytes for AES-256
@@ -101,7 +101,7 @@ mod tests {
   async fn test_create_session_success() {
     let mut conn = main_pool.acquire().await.unwrap();
 
-    create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_conn(&mut conn, "user", &["can_view_user_self"], true).await;
     let user = CreateUserService::run(&mut conn, "testuser", "password123")
       .await
       .unwrap();
@@ -157,7 +157,7 @@ mod tests {
   async fn test_create_session_wrong_password() {
     let mut conn = main_pool.acquire().await.unwrap();
 
-    create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_conn(&mut conn, "user", &["can_view_user_self"], true).await;
     CreateUserService::run(&mut conn, "testuser", "correct_password")
       .await
       .unwrap();
@@ -175,7 +175,7 @@ mod tests {
   async fn test_create_session_case_insensitive_username() {
     let mut conn = main_pool.acquire().await.unwrap();
 
-    create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_conn(&mut conn, "user", &["can_view_user_self"], true).await;
     let user = CreateUserService::run(&mut conn, "TestUser", "password123")
       .await
       .unwrap();

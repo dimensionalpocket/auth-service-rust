@@ -90,14 +90,14 @@ mod tests {
   use dps_auth_test_macros::dps_auth_db_test;
 
   use super::*;
-  use crate::test_utils::{create_test_mutation_schema, create_test_role_model};
+  use crate::test_utils::{create_test_mutation_schema, create_test_role_model_with_conn};
 
   #[dps_auth_db_test]
   async fn test_auth_register_calls_service_with_correct_parameters() {
     // Insert default role first
     {
       let mut conn = main_pool.acquire().await.unwrap();
-      create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+      create_test_role_model_with_conn(&mut conn, "user", &["can_view_user_self"], true).await;
     }
 
     // Test secret - 32 bytes for AES-256
@@ -168,7 +168,7 @@ mod tests {
     // Insert default role first
     {
       let mut conn = main_pool.acquire().await.unwrap();
-      create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+      create_test_role_model_with_conn(&mut conn, "user", &["can_view_user_self"], true).await;
     }
 
     // Test secret - 32 bytes for AES-256
@@ -304,7 +304,7 @@ mod tests {
     // Insert default role first
     {
       let mut conn = main_pool.acquire().await.unwrap();
-      create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+      create_test_role_model_with_conn(&mut conn, "user", &["can_view_user_self"], true).await;
     }
 
     // Test secret - 32 bytes for AES-256

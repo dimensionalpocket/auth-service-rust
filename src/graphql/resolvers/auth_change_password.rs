@@ -92,7 +92,7 @@ mod tests {
   use super::*;
   use crate::middleware::session::{SessionContext, SessionPayload};
   use crate::services::{AuthLoginService, CreateUserService};
-  use crate::test_utils::{create_test_mutation_schema, create_test_role_model};
+  use crate::test_utils::{create_test_mutation_schema, create_test_role_model_with_conn};
   use sqlx::SqliteConnection;
 
   // Test secret - 32 bytes for AES-256
@@ -132,7 +132,7 @@ mod tests {
     // Setup: Create authenticated user
     let session_context = {
       let mut conn = main_pool.acquire().await.unwrap();
-      create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+      create_test_role_model_with_conn(&mut conn, "user", &["can_view_user_self"], true).await;
       create_authenticated_session(&mut conn, "testuser", "oldpassword123")
         .await
         .0
@@ -181,7 +181,7 @@ mod tests {
     // Setup: Create authenticated user
     let session_context = {
       let mut conn = main_pool.acquire().await.unwrap();
-      create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+      create_test_role_model_with_conn(&mut conn, "user", &["can_view_user_self"], true).await;
       create_authenticated_session(&mut conn, "testuser", "correctpassword")
         .await
         .0
@@ -220,7 +220,7 @@ mod tests {
     // Setup: Create authenticated user
     let session_context = {
       let mut conn = main_pool.acquire().await.unwrap();
-      create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+      create_test_role_model_with_conn(&mut conn, "user", &["can_view_user_self"], true).await;
       create_authenticated_session(&mut conn, "testuser", "currentpassword")
         .await
         .0
@@ -288,7 +288,7 @@ mod tests {
     // Setup: Create authenticated user
     let session_context = {
       let mut conn = main_pool.acquire().await.unwrap();
-      create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
+      create_test_role_model_with_conn(&mut conn, "user", &["can_view_user_self"], true).await;
       create_authenticated_session(&mut conn, "testuser", "currentpassword")
         .await
         .0

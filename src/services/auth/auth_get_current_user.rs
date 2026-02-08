@@ -44,17 +44,17 @@ mod tests {
 
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{create_test_role_model, create_test_user_full};
+  use crate::test_utils::{create_test_role_model_with_conn, create_test_user_full_with_conn};
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[dps_auth_db_test]
   async fn test_get_current_user_with_role() {
     let mut conn = main_pool.acquire().await.unwrap();
 
-    let admin_role_id = create_test_role_model(&mut conn, "admin", &["can_manage_users"], false)
+    let admin_role_id = create_test_role_model_with_conn(&mut conn, "admin", &["can_manage_users"], false)
       .await
       .id;
-    let user = create_test_user_full(
+    let user = create_test_user_full_with_conn(
       &mut conn,
       "testuser",
       Some(admin_role_id),
