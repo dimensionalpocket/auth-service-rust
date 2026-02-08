@@ -49,12 +49,9 @@ impl CreateRoleService {
 mod tests {
   use super::*;
   use crate::models::ROLE_PERMISSIONS;
-  use crate::test_utils::create_test_database;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_role_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
@@ -81,10 +78,8 @@ mod tests {
     assert!(permissions.contains(&"can_list_users".to_string()));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_role_empty_permissions() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
@@ -102,10 +97,8 @@ mod tests {
     assert_eq!(role.permissions.len(), 0);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_role_duplicate_name_fails() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let create_data1 = CreateRoleData {
@@ -132,10 +125,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_role_empty_name_fails() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
@@ -152,10 +143,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_role_whitespace_name_fails() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
@@ -172,10 +161,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_role_invalid_permission_fails() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
@@ -192,10 +179,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_role_multiple_invalid_permissions_fails() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
@@ -216,10 +201,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_role_all_valid_permissions() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let all_permissions: Vec<String> = ROLE_PERMISSIONS
@@ -251,10 +234,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_role_default_role() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {

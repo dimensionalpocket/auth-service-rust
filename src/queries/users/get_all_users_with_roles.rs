@@ -58,23 +58,18 @@ impl GetAllUsersWithRolesQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::{create_test_database, create_test_role_model_with_pool};
+  use crate::test_utils::create_test_role_model_with_pool;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_all_users_with_roles_empty() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let result = GetAllUsersWithRolesQuery::run(&mut conn).await.unwrap();
     assert_eq!(result.len(), 0);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_all_users_with_roles_with_data() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Insert test roles
     let admin_role = create_test_role_model_with_pool(&pool, "admin", &[], false).await;
     let user_role =
@@ -119,11 +114,8 @@ mod tests {
     assert_eq!(result[1].role.name, "user");
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_all_users_with_roles_joins_correctly() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Insert test role
     let test_role = create_test_role_model_with_pool(&pool, "test_role", &[], false).await;
 

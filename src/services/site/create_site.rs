@@ -30,12 +30,8 @@ impl CreateSiteService {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::create_test_database;
-
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_site_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let data = CreateSiteData {
@@ -57,10 +53,8 @@ mod tests {
     assert_eq!(site.created_ts, site.updated_ts);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_site_slug_already_exists() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let data1 = CreateSiteData {

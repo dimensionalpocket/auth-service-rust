@@ -94,16 +94,12 @@ mod tests {
   use crate::middleware::session::SessionContext;
   use crate::queries::roles::GetRoleByIdQuery;
   use crate::test_utils::{
-    create_test_database, create_test_mutation_schema, create_test_role_with_pool,
-    create_test_user_with_pool,
+    create_test_mutation_schema, create_test_role_with_pool, create_test_user_with_pool,
   };
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_set_default_role_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create admin role with can_manage_roles permission
     let admin_role_id =
       create_test_role_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
@@ -165,11 +161,8 @@ mod tests {
     assert!(role_data["updatedTs"].as_i64().unwrap() > 0);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_set_default_role_atomic_behavior() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create admin role with can_manage_roles permission
     let admin_role_id =
       create_test_role_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
@@ -236,11 +229,8 @@ mod tests {
     assert!(role2_check.is_default);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_set_default_role_forbidden() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create user role without can_manage_roles permission
     let user_role_id = create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
 
@@ -276,11 +266,8 @@ mod tests {
     assert!(result.errors[0].message.contains("Forbidden"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_set_default_role_unauthenticated() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create session context with no user (unauthenticated)
     let session_context = SessionContext::new(None);
 
@@ -301,11 +288,8 @@ mod tests {
     assert!(result.errors[0].message.contains("Authentication required"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_set_default_role_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create admin role with can_manage_roles permission
     let admin_role_id =
       create_test_role_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"]).await;

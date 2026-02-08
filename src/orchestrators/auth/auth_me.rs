@@ -29,16 +29,11 @@ impl AuthMeOrchestrator {
 mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{
-    create_test_database, create_test_role_with_pool, create_test_user_full_with_pool,
-  };
+  use crate::test_utils::{create_test_role_with_pool, create_test_user_full_with_pool};
   use dps_auth_session::DpsAuthSessionPayload;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_authenticated_user_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let _user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let user =
       create_test_user_full_with_pool(&pool, "testuser", Some(1), "password123", None).await;
@@ -62,11 +57,8 @@ mod tests {
     assert_eq!(result_data.session_exp, 2000);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_authenticated_user_unauthenticated() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let session_context = SessionContext::new(None);
 
     let result = AuthMeOrchestrator::run(&pool, session_context).await;

@@ -63,11 +63,8 @@ mod tests {
   use super::*;
   use crate::test_utils::*;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_set_default_role_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create test roles
     let role1_id = create_test_role_with_pool(&pool, "role1", &[]).await;
     let role2_id = create_test_role_with_pool(&pool, "role2", &[]).await;
@@ -105,11 +102,8 @@ mod tests {
     assert!(!role2_updated.is_default);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_set_default_role_atomic_behavior() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create test roles
     let role1_id = create_test_role_with_pool(&pool, "role1", &[]).await;
     let role2_id = create_test_role_with_pool(&pool, "role2", &[]).await;
@@ -158,11 +152,8 @@ mod tests {
     assert_eq!(default_count, 1);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_set_default_role_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Try to set non-existent role as default
     let mut conn = pool.acquire().await.unwrap();
     let result = SetDefaultRoleQuery::run(&mut conn, 999).await.unwrap();
@@ -170,11 +161,8 @@ mod tests {
     assert!(result.is_none());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_set_default_role_timestamp_update() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create test role
     let role_id = create_test_role_with_pool(&pool, "role1", &[]).await;
 

@@ -88,15 +88,10 @@ impl AuthRegisterResolver {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::{
-    create_test_database, create_test_mutation_schema, create_test_role_model,
-  };
+  use crate::test_utils::{create_test_mutation_schema, create_test_role_model};
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_auth_register_calls_service_with_correct_parameters() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Insert default role first
     {
       let mut conn = pool.acquire().await.unwrap();
@@ -164,11 +159,8 @@ mod tests {
     );
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_auth_register_returns_error_for_duplicate_username() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Insert default role first
     {
       let mut conn = pool.acquire().await.unwrap();
@@ -218,11 +210,8 @@ mod tests {
     assert!(result.errors[0].message.contains("already in use"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_auth_register_validates_input() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Test secret - 32 bytes for AES-256
     let test_secret = vec![
       0x42, 0xf4, 0x25, 0xc2, 0x93, 0x2e, 0x8c, 0xaf, 0xaa, 0xcd, 0xd4, 0x5b, 0x50, 0x28, 0xa4,
@@ -259,11 +248,8 @@ mod tests {
     assert!(!result.errors.is_empty());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_auth_register_password_confirmation_mismatch() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Test secret - 32 bytes for AES-256
     let test_secret = vec![
       0x42, 0xf4, 0x25, 0xc2, 0x93, 0x2e, 0x8c, 0xaf, 0xaa, 0xcd, 0xd4, 0x5b, 0x50, 0x28, 0xa4,
@@ -303,11 +289,8 @@ mod tests {
     assert!(result.errors[0].message.contains("Passwords do not match"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_auth_register_sets_cookie() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Insert default role first
     {
       let mut conn = pool.acquire().await.unwrap();

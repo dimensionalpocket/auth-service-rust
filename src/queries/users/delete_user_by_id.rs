@@ -16,14 +16,11 @@ impl DeleteUserByIdQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::create_test_database;
   use sqlx::Row;
   use uuid::Uuid;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_delete_user_by_id_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     // Insert test role first
@@ -71,10 +68,8 @@ mod tests {
     assert_eq!(user_exists, 0);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_delete_user_by_id_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     // Try to delete non-existent user
@@ -82,10 +77,8 @@ mod tests {
     assert!(!deleted);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_delete_user_by_id_multiple_deletes() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     // Insert test role first

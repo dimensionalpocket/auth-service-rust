@@ -84,13 +84,10 @@ impl UpdateRoleQuery {
 mod tests {
   use super::*;
   use crate::models::ROLE_PERMISSIONS;
-  use crate::test_utils::{create_test_database, create_test_role_model_with_pool};
+  use crate::test_utils::create_test_role_model_with_pool;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_role_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create a role first
     let role = create_test_role_model_with_pool(
       &pool,
@@ -132,11 +129,8 @@ mod tests {
     assert_eq!(updated_role.created_ts, role.created_ts);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_role_partial_update() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create a role first
     let role = create_test_role_model_with_pool(
       &pool,
@@ -174,11 +168,8 @@ mod tests {
     assert!(updated_role.updated_ts > role.updated_ts);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_role_set_permissions_to_empty() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create a role first
     let role = create_test_role_model_with_pool(
       &pool,
@@ -210,11 +201,8 @@ mod tests {
     assert!(updated_role.updated_ts > role.updated_ts);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_role_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let update_data = UpdateRoleData {
       id: 999,
       name: Some("nonexistent".to_string()),
@@ -226,11 +214,8 @@ mod tests {
     assert!(result.is_none());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_role_no_changes() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create a role first
     let role =
       create_test_role_model_with_pool(&pool, "no-changes-role", &["can_view_user_self"], false)
@@ -258,11 +243,8 @@ mod tests {
     assert!(updated_role.updated_ts > role.updated_ts); // updated_ts should still change
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_role_with_all_valid_permissions() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create a role first
     let role = create_test_role_model_with_pool(
       &pool,

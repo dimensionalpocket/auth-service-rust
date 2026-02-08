@@ -33,12 +33,9 @@ mod tests {
   use crate::queries::users::{CreateUserData, CreateUserQuery};
   use crate::services::role::create_role::CreateRoleService;
   use crate::services::role::get_role_by_id::GetRoleByIdService;
-  use crate::test_utils::create_test_database;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_delete_role_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let create_data = crate::queries::roles::CreateRoleData {
@@ -62,10 +59,8 @@ mod tests {
     assert!(result.is_none());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_delete_role_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let result = DeleteRoleService::run(&mut conn, 999).await;
@@ -76,10 +71,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_delete_role_in_use() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let role_data = crate::queries::roles::CreateRoleData {

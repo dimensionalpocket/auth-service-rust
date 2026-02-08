@@ -44,14 +44,11 @@ mod tests {
   use super::*;
   use crate::queries::roles::{CreateRoleData, CreateRoleQuery};
   use crate::queries::users::{CreateUserData, CreateUserQuery};
-  use crate::test_utils::create_test_database;
+
   use sqlx::Row;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_delete_role_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create a role first
     let create_data = CreateRoleData {
       name: "test-role".to_string(),
@@ -84,11 +81,8 @@ mod tests {
     assert_eq!(count, 0);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_delete_role_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Try to delete non-existent role
     let mut conn = pool.acquire().await.unwrap();
     let result = DeleteRoleQuery::run(&mut conn, 999).await;
@@ -96,11 +90,8 @@ mod tests {
     assert!(matches!(result.unwrap_err(), sqlx::Error::RowNotFound));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_delete_role_in_use() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create a role
     let role_data = CreateRoleData {
       name: "test-role".to_string(),

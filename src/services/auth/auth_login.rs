@@ -41,7 +41,7 @@ impl AuthLoginService {
 mod tests {
   use super::*;
   use crate::services::CreateUserService;
-  use crate::test_utils::{create_test_database, create_test_role_model_with_pool};
+  use crate::test_utils::create_test_role_model_with_pool;
 
   // Test secret - 32 bytes for AES-256
   const TEST_SECRET: &[u8] = &[
@@ -49,11 +49,8 @@ mod tests {
     0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74, 0x4d, 0xb8,
   ];
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_auth_login_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let mut conn = pool.acquire().await.unwrap();
     CreateUserService::run(&mut conn, "testuser", "password123")
@@ -68,11 +65,8 @@ mod tests {
     assert!(auth_result.user_id > 0);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_auth_login_invalid_credentials() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let mut conn = pool.acquire().await.unwrap();
     CreateUserService::run(&mut conn, "testuser", "password123")
@@ -83,11 +77,8 @@ mod tests {
     assert!(result.is_err());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_auth_login_user_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let mut conn = pool.acquire().await.unwrap();
     let result = AuthLoginService::run(&mut conn, "nonexistent", "password123", TEST_SECRET).await;
 

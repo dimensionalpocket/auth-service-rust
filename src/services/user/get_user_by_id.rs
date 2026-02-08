@@ -14,13 +14,10 @@ impl GetUserByIdService {
 mod tests {
   use super::*;
   use crate::services::user::create_user::CreateUserService;
-  use crate::test_utils::{create_test_database, create_test_role_model_with_pool};
+  use crate::test_utils::create_test_role_model_with_pool;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_user_by_id_query_works_correctly() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     let mut conn = pool.acquire().await.unwrap();
@@ -35,10 +32,8 @@ mod tests {
     assert_eq!(retrieved_user.name, user.name);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_user_by_id_query_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let user = GetUserByIdService::run(&mut conn, 999).await.unwrap();

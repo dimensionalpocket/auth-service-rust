@@ -62,17 +62,13 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_database, create_test_mutation_schema, create_test_role_with_pool,
-    create_test_user_with_pool,
+    create_test_mutation_schema, create_test_role_with_pool, create_test_user_with_pool,
   };
   use dps_auth_session::DpsAuthSessionPayload;
   use sqlx::Row;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_delete_user_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create roles
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
@@ -123,11 +119,8 @@ mod tests {
     assert_eq!(deleted_user, 0);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_delete_user_forbidden() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create role without can_delete_user permission
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
 
@@ -161,11 +154,8 @@ mod tests {
     assert!(result.errors[0].message.contains("Forbidden"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_delete_user_unauthenticated() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create session context with no user (unauthenticated)
     let session_context = SessionContext::new(None);
 
@@ -184,11 +174,8 @@ mod tests {
     assert!(result.errors[0].message.contains("Authentication required"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_delete_user_self_deletion_prevented() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create admin role and user
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -230,11 +217,8 @@ mod tests {
     assert_eq!(user_still_exists, 1);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_delete_user_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create admin role and user
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_delete_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -264,11 +248,8 @@ mod tests {
       .contains("User with ID 999 not found"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_delete_user_nonexistent_session_user() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create target user
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let target_user = create_test_user_with_pool(&pool, "target_user", user_role_id).await;

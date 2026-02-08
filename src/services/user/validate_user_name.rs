@@ -39,22 +39,21 @@ impl ValidateUserNameService {
 #[cfg(test)]
 mod tests {
   use super::*;
-
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_validate_username_empty() {
     let result = ValidateUserNameService::run("");
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("cannot be empty"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_validate_username_whitespace_only() {
     let result = ValidateUserNameService::run("   ");
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("cannot be empty"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_validate_username_too_short() {
     let result = ValidateUserNameService::run("ab");
     assert!(result.is_err());
@@ -64,7 +63,7 @@ mod tests {
       .contains("at least 3 characters"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_validate_username_too_long() {
     let result = ValidateUserNameService::run("a".repeat(21).as_str());
     assert!(result.is_err());
@@ -74,14 +73,14 @@ mod tests {
       .contains("longer than 20 characters"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_validate_username_invalid_characters() {
     let result = ValidateUserNameService::run("test@user");
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("can only contain"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_validate_username_valid_characters() {
     assert!(ValidateUserNameService::run("test_user-123").is_ok());
     assert!(ValidateUserNameService::run("TestUser").is_ok());

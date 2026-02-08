@@ -44,16 +44,11 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
 
-  use crate::test_utils::{
-    create_test_database, create_test_role_with_pool, create_test_user_with_pool,
-  };
+  use crate::test_utils::{create_test_role_with_pool, create_test_user_with_pool};
   use dps_auth_session::DpsAuthSessionPayload;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_site_with_permission_check_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create admin role and user
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_create_site"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -85,11 +80,8 @@ mod tests {
     assert_eq!(site.protocol, "https");
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_site_with_permission_check_unauthenticated() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create session context without user (not authenticated)
     let session_context = SessionContext::new(None);
 
@@ -112,11 +104,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_site_with_permission_check_nonexistent_user() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create session context for non-existent user
     let session_payload = DpsAuthSessionPayload {
       sub: 999,
@@ -144,11 +133,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_site_with_permission_check_forbidden() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create user role without can_create_site permission
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let regular_user = create_test_user_with_pool(&pool, "user", user_role_id).await;

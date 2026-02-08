@@ -78,9 +78,7 @@ fn map_session_error_to_user_message(error: &SessionError) -> &'static str {
 mod tests {
   use super::*;
   use crate::services::CreateUserService;
-  use crate::test_utils::{
-    create_test_database, create_test_mutation_schema, create_test_role_model,
-  };
+  use crate::test_utils::{create_test_mutation_schema, create_test_role_model};
 
   // Test secret - 32 bytes for AES-256 (base64-decoded from QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=)
   const TEST_SECRET: &[u8] = &[
@@ -88,11 +86,8 @@ mod tests {
     0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74, 0x4d, 0xb8,
   ];
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_auth_login_calls_service_with_correct_parameters() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Setup: Create a user
     {
       let mut conn = pool.acquire().await.unwrap();
@@ -158,11 +153,8 @@ mod tests {
     );
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_auth_login_maps_authentication_error() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let test_config = DpsAuthApiConfig {
       port: 0,
       sqlite_main_file_path: "test.db".to_string(),
@@ -198,7 +190,7 @@ mod tests {
     assert_eq!(result.errors[0].message, "Invalid credentials");
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_auth_login_maps_database_error() {
     // Create a schema without database pool to trigger database error
     let test_config = DpsAuthApiConfig {
@@ -246,7 +238,7 @@ mod tests {
     );
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_map_session_error_to_user_message() {
     use dps_auth_session::DpsAuthSessionError;
 

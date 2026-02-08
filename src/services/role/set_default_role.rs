@@ -22,12 +22,9 @@ mod tests {
   use crate::services::role::create_role::CreateRoleService;
   use crate::services::role::get_all_roles::GetAllRolesService;
   use crate::services::role::get_role_by_id::GetRoleByIdService;
-  use crate::test_utils::create_test_database;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_set_default_role_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let role1_data = crate::queries::roles::CreateRoleData {
@@ -78,10 +75,8 @@ mod tests {
     assert!(!current_role1.unwrap().is_default);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_set_default_role_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let result = SetDefaultRoleService::run(&mut conn, 999).await;
@@ -92,10 +87,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_set_default_role_atomic_behavior() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let role1_data = crate::queries::roles::CreateRoleData {

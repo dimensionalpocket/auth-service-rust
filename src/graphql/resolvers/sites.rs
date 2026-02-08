@@ -64,12 +64,10 @@ impl SitesResolver {
 mod tests {
   use super::*;
   use crate::queries::sites::{CreateSiteData, CreateSiteQuery};
-  use crate::test_utils::{create_test_database, create_test_query_schema};
+  use crate::test_utils::create_test_query_schema;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_sites_empty() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let query = SitesResolver;
     let schema = create_test_query_schema(query, Some(pool), None, None);
 
@@ -83,11 +81,8 @@ mod tests {
     assert_eq!(sites.len(), 0);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_sites_with_data() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create test sites
     let site1_data = CreateSiteData {
       slug: "alpha".to_string(),

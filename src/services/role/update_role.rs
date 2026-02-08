@@ -44,12 +44,10 @@ impl UpdateRoleService {
 mod tests {
   use super::*;
   use crate::models::ROLE_PERMISSIONS;
-  use crate::test_utils::{create_test_database, create_test_role_model};
+  use crate::test_utils::create_test_role_model;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_role_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let role = create_test_role_model(&mut conn, "test-role", &["can_view_user_self"], false).await;
@@ -76,10 +74,8 @@ mod tests {
     assert!(permissions.contains(&"can_delete_user".to_string()));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_role_partial_update() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let role = create_test_role_model(
@@ -109,10 +105,8 @@ mod tests {
     assert!(permissions.contains(&"can_list_users".to_string()));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_role_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let update_data = UpdateRoleData {
@@ -129,10 +123,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_role_invalid_permission() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let role = create_test_role_model(&mut conn, "test-role", &["can_view_user_self"], false).await;
@@ -152,10 +144,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_role_empty_permissions() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let role = create_test_role_model(
@@ -182,10 +172,8 @@ mod tests {
     assert_eq!(updated_role.permissions.len(), 0);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_role_all_valid_permissions() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let role = create_test_role_model(

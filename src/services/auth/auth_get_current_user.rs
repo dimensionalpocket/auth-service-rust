@@ -42,13 +42,11 @@ impl AuthGetCurrentUserService {
 mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{create_test_database, create_test_role_model, create_test_user_full};
+  use crate::test_utils::{create_test_role_model, create_test_user_full};
   use dps_auth_session::DpsAuthSessionPayload;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_current_user_with_role() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let admin_role_id = create_test_role_model(&mut conn, "admin", &["can_manage_users"], false)

@@ -21,12 +21,9 @@ impl GetSiteByIdQuery {
 mod tests {
   use super::*;
   use crate::queries::sites::{CreateSiteData, CreateSiteQuery};
-  use crate::test_utils::create_test_database;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_site_by_id_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     // Create a test site first
@@ -60,11 +57,8 @@ mod tests {
     assert!(site.updated_ts > 0);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_site_by_id_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Test getting a non-existent site
     let mut conn = pool.acquire().await.unwrap();
     let retrieved_site = GetSiteByIdQuery::run(&mut conn, 999).await.unwrap();
@@ -72,11 +66,8 @@ mod tests {
     assert!(retrieved_site.is_none());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_site_by_id_empty_database() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Test getting a site from empty database
     let mut conn = pool.acquire().await.unwrap();
     let retrieved_site = GetSiteByIdQuery::run(&mut conn, 1).await.unwrap();
@@ -84,10 +75,8 @@ mod tests {
     assert!(retrieved_site.is_none());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_site_by_id_multiple_sites() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     // Create multiple test sites
@@ -133,10 +122,8 @@ mod tests {
     assert_eq!(site2.metadata_json, Some("{\"type\": \"api\"}".to_string()));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_site_by_id_with_null_fields() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     // Create a site with null optional fields

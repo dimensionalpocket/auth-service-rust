@@ -80,16 +80,12 @@ mod tests {
   use crate::middleware::session::SessionContext;
   use crate::queries::users::{CreateUserData, CreateUserQuery};
   use crate::test_utils::{
-    create_test_database, create_test_query_schema, create_test_role_model_with_pool,
-    create_test_user_full_with_pool,
+    create_test_query_schema, create_test_role_model_with_pool, create_test_user_full_with_pool,
   };
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_user_details_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Insert admin role with can_view_user_details permission
     let admin_role = create_test_role_model_with_pool(
       &pool,
@@ -168,11 +164,8 @@ mod tests {
     assert!(user_data["updatedTs"].as_i64().unwrap() > 0);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_user_details_forbidden() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Insert user role without can_view_user_details permission
     let user_role =
       create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
@@ -209,11 +202,8 @@ mod tests {
     assert!(result.errors[0].message.contains("Forbidden"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_user_details_unauthenticated() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create session context with no user (unauthenticated)
     let session_context = SessionContext::new(None);
 
@@ -234,11 +224,8 @@ mod tests {
     assert!(result.errors[0].message.contains("Authentication required"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_user_details_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Insert admin role with can_view_user_details permission
     let admin_role = create_test_role_model_with_pool(
       &pool,

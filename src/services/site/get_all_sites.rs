@@ -17,12 +17,9 @@ impl GetAllSitesService {
 mod tests {
   use super::*;
   use crate::services::site::create_site::CreateSiteService;
-  use crate::test_utils::create_test_database;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_all_sites() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let data1 = crate::queries::sites::CreateSiteData {

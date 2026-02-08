@@ -34,7 +34,7 @@ mod tests {
   use super::*;
   use crate::test_utils::create_test_query_schema;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_server_timestamp_calls_service() {
     let query = ServerTimestampResolver;
     let schema = create_test_query_schema(query, None, None, None);
@@ -47,7 +47,7 @@ mod tests {
     assert!(timestamp > 0);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_server_timestamp_returns_string() {
     let query = ServerTimestampResolver;
     let schema = create_test_query_schema(query, None, None, None);

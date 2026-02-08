@@ -48,7 +48,7 @@ async fn create_app() -> Router {
 // ===== PASSWORD LOGGING SECURITY TESTS =====
 
 #[tracing_test::traced_test]
-#[tokio::test]
+#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
 async fn test_auth_login_no_password_in_logs() {
   let app = create_app().await;
 
@@ -84,7 +84,7 @@ async fn test_auth_login_no_password_in_logs() {
 }
 
 #[tracing_test::traced_test]
-#[tokio::test]
+#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
 async fn test_auth_register_no_password_in_logs() {
   let app = create_app().await;
 
@@ -119,7 +119,7 @@ async fn test_auth_register_no_password_in_logs() {
 // ===== HTTP LOGGING TESTS (TraceLayer) =====
 
 #[tracing_test::traced_test]
-#[tokio::test]
+#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
 async fn test_http_logging_get_request_logged() {
   let app = create_app().await;
 
@@ -141,7 +141,7 @@ async fn test_http_logging_get_request_logged() {
 }
 
 #[tracing_test::traced_test]
-#[tokio::test]
+#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
 async fn test_http_logging_post_request_logged() {
   let app = create_app().await;
 
@@ -166,7 +166,7 @@ async fn test_http_logging_post_request_logged() {
 }
 
 #[tracing_test::traced_test]
-#[tokio::test]
+#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
 async fn test_http_logging_graphql_get_request_logged() {
   let app = create_app().await;
 
@@ -190,7 +190,7 @@ async fn test_http_logging_graphql_get_request_logged() {
 }
 
 #[tracing_test::traced_test]
-#[tokio::test]
+#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
 async fn test_http_logging_404_request_logged() {
   let app = create_app().await;
 

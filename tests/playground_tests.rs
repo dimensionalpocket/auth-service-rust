@@ -6,7 +6,7 @@ use dps_auth_api::DpsAuthApi;
 use tempfile::NamedTempFile;
 use tower::ServiceExt;
 
-#[tokio::test]
+#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
 async fn test_playground_development_mode_enabled() {
   let temp_file = NamedTempFile::new().unwrap();
   let db_path = temp_file.path().to_str().unwrap();
@@ -47,7 +47,7 @@ async fn test_playground_development_mode_enabled() {
   assert!(body_str.contains("<!DOCTYPE html>"));
 }
 
-#[tokio::test]
+#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
 async fn test_playground_development_mode_disabled() {
   let temp_file = NamedTempFile::new().unwrap();
   let db_path = temp_file.path().to_str().unwrap();
@@ -80,7 +80,7 @@ async fn test_playground_development_mode_disabled() {
   assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
-#[tokio::test]
+#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
 async fn test_playground_default_mode() {
   // Test with default configuration (no explicit development mode setting)
   let temp_file = NamedTempFile::new().unwrap();

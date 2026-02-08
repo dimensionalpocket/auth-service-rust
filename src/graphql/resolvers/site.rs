@@ -91,16 +91,12 @@ mod tests {
   use crate::middleware::session::SessionContext;
   use crate::queries::sites::{CreateSiteData, CreateSiteQuery};
   use crate::test_utils::{
-    create_test_database, create_test_query_schema, create_test_role_with_pool,
-    create_test_user_with_pool,
+    create_test_query_schema, create_test_role_with_pool, create_test_user_with_pool,
   };
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_site_details_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create admin role with can_view_site_details permission
     let admin_role_id =
       create_test_role_with_pool(&pool, "admin", &["is_admin", "can_view_site_details"]).await;
@@ -170,11 +166,8 @@ mod tests {
     assert!(site_data["updatedTs"].as_i64().unwrap() > 0);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_site_details_forbidden() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create user role without can_view_site_details permission
     let user_role_id = create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
 
@@ -207,11 +200,8 @@ mod tests {
     assert!(result.errors[0].message.contains("Forbidden"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_site_details_unauthenticated() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create session context with no user (unauthenticated)
     let session_context = SessionContext::new(None);
 
@@ -232,11 +222,8 @@ mod tests {
     assert!(result.errors[0].message.contains("Authentication required"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_site_details_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create admin role with can_view_site_details permission
     let admin_role_id =
       create_test_role_with_pool(&pool, "admin", &["is_admin", "can_view_site_details"]).await;

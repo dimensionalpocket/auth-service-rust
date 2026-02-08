@@ -105,13 +105,10 @@ mod tests {
   use super::*;
   use crate::queries::users::{CreateUserData, CreateUserQuery};
   use crate::services::GeneratePasswordHashService;
-  use crate::test_utils::{create_test_database, create_test_role_model_with_pool};
+  use crate::test_utils::create_test_role_model_with_pool;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_name_only() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Setup: Create a user
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let create_data = CreateUserData {
@@ -148,11 +145,8 @@ mod tests {
     assert!(updated_user.updated_ts >= user.updated_ts);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_role_only() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Setup: Create a user and admin role
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let admin_role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
@@ -191,11 +185,8 @@ mod tests {
     assert!(updated_user.updated_ts >= user.updated_ts);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_password_only() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Setup: Create a user
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let create_data = CreateUserData {
@@ -234,11 +225,8 @@ mod tests {
     assert!(updated_user.updated_ts >= user.updated_ts);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_multiple_fields() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Setup: Create a user and admin role
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let admin_role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
@@ -278,11 +266,8 @@ mod tests {
     assert!(updated_user.updated_ts >= user.updated_ts);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_role_to_different_role() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Setup: Create a user with default role and admin role
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let admin_role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
@@ -321,11 +306,8 @@ mod tests {
     assert!(updated_user.updated_ts >= user.updated_ts);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_no_fields() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Setup: Create a user
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let create_data = CreateUserData {
@@ -362,11 +344,8 @@ mod tests {
     // Note: updated_ts might be the same in fast test environments
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_nonexistent_user() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Test: Try to update non-existent user
     let update_data = UpdateUserData {
       id: 999,
@@ -385,11 +364,8 @@ mod tests {
     assert!(result.is_err());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_partial_field_preservation() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Setup: Create a user with all fields
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let create_data = CreateUserData {
@@ -426,11 +402,8 @@ mod tests {
     assert!(updated_user.updated_ts >= user.updated_ts);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_metadata_only() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Setup: Create a user with metadata
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let create_data = CreateUserData {
@@ -471,11 +444,8 @@ mod tests {
     assert!(updated_user.updated_ts >= user.updated_ts);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_metadata_to_null() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Setup: Create a user with metadata
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let create_data = CreateUserData {

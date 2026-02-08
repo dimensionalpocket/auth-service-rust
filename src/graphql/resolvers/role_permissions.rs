@@ -38,16 +38,12 @@ mod tests {
   use crate::middleware::session::SessionContext;
   use crate::models::role::ROLE_PERMISSIONS;
   use crate::test_utils::{
-    create_test_database, create_test_query_schema, create_test_role_with_pool,
-    create_test_user_with_pool,
+    create_test_query_schema, create_test_role_with_pool, create_test_user_with_pool,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_role_permissions_user_without_manage_roles_permission() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create regular user role
     let user_role_id = create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
     let regular_user = create_test_user_with_pool(&pool, "user", user_role_id).await;
@@ -71,11 +67,8 @@ mod tests {
       .contains("Forbidden: Insufficient permissions"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_role_permissions_user_with_manage_roles_but_not_admin_permission() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create role manager role
     let role_manager_id =
       create_test_role_with_pool(&pool, "role_manager", &["can_manage_roles"]).await;
@@ -111,11 +104,8 @@ mod tests {
     assert_eq!(permission_strings.len(), ROLE_PERMISSIONS.len() - 1); // All except is_admin
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_role_permissions_user_with_admin_management_permission() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create admin manager role
     let admin_manager_id = create_test_role_with_pool(
       &pool,
@@ -155,11 +145,8 @@ mod tests {
     assert_eq!(permission_strings.len(), ROLE_PERMISSIONS.len()); // All permissions
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_role_permissions_admin_user() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create admin role
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["is_admin"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -192,11 +179,8 @@ mod tests {
     assert_eq!(permission_strings.len(), ROLE_PERMISSIONS.len()); // All permissions
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_role_permissions_unauthenticated() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create session context without user (not authenticated)
     let session_context = SessionContext::new(None);
 

@@ -6,7 +6,7 @@ use dps_auth_api::DpsAuthApi;
 use tempfile::NamedTempFile;
 use tower::ServiceExt;
 
-#[tokio::test]
+#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
 async fn test_graphql_get_query_support() {
   let temp_file = NamedTempFile::new().unwrap();
   let db_path = temp_file.path().to_str().unwrap();
@@ -51,7 +51,7 @@ async fn test_graphql_get_query_support() {
   assert!(body_str.contains("data"));
 }
 
-#[tokio::test]
+#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
 async fn test_graphql_post_still_works() {
   let temp_file = NamedTempFile::new().unwrap();
   let db_path = temp_file.path().to_str().unwrap();
@@ -96,7 +96,7 @@ async fn test_graphql_post_still_works() {
   assert!(body_str.contains("data"));
 }
 
-#[tokio::test]
+#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
 async fn test_graphql_get_with_variables() {
   let temp_file = NamedTempFile::new().unwrap();
   let db_path = temp_file.path().to_str().unwrap();

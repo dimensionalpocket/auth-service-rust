@@ -94,12 +94,9 @@ impl UpdateSiteQuery {
 mod tests {
   use super::*;
   use crate::queries::sites::{CreateSiteData, CreateSiteQuery};
-  use crate::test_utils::create_test_database;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_site_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     // Create a site first
@@ -140,10 +137,8 @@ mod tests {
     assert_eq!(updated_site.created_ts, site.created_ts);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_site_partial_update() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     // Create a site first
@@ -186,11 +181,8 @@ mod tests {
     assert!(updated_site.updated_ts > site.updated_ts);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_site_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let update_data = UpdateSiteData {
       id: 999,
       slug: Some("nonexistent".to_string()),
@@ -205,10 +197,8 @@ mod tests {
     assert!(result.is_none());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_site_no_changes() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     // Create a site first

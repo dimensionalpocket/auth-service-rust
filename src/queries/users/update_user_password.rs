@@ -58,15 +58,10 @@ impl UpdateUserPasswordQuery {
 mod tests {
   use super::*;
   use crate::services::GeneratePasswordHashService;
-  use crate::test_utils::{
-    create_test_database, create_test_role_model_with_pool, create_test_user_full_with_pool,
-  };
+  use crate::test_utils::{create_test_role_model_with_pool, create_test_user_full_with_pool};
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_password_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Setup: Create a user
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let user = create_test_user_full_with_pool(
@@ -99,11 +94,8 @@ mod tests {
     // Note: timestamp might be the same in fast test environments, so we just verify the update succeeded
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_password_nonexistent_user() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Test: Try to update password for non-existent user
     let update_data = UpdateUserPasswordData {
       password_hash: GeneratePasswordHashService::run("newpassword").unwrap(),
@@ -116,11 +108,8 @@ mod tests {
     assert!(result.is_err());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_password_timestamp_increases() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Setup: Create a user
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let user = create_test_user_full_with_pool(

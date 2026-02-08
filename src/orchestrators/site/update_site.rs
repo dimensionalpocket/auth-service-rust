@@ -45,16 +45,11 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::queries::sites::{CreateSiteData, CreateSiteQuery, UpdateSiteData};
-  use crate::test_utils::{
-    create_test_database, create_test_role_with_pool, create_test_user_with_pool,
-  };
+  use crate::test_utils::{create_test_role_with_pool, create_test_user_with_pool};
   use dps_auth_session::DpsAuthSessionPayload;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_site_with_permission_check_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create admin role and user
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_update_site"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -102,11 +97,8 @@ mod tests {
     assert_eq!(site.protocol, "http");
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_site_with_permission_check_forbidden() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create user role without can_update_site permission
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let regular_user = create_test_user_with_pool(&pool, "user", user_role_id).await;

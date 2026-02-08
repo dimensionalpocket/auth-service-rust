@@ -18,21 +18,16 @@ impl GetAllSitesQuery {
 mod tests {
   use super::*;
   use crate::queries::sites::{CreateSiteData, CreateSiteQuery};
-  use crate::test_utils::create_test_database;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_all_sites_empty() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
     let sites = GetAllSitesQuery::run(&mut conn).await.unwrap();
     assert_eq!(sites.len(), 0);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_all_sites_with_data() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     // Create test sites

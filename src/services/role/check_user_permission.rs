@@ -40,13 +40,10 @@ impl CheckUserPermissionService {
 mod tests {
   use super::*;
   use crate::models::user::User;
-  use crate::test_utils::{create_test_database, create_test_role_model_with_pool};
+  use crate::test_utils::create_test_role_model_with_pool;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_check_user_permission_admin_has_all_permissions() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let admin_role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
     let admin_role_id = admin_role.id;
 
@@ -79,11 +76,8 @@ mod tests {
     );
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_check_user_permission_regular_user_specific_permissions() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let user_role =
       create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let user_role_id = user_role.id;
@@ -118,11 +112,8 @@ mod tests {
     );
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_check_user_permission_user_with_no_role() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let user_no_role = User {
       id: 3,
       uuid: "no-role-uuid".to_string(),
@@ -142,11 +133,8 @@ mod tests {
     );
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_check_user_permission_invalid_permission() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let admin_role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
     let admin_role_id = admin_role.id;
 
@@ -177,11 +165,8 @@ mod tests {
     );
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_check_user_permission_valid_new_permissions() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let role = create_test_role_model_with_pool(
       &pool,
       "role_manager",
@@ -233,11 +218,8 @@ mod tests {
     .unwrap());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_check_user_permission_admin_bypasses_validation() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let admin_role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
     let admin_role_id = admin_role.id;
 

@@ -33,12 +33,8 @@ impl GetRoleByIdQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::create_test_database;
-
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_role_by_id_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     // Insert test role
@@ -57,10 +53,8 @@ mod tests {
     assert!(!role.is_default);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_role_by_id_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     let role = GetRoleByIdQuery::run(&mut conn, 999).await.unwrap();

@@ -86,7 +86,7 @@ impl CreateSessionService {
 mod tests {
   use super::*;
   use crate::services::CreateUserService;
-  use crate::test_utils::{create_test_database, create_test_role_model};
+  use crate::test_utils::create_test_role_model;
   use dps_auth_session::DpsAuthSession;
 
   // Test secret - 32 bytes for AES-256
@@ -95,10 +95,8 @@ mod tests {
     0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74, 0x4d, 0xb8,
   ];
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_session_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
@@ -113,11 +111,8 @@ mod tests {
     assert_eq!(payload.sub, user.id);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_session_blank_username() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let mut conn = pool.acquire().await.unwrap();
     let result = CreateSessionService::run(&mut conn, "", "password123", TEST_SECRET).await;
 
@@ -125,11 +120,8 @@ mod tests {
     assert!(result.unwrap_err().to_string().contains("User is blank"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_session_whitespace_username() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let mut conn = pool.acquire().await.unwrap();
     let result = CreateSessionService::run(&mut conn, "   ", "password123", TEST_SECRET).await;
 
@@ -137,11 +129,8 @@ mod tests {
     assert!(result.unwrap_err().to_string().contains("User is blank"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_session_blank_password() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let mut conn = pool.acquire().await.unwrap();
     let result = CreateSessionService::run(&mut conn, "testuser", "", TEST_SECRET).await;
 
@@ -152,11 +141,8 @@ mod tests {
       .contains("Password is blank"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_session_user_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let mut conn = pool.acquire().await.unwrap();
     let result =
       CreateSessionService::run(&mut conn, "nonexistent", "password123", TEST_SECRET).await;
@@ -165,10 +151,8 @@ mod tests {
     assert!(result.unwrap_err().to_string().contains("User not found"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_session_wrong_password() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;
@@ -185,10 +169,8 @@ mod tests {
       .contains("Password does not match"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_session_case_insensitive_username() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let mut conn = pool.acquire().await.unwrap();
 
     create_test_role_model(&mut conn, "user", &["can_view_user_self"], true).await;

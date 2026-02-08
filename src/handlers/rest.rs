@@ -28,20 +28,19 @@ pub async fn not_found_handler() -> (StatusCode, &'static str) {
 #[cfg(test)]
 mod tests {
   use super::*;
-
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_root_handler_returns_ok() {
     let result = root_handler().await;
     assert_eq!(result, "OK");
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_health_handler_returns_ok() {
     let result = health_handler().await;
     assert_eq!(result, "OK");
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_not_found_handler_returns_404() {
     let (status, message) = not_found_handler().await;
     assert_eq!(status, StatusCode::NOT_FOUND);

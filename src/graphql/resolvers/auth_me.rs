@@ -143,16 +143,11 @@ fn map_session_error_to_user_message(error: &SessionError) -> &'static str {
 mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{
-    create_test_database, create_test_query_schema, create_test_user_full_with_pool,
-  };
+  use crate::test_utils::{create_test_query_schema, create_test_user_full_with_pool};
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_auth_me_with_authenticated_user() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Setup: Create a test user
     let user = create_test_user_full_with_pool(
       &pool,
@@ -189,10 +184,8 @@ mod tests {
     assert_eq!(data["authMe"]["sessionExp"], 1706616000);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_auth_me_with_unauthenticated_user() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let query = AuthMeResolver;
     let session_context = SessionContext::new(None);
 
@@ -206,10 +199,8 @@ mod tests {
     assert!(data["authMe"].is_null());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_auth_me_missing_context() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let query = AuthMeResolver;
 
     let schema = create_test_query_schema(query, Some(pool), None, None);
@@ -221,7 +212,7 @@ mod tests {
     assert!(data["authMe"].is_null());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_map_session_error_to_user_message() {
     use dps_auth_session::DpsAuthSessionError;
 

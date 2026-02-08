@@ -85,16 +85,12 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_database, create_test_mutation_schema, create_test_role_with_pool,
-    create_test_user_with_pool,
+    create_test_mutation_schema, create_test_role_with_pool, create_test_user_with_pool,
   };
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
@@ -155,11 +151,8 @@ mod tests {
     assert!(user_data["updatedTs"].as_i64().unwrap() > 0);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_partial_name_only() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
@@ -196,11 +189,8 @@ mod tests {
     assert_eq!(user_data["name"].as_str().unwrap(), "updatedname");
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_partial_role_only() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let moderator_role_id = create_test_role_with_pool(&pool, "moderator", &[]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -246,11 +236,8 @@ mod tests {
     assert_eq!(user_data["role"]["name"].as_str().unwrap(), "moderator");
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_partial_password_with_confirmation() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
@@ -291,11 +278,8 @@ mod tests {
     assert_eq!(user_data["name"].as_str().unwrap(), "targetuser");
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_partial_metadata() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
@@ -335,11 +319,8 @@ mod tests {
     );
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_unauthenticated() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let session_context = SessionContext::new(None);
 
     let mutation = UpdateUserResolver;
@@ -359,11 +340,8 @@ mod tests {
     assert!(result.errors[0].message.contains("Authentication required"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_forbidden() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let regular_user = create_test_user_with_pool(&pool, "regular", user_role_id).await;
 
@@ -391,11 +369,8 @@ mod tests {
     assert!(result.errors[0].message.contains("Forbidden"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
@@ -423,11 +398,8 @@ mod tests {
     assert!(result.errors[0].message.contains("not found"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_validation_error_short_username() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
@@ -459,11 +431,8 @@ mod tests {
     assert!(result.errors[0].message.contains("Validation error"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_validation_error_short_password() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
@@ -499,11 +468,8 @@ mod tests {
     assert!(result.errors[0].message.contains("Validation error"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_username_conflict() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
@@ -536,11 +502,8 @@ mod tests {
     assert!(result.errors[0].message.contains("already in use"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_password_confirmation_only_password() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
@@ -572,11 +535,8 @@ mod tests {
     assert!(result.errors[0].message.contains("must both be provided"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_password_confirmation_only_confirmation() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
@@ -608,11 +568,8 @@ mod tests {
     assert!(result.errors[0].message.contains("must both be provided"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_password_confirmation_mismatch() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
@@ -648,11 +605,8 @@ mod tests {
     assert!(result.errors[0].message.contains("do not match"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_no_updates() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 

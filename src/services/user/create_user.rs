@@ -46,13 +46,10 @@ impl CreateUserService {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::{create_test_database, create_test_role_model_with_pool};
+  use crate::test_utils::create_test_role_model_with_pool;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_user_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     let mut conn = pool.acquire().await.unwrap();
@@ -69,11 +66,8 @@ mod tests {
     assert_eq!(user.created_ts, user.updated_ts);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_user_username_already_exists() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     let mut conn = pool.acquire().await.unwrap();
@@ -89,11 +83,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_user_case_insensitive_username_check() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     let mut conn = pool.acquire().await.unwrap();

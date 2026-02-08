@@ -383,11 +383,8 @@ mod tests {
   use super::*;
   use crate::models::ROLE_PERMISSIONS;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_test_user_no_role() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create user without role (will create and use default role automatically)
     let user = create_test_user_full_with_pool(&pool, "testuser", None, "password123", None).await;
 
@@ -403,11 +400,8 @@ mod tests {
     assert!(default_role.is_default);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_test_user_custom_password() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let role_id = create_test_role_with_pool(&pool, "test_role", &["can_view_user_self"]).await;
 
     // Create user with custom password
@@ -418,11 +412,8 @@ mod tests {
     assert_eq!(user.role_id, role_id);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_test_user_full() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let role_id = create_test_role_with_pool(&pool, "test_role", &["can_view_user_self"]).await;
     let metadata = serde_json::json!({"key": "value"});
 
@@ -441,11 +432,8 @@ mod tests {
     assert_eq!(user.metadata_json, Some(metadata.to_string()));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_test_role_id() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create role and get ID
     let role_id = create_test_role_with_pool(
       &pool,
@@ -457,11 +445,8 @@ mod tests {
     assert!(role_id > 0);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_test_role_model() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create role and get full model
     let role = create_test_role_model_with_pool(
       &pool,
@@ -478,11 +463,8 @@ mod tests {
     assert!(role.permissions.contains(&"can_list_users".to_string()));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_test_role_empty_permissions() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create role with no permissions
     let role = create_test_role_model_with_pool(&pool, "empty_role", &[], false).await;
 
@@ -491,11 +473,8 @@ mod tests {
     assert_eq!(role.permissions.len(), 0);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_test_role_all_permissions() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create role with all available permissions
     let role = create_test_role_model_with_pool(&pool, "admin_role", ROLE_PERMISSIONS, false).await;
 
@@ -504,7 +483,7 @@ mod tests {
   }
 
   // Tests for GraphQL schema helper methods
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_test_query_schema_no_context() {
     use super::*;
 
@@ -514,19 +493,17 @@ mod tests {
     assert!(schema.execute("{ dummy }").await.is_ok());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_test_query_schema_with_pool() {
     use super::*;
 
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let schema = create_test_query_schema(TestEmptyQuery, Some(pool), None, None);
 
     // Verify schema was created successfully
     assert!(schema.execute("{ dummy }").await.is_ok());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_test_query_schema_with_session() {
     use super::*;
 
@@ -537,7 +514,7 @@ mod tests {
     assert!(schema.execute("{ dummy }").await.is_ok());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_test_query_schema_with_config() {
     use super::*;
 
@@ -558,12 +535,10 @@ mod tests {
     assert!(schema.execute("{ dummy }").await.is_ok());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_test_query_schema_all_context() {
     use super::*;
 
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let session = SessionContext::new(None);
     let config = DpsAuthApiConfig {
       port: 3000,
@@ -583,7 +558,7 @@ mod tests {
     assert!(schema.execute("{ dummy }").await.is_ok());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_test_mutation_schema_no_context() {
     use super::*;
 
@@ -593,19 +568,17 @@ mod tests {
     assert!(schema.execute("{ dummy }").await.is_ok());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_test_mutation_schema_with_pool() {
     use super::*;
 
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let schema = create_test_mutation_schema(EmptyMutation, Some(pool), None, None);
 
     // Verify schema was created successfully
     assert!(schema.execute("{ dummy }").await.is_ok());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_test_mutation_schema_with_session() {
     use super::*;
 
@@ -616,7 +589,7 @@ mod tests {
     assert!(schema.execute("{ dummy }").await.is_ok());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_test_mutation_schema_with_config() {
     use super::*;
 
@@ -637,12 +610,10 @@ mod tests {
     assert!(schema.execute("{ dummy }").await.is_ok());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_test_mutation_schema_all_context() {
     use super::*;
 
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
     let session = SessionContext::new(None);
     let config = DpsAuthApiConfig {
       port: 3000,
@@ -663,12 +634,9 @@ mod tests {
     assert!(schema.execute("{ dummy }").await.is_ok());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_test_user_with_uuid_success() {
     use crate::queries::users::GetUserByUuidQuery;
-
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
 
     // Test data
     let test_uuid = "550e8400-e29b-41d4-a716-446655440000";

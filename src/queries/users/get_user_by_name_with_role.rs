@@ -72,15 +72,10 @@ impl GetUserByNameWithRoleQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::{
-    create_test_database, create_test_role_with_pool, create_test_user_with_pool,
-  };
+  use crate::test_utils::{create_test_role_with_pool, create_test_user_with_pool};
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_user_by_name_with_role_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create role and user
     let role_id = create_test_role_with_pool(&pool, "admin", &["can_view_user_details"]).await;
     let user = create_test_user_with_pool(&pool, "testuser", role_id).await;
@@ -99,11 +94,8 @@ mod tests {
     assert_eq!(user_with_role.user.role_id, role_id);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_user_by_name_with_role_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Query non-existent user
     let mut conn = pool.acquire().await.unwrap();
     let result = GetUserByNameWithRoleQuery::run(&mut conn, "nonexistent")
@@ -113,11 +105,8 @@ mod tests {
     assert!(result.is_none());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_user_by_name_with_role_case_insensitive() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create role and user
     let role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     create_test_user_with_pool(&pool, "TestUser", role_id).await;
@@ -143,11 +132,8 @@ mod tests {
     assert_eq!(result_mixed.unwrap().role.name, "user");
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_user_by_name_with_role_permissions() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create role with permissions and user
     let role_id =
       create_test_role_with_pool(&pool, "admin", &["is_admin", "can_view_user_details"]).await;

@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Dimensional Pocket <dpauth@dimensionalpocket.com>"]
 
+[workspace]
+members = ["crates/dps-auth-test-macros"]
+
 [dependencies]
 async-graphql = { version = "7.0", features = ["tracing"] }
 async-graphql-axum = "7.0"
@@ -38,6 +41,7 @@ test-utils = []
 [dev-dependencies]
 tracing-test = { version = "0.2", features = ["no-env-filter"] }
 urlencoding = "2.1"
+dps-auth-test-macros = { path = "crates/dps-auth-test-macros" }
 
 # Local development script
 [[bin]]

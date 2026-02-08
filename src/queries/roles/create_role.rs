@@ -55,13 +55,8 @@ impl CreateRoleQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::create_test_database;
-
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_role_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let data = CreateRoleData {
       name: "test_role".to_string(),
       permissions: vec![
@@ -84,11 +79,8 @@ mod tests {
     assert!(role.permissions.contains(&"can_list_users".to_string()));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_role_empty_permissions() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let data = CreateRoleData {
       name: "empty_permissions_role".to_string(),
       permissions: vec![],
@@ -103,11 +95,8 @@ mod tests {
     assert_eq!(role.permissions.len(), 0);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_role_duplicate_name_fails() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let data1 = CreateRoleData {
       name: "duplicate".to_string(),
       permissions: vec!["can_view_user_self".to_string()],
@@ -130,11 +119,8 @@ mod tests {
     assert!(result.is_err());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_role_default_role() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let data = CreateRoleData {
       name: "default_test_role".to_string(),
       permissions: vec!["can_view_user_self".to_string()],
@@ -150,11 +136,8 @@ mod tests {
     assert!(role.permissions.contains(&"can_view_user_self".to_string()));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_role_many_permissions() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let data = CreateRoleData {
       name: "many_permissions_role".to_string(),
       permissions: vec![

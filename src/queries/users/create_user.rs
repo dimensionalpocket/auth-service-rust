@@ -64,14 +64,11 @@ impl CreateUserQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::{create_test_database, create_test_role_model_with_pool};
+  use crate::test_utils::create_test_role_model_with_pool;
   use uuid::Uuid;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_user_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Insert test role first
     let role = create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let role_id = role.id;
@@ -97,11 +94,8 @@ mod tests {
     assert_eq!(user.created_ts, user.updated_ts);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_user_duplicate_uuid_fails() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Insert test role first
     let role = create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let role_id = role.id;
@@ -132,11 +126,8 @@ mod tests {
     assert!(result.is_err());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_user_invalid_role_id_fails() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {
       uuid: user_uuid,
@@ -151,11 +142,8 @@ mod tests {
     assert!(result.is_err()); // Should fail due to foreign key constraint
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_user_with_default_role() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Insert test roles with one default
     create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
@@ -179,11 +167,8 @@ mod tests {
     assert_eq!(user.role_id, default_role.id);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_user_with_explicit_role() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Insert test roles with one default
     let admin_role = create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
     let admin_role_id = admin_role.id;
@@ -206,11 +191,8 @@ mod tests {
     assert_eq!(user.role_id, admin_role_id); // Should have admin role, not default
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_create_user_no_default_role_fails() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Insert test roles with no default
     create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
     create_test_role_model_with_pool(&pool, "moderator", &["can_moderate"], false).await;

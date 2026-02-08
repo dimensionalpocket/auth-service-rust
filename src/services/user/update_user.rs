@@ -49,16 +49,10 @@ mod tests {
   use super::*;
   use crate::queries::users::{CreateUserData, CreateUserQuery};
   use crate::services::user::create_user::CreateUserService;
-  use crate::test_utils::{
-    create_test_database, create_test_database_with_pool_size, create_test_role_model_with_pool,
-    create_test_role_with_pool,
-  };
+  use crate::test_utils::{create_test_role_model_with_pool, create_test_role_with_pool};
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_success_name_only() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     let mut conn = pool.acquire().await.unwrap();
@@ -90,12 +84,8 @@ mod tests {
     assert!(updated_user.updated_ts >= user.updated_ts);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate, pool_size = 1)]
   async fn test_update_user_success_role_only() {
-    let (databases, _main_temp_file, _session_temp_file) =
-      create_test_database_with_pool_size(1).await;
-    let pool = databases.main().clone();
-
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["is_admin"]).await;
 
@@ -128,11 +118,8 @@ mod tests {
     assert!(updated_user.updated_ts >= user.updated_ts);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_success_password_only() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     let mut conn = pool.acquire().await.unwrap();
@@ -170,11 +157,8 @@ mod tests {
     assert!(updated_user.updated_ts >= user.updated_ts);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_success_metadata_only() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     let mut conn = pool.acquire().await.unwrap();
@@ -209,12 +193,8 @@ mod tests {
     assert!(updated_user.updated_ts >= user.updated_ts);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate, pool_size = 1)]
   async fn test_update_user_success_metadata_to_null() {
-    let (databases, _main_temp_file, _session_temp_file) =
-      create_test_database_with_pool_size(1).await;
-    let pool = databases.main().clone();
-
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["is_admin"]).await;
 
@@ -247,12 +227,8 @@ mod tests {
     assert!(updated_user.updated_ts >= user.updated_ts);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate, pool_size = 1)]
   async fn test_update_user_success_multiple_fields() {
-    let (databases, _main_temp_file, _session_temp_file) =
-      create_test_database_with_pool_size(1).await;
-    let pool = databases.main().clone();
-
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["is_admin"]).await;
 
@@ -294,11 +270,8 @@ mod tests {
     assert!(updated_user.updated_ts >= user.updated_ts);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_no_updates() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     let mut conn = pool.acquire().await.unwrap();
@@ -329,11 +302,8 @@ mod tests {
     assert_eq!(updated_user.metadata_json, user.metadata_json);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_user_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let update_data = UpdateUserData {
       id: 999,
       name: Some("newname".to_string()),
@@ -353,11 +323,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_username_validation_empty() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     let mut conn = pool.acquire().await.unwrap();
@@ -388,11 +355,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_username_validation_too_short() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     let mut conn = pool.acquire().await.unwrap();
@@ -423,11 +387,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_username_validation_too_long() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     let mut conn = pool.acquire().await.unwrap();
@@ -459,11 +420,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_username_validation_invalid_chars() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     let mut conn = pool.acquire().await.unwrap();
@@ -496,11 +454,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_username_already_exists() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     let mut conn = pool.acquire().await.unwrap();
@@ -548,11 +503,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_password_validation_too_short() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     let mut conn = pool.acquire().await.unwrap();
@@ -579,11 +531,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_password_validation_too_long() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     let mut conn = pool.acquire().await.unwrap();
@@ -610,11 +559,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_update_user_same_username_no_conflict() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
 
     let mut conn = pool.acquire().await.unwrap();

@@ -82,16 +82,12 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_database, create_test_query_schema, create_test_role_with_pool,
-    create_test_user_with_pool,
+    create_test_query_schema, create_test_role_with_pool, create_test_user_with_pool,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_users_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create roles
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_list_users"]).await;
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
@@ -141,11 +137,8 @@ mod tests {
     assert_eq!(names, vec!["admin", "user1", "user2"]);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_users_unauthenticated() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create session context without user ID (not authenticated)
     let session_context = SessionContext::new(None);
 
@@ -158,11 +151,8 @@ mod tests {
     assert!(result.errors[0].message.contains("Authentication required"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_users_forbidden() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create role without can_list_users permission
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
 
@@ -186,11 +176,8 @@ mod tests {
     assert!(result.errors[0].message.contains("Forbidden"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_users_empty_database() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create admin role and user
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_list_users"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -216,11 +203,8 @@ mod tests {
     assert_eq!(users[0]["role"]["name"].as_str().unwrap(), "admin");
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_users_nonexistent_user() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create session context for non-existent user
     let session_payload = DpsAuthSessionPayload {
       sub: 999,

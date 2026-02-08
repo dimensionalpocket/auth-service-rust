@@ -72,18 +72,12 @@ impl UpdateUserOrchestrator {
 mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{
-    create_test_database_with_pool_size, create_test_role_with_pool, create_test_user_with_pool,
-  };
+  use crate::test_utils::{create_test_role_with_pool, create_test_user_with_pool};
   use crate::types::user::update_user_input::UpdateUserInput;
   use dps_auth_session::DpsAuthSessionPayload;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate, pool_size = 1)]
   async fn test_update_user_with_permission_check_success() {
-    let (databases, _main_temp_file, _session_temp_file) =
-      create_test_database_with_pool_size(1).await;
-    let pool = databases.main().clone();
-
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
 
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
@@ -119,12 +113,8 @@ mod tests {
     assert_ne!(user_with_role.user.password_hash, target_user.password_hash);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate, pool_size = 1)]
   async fn test_update_user_with_permission_check_unauthenticated() {
-    let (databases, _main_temp_file, _session_temp_file) =
-      create_test_database_with_pool_size(1).await;
-    let pool = databases.main().clone();
-
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
 
@@ -150,12 +140,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate, pool_size = 1)]
   async fn test_update_user_with_permission_check_session_user_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) =
-      create_test_database_with_pool_size(1).await;
-    let pool = databases.main().clone();
-
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
     let target_user = create_test_user_with_pool(&pool, "targetuser", user_role_id).await;
 
@@ -186,12 +172,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate, pool_size = 1)]
   async fn test_update_user_with_permission_check_forbidden() {
-    let (databases, _main_temp_file, _session_temp_file) =
-      create_test_database_with_pool_size(1).await;
-    let pool = databases.main().clone();
-
     let user_role_id = create_test_role_with_pool(&pool, "user", &[]).await;
 
     let regular_user = create_test_user_with_pool(&pool, "regular", user_role_id).await;
@@ -224,12 +206,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate, pool_size = 1)]
   async fn test_update_user_with_permission_check_target_user_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) =
-      create_test_database_with_pool_size(1).await;
-    let pool = databases.main().clone();
-
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
@@ -260,12 +238,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate, pool_size = 1)]
   async fn test_update_user_with_permission_check_validation_error() {
-    let (databases, _main_temp_file, _session_temp_file) =
-      create_test_database_with_pool_size(1).await;
-    let pool = databases.main().clone();
-
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
@@ -299,12 +273,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate, pool_size = 1)]
   async fn test_update_user_with_permission_check_password_validation_error() {
-    let (databases, _main_temp_file, _session_temp_file) =
-      create_test_database_with_pool_size(1).await;
-    let pool = databases.main().clone();
-
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
@@ -338,12 +308,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate, pool_size = 1)]
   async fn test_update_user_with_permission_check_username_conflict() {
-    let (databases, _main_temp_file, _session_temp_file) =
-      create_test_database_with_pool_size(1).await;
-    let pool = databases.main().clone();
-
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
@@ -378,12 +344,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate, pool_size = 1)]
   async fn test_update_user_password_confirmation_missing() {
-    let (databases, _main_temp_file, _session_temp_file) =
-      create_test_database_with_pool_size(1).await;
-    let pool = databases.main().clone();
-
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
@@ -417,12 +379,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate, pool_size = 1)]
   async fn test_update_user_password_confirmation_mismatch() {
-    let (databases, _main_temp_file, _session_temp_file) =
-      create_test_database_with_pool_size(1).await;
-    let pool = databases.main().clone();
-
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 
@@ -456,12 +414,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate, pool_size = 1)]
   async fn test_update_user_password_confirmation_match() {
-    let (databases, _main_temp_file, _session_temp_file) =
-      create_test_database_with_pool_size(1).await;
-    let pool = databases.main().clone();
-
     let admin_role_id = create_test_role_with_pool(&pool, "admin", &["can_edit_user"]).await;
     let admin_user = create_test_user_with_pool(&pool, "admin", admin_role_id).await;
 

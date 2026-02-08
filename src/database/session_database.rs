@@ -86,7 +86,7 @@ mod tests {
   use super::*;
   use tempfile::NamedTempFile;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_session_database_create_and_dump_schema() {
     let temp_file = NamedTempFile::new().expect("Failed to create temp file");
     let sqlite_file_path = temp_file.path().display().to_string();
@@ -101,7 +101,7 @@ mod tests {
     assert!(schema_content.contains("-- Database Schema Dump"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_session_database_migrate_noop_succeeds() {
     let temp_file = NamedTempFile::new().expect("Failed to create temp file");
     let sqlite_file_path = temp_file.path().display().to_string();
@@ -115,7 +115,7 @@ mod tests {
       .expect("Session migrations should succeed even if empty");
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_session_database_seed_noop_succeeds() {
     let temp_file = NamedTempFile::new().expect("Failed to create temp file");
     let sqlite_file_path = temp_file.path().display().to_string();

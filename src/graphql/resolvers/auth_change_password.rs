@@ -90,9 +90,7 @@ mod tests {
   use super::*;
   use crate::middleware::session::{SessionContext, SessionPayload};
   use crate::services::{AuthLoginService, CreateUserService};
-  use crate::test_utils::{
-    create_test_database, create_test_mutation_schema, create_test_role_model,
-  };
+  use crate::test_utils::{create_test_mutation_schema, create_test_role_model};
   use sqlx::SqliteConnection;
 
   // Test secret - 32 bytes for AES-256
@@ -127,11 +125,8 @@ mod tests {
     (session_context, user.id)
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_auth_change_password_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Setup: Create authenticated user
     let session_context = {
       let mut conn = pool.acquire().await.unwrap();
@@ -178,11 +173,8 @@ mod tests {
     assert!(response["updatedTs"].as_i64().unwrap() > 0);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_auth_change_password_invalid_current_password() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Setup: Create authenticated user
     let session_context = {
       let mut conn = pool.acquire().await.unwrap();
@@ -219,11 +211,8 @@ mod tests {
       .contains("Current password is incorrect"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_auth_change_password_password_confirmation_mismatch() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Setup: Create authenticated user
     let session_context = {
       let mut conn = pool.acquire().await.unwrap();
@@ -258,11 +247,8 @@ mod tests {
     assert!(result.errors[0].message.contains("Passwords do not match"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_auth_change_password_no_authentication() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Setup: Create session without authentication
     let session_context = SessionContext::new(None);
 
@@ -291,11 +277,8 @@ mod tests {
     assert!(result.errors[0].message.contains("Authentication required"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_auth_change_password_invalid_new_password() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Setup: Create authenticated user
     let session_context = {
       let mut conn = pool.acquire().await.unwrap();

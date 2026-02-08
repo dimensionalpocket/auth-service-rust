@@ -52,16 +52,11 @@ mod tests {
   use crate::middleware::session::SessionContext;
   use crate::queries::users::GetUserByIdQuery;
   use crate::services::GetRoleByIdService;
-  use crate::test_utils::{
-    create_test_database, create_test_role_with_pool, create_test_user_with_pool,
-  };
+  use crate::test_utils::{create_test_role_with_pool, create_test_user_with_pool};
   use dps_auth_session::DpsAuthSessionPayload;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_delete_role_with_permission_check_admin_success() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create admin role and user
     let admin_role_id =
       create_test_role_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
@@ -93,11 +88,8 @@ mod tests {
     assert!(check_result.unwrap().is_none());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_delete_role_with_permission_check_unauthenticated() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create a role to try to delete
     let test_role_id =
       create_test_role_with_pool(&pool, "test_role", &["can_view_user_self"]).await;
@@ -116,11 +108,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_delete_role_with_permission_check_nonexistent_user() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create a role to try to delete
     let test_role_id =
       create_test_role_with_pool(&pool, "test_role", &["can_view_user_self"]).await;
@@ -144,11 +133,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_delete_role_with_permission_check_forbidden() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create user role without required permissions
     let user_role_id = create_test_role_with_pool(&pool, "user", &["can_view_user_self"]).await;
     let regular_user = create_test_user_with_pool(&pool, "user", user_role_id).await;
@@ -175,11 +161,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_delete_role_with_permission_check_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create admin role and user
     let admin_role_id =
       create_test_role_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
@@ -204,11 +187,8 @@ mod tests {
     }
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_delete_role_with_permission_check_role_in_use() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create admin role and user
     let admin_role_id =
       create_test_role_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"]).await;
@@ -254,11 +234,8 @@ mod tests {
     assert!(check_role.unwrap().is_some());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_delete_role_with_permission_check_returns_deleted_data() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Create admin role and user
     let admin_role_id =
       create_test_role_with_pool(&pool, "admin", &["is_admin", "can_manage_roles"]).await;

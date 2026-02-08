@@ -3,15 +3,13 @@ use dps_auth_api::{
     roles::{GetAllRolesQuery, GetRoleByNameQuery},
     users::{CreateUserData, CreateUserQuery, GetUserByUuidQuery},
   },
-  test_utils::{create_test_database, create_test_role_with_pool, create_test_user_full_with_pool},
+  test_utils::{create_test_role_with_pool, create_test_user_full_with_pool},
 };
 use uuid::Uuid;
 
-#[tokio::test]
+#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
 async fn test_complete_user_creation_flow() {
   // Setup test database
-  let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-  let pool = databases.main().clone();
 
   // Create test roles using test utilities
   let _admin_role_id = create_test_role_with_pool(&pool, "admin", &[]).await;
@@ -51,11 +49,9 @@ async fn test_complete_user_creation_flow() {
   assert_eq!(retrieved_user.name, created_user.name);
 }
 
-#[tokio::test]
+#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
 async fn test_default_roles_seeded() {
   // Setup test database
-  let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-  let pool = databases.main().clone();
 
   // Create test roles using test utilities to simulate seeding
   create_test_role_with_pool(&pool, "admin", &[]).await;
@@ -72,11 +68,9 @@ async fn test_default_roles_seeded() {
   assert!(role_names.contains(&"user"));
 }
 
-#[tokio::test]
+#[dps_auth_test_macros::dps_auth_db_test(crate_path = dps_auth_api)]
 async fn test_foreign_key_constraint_enforced() {
   // Setup test database
-  let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-  let pool = databases.main().clone();
 
   // Try to create user with invalid role_id
   let user_uuid = Uuid::new_v4().to_string();

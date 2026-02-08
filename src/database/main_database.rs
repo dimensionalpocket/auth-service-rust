@@ -145,7 +145,7 @@ mod tests {
   use super::*;
   use tempfile::NamedTempFile;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_dump_schema_content() {
     // Create a test database without migrations
     let temp_file = NamedTempFile::new().expect("Failed to create temp file");
@@ -203,7 +203,7 @@ mod tests {
     );
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_dump_schema_to_file() {
     // Create a test database without migrations
     let temp_file = NamedTempFile::new().expect("Failed to create temp file");
@@ -247,7 +247,7 @@ mod tests {
     assert!(file_content.contains("UNIQUE"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_dump_schema_to_file_creates_directory() {
     // Create a test database without migrations
     let temp_file = NamedTempFile::new().expect("Failed to create temp file");
@@ -290,7 +290,7 @@ mod tests {
     assert!(file_content.contains("DEFAULT CURRENT_TIMESTAMP"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_dump_schema_content_empty_database() {
     // Create a test database without migrations
     let temp_file = NamedTempFile::new().expect("Failed to create temp file");
@@ -313,7 +313,7 @@ mod tests {
     assert!(!schema_content.contains("CREATE TABLE"));
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_dump_schema_content_with_indexes() {
     // Create a test database without migrations
     let temp_file = NamedTempFile::new().expect("Failed to create temp file");
@@ -371,7 +371,7 @@ mod tests {
     );
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_revert_single_migration() {
     use tempfile::NamedTempFile;
 
@@ -419,7 +419,7 @@ mod tests {
     );
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_revert_multiple_migrations() {
     use tempfile::NamedTempFile;
 
@@ -457,7 +457,7 @@ mod tests {
     );
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_revert_more_than_available() {
     use tempfile::NamedTempFile;
 
@@ -505,7 +505,7 @@ mod tests {
     );
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_revert_empty_database() {
     use tempfile::NamedTempFile;
 

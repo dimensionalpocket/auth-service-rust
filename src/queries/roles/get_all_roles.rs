@@ -33,13 +33,10 @@ impl GetAllRolesQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::{create_test_database, create_test_role_model_with_pool};
+  use crate::test_utils::create_test_role_model_with_pool;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_all_roles_returns_default_roles() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Insert test roles
     create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
@@ -54,11 +51,8 @@ mod tests {
     assert!(roles[1].is_default);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_all_roles_empty_table() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let mut conn = pool.acquire().await.unwrap();
     let roles = GetAllRolesQuery::run(&mut conn).await.unwrap();
 

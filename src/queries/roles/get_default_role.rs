@@ -32,13 +32,10 @@ impl GetDefaultRoleQuery {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::test_utils::{create_test_database, create_test_role_model_with_pool};
+  use crate::test_utils::create_test_role_model_with_pool;
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_default_role_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Insert test roles with one default
     create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
     create_test_role_model_with_pool(&pool, "user", &["can_view_user_self"], true).await;
@@ -52,11 +49,8 @@ mod tests {
     assert!(role.is_default);
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_default_role_not_found() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     // Insert test roles with no default
     create_test_role_model_with_pool(&pool, "admin", &["is_admin"], false).await;
     create_test_role_model_with_pool(&pool, "moderator", &["can_moderate"], false).await;
@@ -67,11 +61,8 @@ mod tests {
     assert!(role.is_none());
   }
 
-  #[tokio::test]
+  #[dps_auth_test_macros::dps_auth_db_test(crate_path = crate)]
   async fn test_get_default_role_empty_table() {
-    let (databases, _main_temp_file, _session_temp_file) = create_test_database().await;
-    let pool = databases.main().clone();
-
     let mut conn = pool.acquire().await.unwrap();
     let role = GetDefaultRoleQuery::run(&mut conn).await.unwrap();
 
