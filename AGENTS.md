@@ -135,9 +135,8 @@ Domain usage is more of a way to organize code than strict boundaries. Cross-dom
 - The project uses multiple databases:
   - The "main" database for core data (users, roles, sites, etc)
   - A separate "session" database for session management (not yet implemented)
-  - A separate "collection" database for collection data (not yet implemented)
 - The Database instances are managed by `*Database` structs in `src/database/` folder.
-  - There are (will be) multiple database structs: `MainDatabase`, `SessionDatabase`, and `CollectionDatabase`.
+  - There are (will be) multiple database structs: `MainDatabase` and `SessionDatabase`.
 - Use async/await for database operations
 - Database migrations live in `config/databases/<database_name>/migrations`
   - Each migration has two files: `.sql` (forward) and `.down.sql` (rollback)

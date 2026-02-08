@@ -100,7 +100,7 @@ Planned change: resolvers will stop extracting pools and instead pass `&Database
 
 ### Database Trait (Reusable Core)
 
-Add a `Database` trait in `src/types/database.rs` implemented by all database structs (`MainDatabase`, `SessionDatabase`, `CollectionDatabase`). This keeps each database in its own file (so it can own paths + PRAGMA list) while extracting shared behavior.
+Add a `Database` trait in `src/types/database.rs` implemented by all database structs (`MainDatabase`, `SessionDatabase`). This keeps each database in its own file (so it can own paths + PRAGMA list) while extracting shared behavior.
 
 Suggested shape:
 
@@ -139,18 +139,18 @@ pub struct SqliteDatabaseCore<S: DatabaseSpec> {
 // Implement new_with_pool_size/configure/migrate/seed/dump once here using S::* constants.
 ```
 
-Then `MainDatabase`, `SessionDatabase`, and `CollectionDatabase` become thin wrappers around the shared core.
+Then `MainDatabase` and `SessionDatabase` become thin wrappers around the shared core.
 
 ### Requirements
-1. Support multiple SQLite database instances (current + at least one more, potentially many)
+1. Support multiple SQLite database instances (main + session)
 2. All databases accessible to all resolvers
 3. Maintain thread safety and async compatibility
 4. Breaking change is acceptable; update resolvers/orchestrators/tests accordingly
-5. Each database is represented by a dedicated struct (`MainDatabase`, `SessionDatabase`, `CollectionDatabase`) so each can keep its own PRAGMA/migration/seed behavior
+5. Each database is represented by a dedicated struct (`MainDatabase`, `SessionDatabase`) so each can keep its own PRAGMA/migration/seed behavior
 
 ### Proposed Solution: Databases
 
-Create a `Databases` struct with one field per database (no dynamic registration). The pools are produced by dedicated database structs (e.g., `MainDatabase`, `SessionDatabase`, `CollectionDatabase`).
+Create a `Databases` struct with one field per database (no dynamic registration). The pools are produced by dedicated database structs (e.g., `MainDatabase`, `SessionDatabase`).
 
 ```rust
 // src/database/databases.rs
@@ -160,15 +160,13 @@ Create a `Databases` struct with one field per database (no dynamic registration
 pub struct Databases {
   main: SqlitePool,
   session: SqlitePool,
-  collection: SqlitePool,
 }
 
 impl Databases {
-  pub fn new(main: SqlitePool, session: SqlitePool, collection: SqlitePool) -> Self {
+  pub fn new(main: SqlitePool, session: SqlitePool) -> Self {
     Self {
       main,
       session,
-      collection,
     }
   }
 
@@ -180,9 +178,6 @@ impl Databases {
     &self.session
   }
 
-  pub fn collection(&self) -> &SqlitePool {
-    &self.collection
-  }
 }
 ```
 
@@ -219,13 +214,7 @@ let session_db = SessionDatabase::new_with_pool_size(
 )
 .await?;
 
-let collection_db = CollectionDatabase::new_with_pool_size(
-  &self.config.sqlite_collection_file_path,
-  Some(self.config.sqlite_collection_pool_size),
-)
-.await?;
-
-let databases = Databases::new(main_db.pool, session_db.pool, collection_db.pool);
+let databases = Databases::new(main_db.pool, session_db.pool);
 
 let schema = crate::graphql::schema::build_schema()
   .data(databases)
@@ -285,9 +274,6 @@ pub async fn run(
   // Optionally, also use another database in the same workflow
   let mut session_conn = databases.session().acquire().await?;
 
-  // And/or the collection database
-  let mut collection_conn = databases.collection().acquire().await?;
-
   // ... multi-database logic
 }
 ```
@@ -296,37 +282,34 @@ pub async fn run(
 
 ## Implementation Phases
 
-### Phase 0: Create SessionDatabase + CollectionDatabase + Shared Trait
+### Phase 0: Create SessionDatabase + Shared Trait
 **Files to Create**:
 - `src/database/session_database.rs`
-- `src/database/collection_database.rs`
 - `src/types/database.rs` - `Database` trait
  - (recommended) `src/database/sqlite_database.rs` - shared implementation used by all database structs
 
 **Folders/Files to Create** (empty placeholders):
 - `config/databases/session/migrations/.keep`
 - `config/databases/session/seeds/.keep`
-- `config/databases/collection/migrations/.keep`
-- `config/databases/collection/seeds/.keep`
 
 **Files to Modify**:
-- `src/database/mod.rs` - export `SessionDatabase` and `CollectionDatabase`
+ - `src/database/mod.rs` - export `SessionDatabase`
 - `src/types/mod.rs` - export the `Database` trait
 
 **Implementation Details**:
 1. Create `Database` trait based on existing `MainDatabase` behavior (pool access, PRAGMA config hook, migrate/seed/schema dump operations)
 2. Implement the trait for `MainDatabase`
-3. Implement `SessionDatabase` / `CollectionDatabase` mirroring `MainDatabase` but with:
-   - distinct migration dirs (`config/databases/session/migrations`, `config/databases/collection/migrations`)
-   - distinct seed dirs (`config/databases/session/seeds`, `config/databases/collection/seeds`)
+3. Implement `SessionDatabase` mirroring `MainDatabase` but with:
+   - distinct migration dir (`config/databases/session/migrations`)
+   - distinct seed dir (`config/databases/session/seeds`)
    - distinct schema dump headers/paths if needed
    - distinct PRAGMA command lists (initially may match `MainDatabase`, but kept separate)
-4. Recommended reuse: extract shared SQLite bootstrap/migrate/seed/dump code into a shared helper module so the three structs stay thin and only define constants/paths/PRAGMAs
+4. Recommended reuse: extract shared SQLite bootstrap/migrate/seed/dump code into a shared helper module so the two structs stay thin and only define constants/paths/PRAGMAs
 
 **Testing**:
-1. Unit test that `SessionDatabase`/`CollectionDatabase` can be created (tempfile path), configured, and used for schema dump (even if empty)
-2. Unit test that `migrate()` on session/collection with empty migrations dir is a no-op/succeeds (depending on sqlx behavior)
-3. Unit test that `seed()` on session/collection with empty seeds dir is a no-op/succeeds
+1. Unit test that `SessionDatabase` can be created (tempfile path), configured, and used for schema dump (even if empty)
+2. Unit test that `migrate()` on session with empty migrations dir is a no-op/succeeds (depending on sqlx behavior)
+3. Unit test that `seed()` on session with empty seeds dir is a no-op/succeeds
 
 ### Phase 1: Create Databases Infrastructure
 **Files to Modify**:
@@ -334,14 +317,14 @@ pub async fn run(
 - `src/database/mod.rs` - Export the new module/types
 
 **Implementation Details**:
-1. Add `Databases` struct with one field per database (`main`, `session`, `collection`)
-2. Implement constructor `new(main, session, collection)`
-3. Implement explicit accessors: `main()`, `session()`, `collection()`
+1. Add `Databases` struct with one field per database (`main`, `session`)
+2. Implement constructor `new(main, session)`
+3. Implement explicit accessors: `main()`, `session()`
 4. Make `Databases` clone-safe (required for GraphQL context)
 
 **Testing**:
 1. Test `Databases` creation
-2. Test pool accessors (`main()`, `session()`, `collection()`)
+2. Test pool accessors (`main()`, `session()`)
 3. Test main pool behavior
 4. Test thread-safety with concurrent access
 
@@ -352,9 +335,7 @@ pub async fn run(
 **Implementation Details**:
 1. Add `sqlite_session_file_path: String` to `DpsAuthApiConfig`
 2. Add `sqlite_session_pool_size: u16` to `DpsAuthApiConfig`
-3. Add `sqlite_collection_file_path: String` to `DpsAuthApiConfig`
-4. Add `sqlite_collection_pool_size: u16` to `DpsAuthApiConfig`
-5. Construct `Databases` and inject it into the schema instead of `SqlitePool`
+3. Construct `Databases` and inject it into the schema instead of `SqlitePool`
 
 **Testing**:
 1. Test application starts with all configured databases
@@ -366,7 +347,7 @@ pub async fn run(
 
 **Implementation Details**:
 1. Change orchestrator `run(...)` signatures from `pool: &SqlitePool` to `databases: &Databases`
-2. Inside each orchestrator, extract the required pool(s) from `databases` (`main()`, `session()`, `collection()`)
+2. Inside each orchestrator, extract the required pool(s) from `databases` (`main()`, `session()`)
 3. Acquire one connection per required pool and pass `&mut SqliteConnection` down into services/queries as today
 4. Keep resolvers thin: no pool selection or connection acquisition in resolvers
 
@@ -409,7 +390,7 @@ pub async fn run(
 
 **Implementation Details**:
 1. Start with all orchestrators using `databases.main()` only
-2. For workflows that need additional databases, use `databases.session()` / `databases.collection()` pool accessors
+2. For workflows that need additional databases, use `databases.session()` pool accessor
 3. Keep the rest of the stack unchanged: services/queries still operate on a connection
 
 **Testing**:
@@ -418,7 +399,7 @@ pub async fn run(
 
 ## Effort Estimation
 
-### Phase 0: Create SessionDatabase + CollectionDatabase + Shared Trait
+### Phase 0: Create SessionDatabase + Shared Trait
 - **Development**: 3-6 hours
 - **Testing**: 2-4 hours
 - **Total**: 5-10 hours
@@ -479,7 +460,7 @@ pub async fn run(
 ### Error Handling
 - **Current**: Simple `ctx.data::<SqlitePool>()?`
 - **New**: Errors are primarily connection acquisition / query execution errors (not missing database selection)
-- **Mitigation**: Keep errors explicit at the orchestrator boundary (e.g., when session/collection operations fail)
+- **Mitigation**: Keep errors explicit at the orchestrator boundary (e.g., when session operations fail)
 
 ### Code Complexity
 - **Current**: Simple and direct
