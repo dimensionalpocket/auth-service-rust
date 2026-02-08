@@ -80,7 +80,8 @@ mod tests {
 
   use super::*;
   use crate::services::CreateUserService;
-  use crate::test_utils::{create_test_mutation_schema, create_test_role_model};
+  use crate::test_utils::{create_test_mutation_schema, create_test_role_model, TestEmptyQuery};
+  use async_graphql::{EmptySubscription, Schema};
 
   // Test secret - 32 bytes for AES-256 (base64-decoded from QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=)
   const TEST_SECRET: &[u8] = &[
@@ -103,16 +104,22 @@ mod tests {
     let test_config = DpsAuthApiConfig {
       port: 0,
       sqlite_main_file_path: "test.db".to_string(),
+      sqlite_session_file_path: "test.db.session".to_string(),
       session_secret: TEST_SECRET.to_vec(),
       cookie_domain: ".dps.localhost".to_string(),
       api_path: "/api".to_string(),
       insecure_cookie: false,
       development_mode: true,
       sqlite_main_pool_size: 1,
+      sqlite_session_pool_size: 1,
       session_ttl_seconds: 3600,
     };
-    let schema =
-      create_test_mutation_schema(AuthLoginResolver, Some(main_pool), None, Some(test_config));
+    let schema = create_test_mutation_schema(
+      AuthLoginResolver,
+      databases.clone(),
+      None,
+      Some(test_config),
+    );
 
     // Test: Call the mutation
     let query = r#"
@@ -160,16 +167,22 @@ mod tests {
     let test_config = DpsAuthApiConfig {
       port: 0,
       sqlite_main_file_path: "test.db".to_string(),
+      sqlite_session_file_path: "test.db.session".to_string(),
       session_secret: TEST_SECRET.to_vec(),
       cookie_domain: ".dps.localhost".to_string(),
       api_path: "/api".to_string(),
       insecure_cookie: false,
       development_mode: true,
       sqlite_main_pool_size: 1,
+      sqlite_session_pool_size: 1,
       session_ttl_seconds: 3600,
     };
-    let schema =
-      create_test_mutation_schema(AuthLoginResolver, Some(main_pool), None, Some(test_config));
+    let schema = create_test_mutation_schema(
+      AuthLoginResolver,
+      databases.clone(),
+      None,
+      Some(test_config),
+    );
 
     // Test: Call with non-existent user
     let query = r#"
@@ -194,19 +207,25 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_auth_login_maps_database_error() {
-    // Create a schema without database main_pool to trigger database error
+    // Create a schema without SqlitePool schema data to trigger database error
     let test_config = DpsAuthApiConfig {
       port: 0,
       sqlite_main_file_path: "test.db".to_string(),
+      sqlite_session_file_path: "test.db.session".to_string(),
       session_secret: TEST_SECRET.to_vec(),
       cookie_domain: ".dps.localhost".to_string(),
       api_path: "/api".to_string(),
       insecure_cookie: false,
       development_mode: true,
       sqlite_main_pool_size: 1,
+      sqlite_session_pool_size: 1,
       session_ttl_seconds: 3600,
     };
-    let schema = create_test_mutation_schema(AuthLoginResolver, None, None, Some(test_config));
+    // NOTE: We intentionally do not inject `databases.main()` as `SqlitePool` here.
+    let schema = Schema::build(TestEmptyQuery, AuthLoginResolver, EmptySubscription)
+      .data(databases.clone())
+      .data(test_config)
+      .finish();
 
     let query = r#"
       mutation {

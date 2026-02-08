@@ -327,7 +327,7 @@ pub async fn create_test_user_via_mutation(
 /// For query tests - pass query directly
 pub fn create_test_query_schema<Q>(
   query: Q,
-  pool: Option<SqlitePool>,
+  databases: Databases,
   session: Option<SessionContext>,
   config: Option<DpsAuthApiConfig>,
 ) -> Schema<Q, EmptyMutation, EmptySubscription>
@@ -336,9 +336,9 @@ where
 {
   let mut schema_builder = Schema::build(query, EmptyMutation, EmptySubscription);
 
-  if let Some(pool) = pool {
-    schema_builder = schema_builder.data(pool);
-  }
+  schema_builder = schema_builder.data(databases.clone());
+  // Temporary bridge during migration: keep main pool available via schema data.
+  schema_builder = schema_builder.data(databases.main().clone());
 
   if let Some(session) = session {
     schema_builder = schema_builder.data(session);
@@ -354,7 +354,7 @@ where
 /// For mutation tests - pass mutation directly
 pub fn create_test_mutation_schema<M>(
   mutation: M,
-  pool: Option<SqlitePool>,
+  databases: Databases,
   session: Option<SessionContext>,
   config: Option<DpsAuthApiConfig>,
 ) -> Schema<TestEmptyQuery, M, EmptySubscription>
@@ -363,9 +363,9 @@ where
 {
   let mut schema_builder = Schema::build(TestEmptyQuery, mutation, EmptySubscription);
 
-  if let Some(pool) = pool {
-    schema_builder = schema_builder.data(pool);
-  }
+  schema_builder = schema_builder.data(databases.clone());
+  // Temporary bridge during migration: keep main pool available via schema data.
+  schema_builder = schema_builder.data(databases.main().clone());
 
   if let Some(session) = session {
     schema_builder = schema_builder.data(session);
@@ -493,7 +493,7 @@ mod tests {
   async fn test_create_test_query_schema_no_context() {
     use super::*;
 
-    let schema = create_test_query_schema(TestEmptyQuery, None, None, None);
+    let schema = create_test_query_schema(TestEmptyQuery, databases.clone(), None, None);
 
     // Verify schema was created successfully
     assert!(schema.execute("{ dummy }").await.is_ok());
@@ -503,7 +503,7 @@ mod tests {
   async fn test_create_test_query_schema_with_pool() {
     use super::*;
 
-    let schema = create_test_query_schema(TestEmptyQuery, Some(main_pool), None, None);
+    let schema = create_test_query_schema(TestEmptyQuery, databases.clone(), None, None);
 
     // Verify schema was created successfully
     assert!(schema.execute("{ dummy }").await.is_ok());
@@ -514,7 +514,7 @@ mod tests {
     use super::*;
 
     let session = SessionContext::new(None);
-    let schema = create_test_query_schema(TestEmptyQuery, None, Some(session), None);
+    let schema = create_test_query_schema(TestEmptyQuery, databases.clone(), Some(session), None);
 
     // Verify schema was created successfully
     assert!(schema.execute("{ dummy }").await.is_ok());
@@ -527,15 +527,17 @@ mod tests {
     let config = DpsAuthApiConfig {
       port: 3000,
       sqlite_main_file_path: ":memory:".to_string(),
+      sqlite_session_file_path: ":memory:".to_string(),
       session_secret: vec![1, 2, 3, 4], // dummy secret
       cookie_domain: "localhost".to_string(),
       api_path: "/graphql".to_string(),
       insecure_cookie: true,
       development_mode: true,
       sqlite_main_pool_size: 1,
+      sqlite_session_pool_size: 1,
       session_ttl_seconds: 3600,
     };
-    let schema = create_test_query_schema(TestEmptyQuery, None, None, Some(config));
+    let schema = create_test_query_schema(TestEmptyQuery, databases.clone(), None, Some(config));
 
     // Verify schema was created successfully
     assert!(schema.execute("{ dummy }").await.is_ok());
@@ -549,17 +551,23 @@ mod tests {
     let config = DpsAuthApiConfig {
       port: 3000,
       sqlite_main_file_path: ":memory:".to_string(),
+      sqlite_session_file_path: ":memory:".to_string(),
       session_secret: vec![1, 2, 3, 4], // dummy secret
       cookie_domain: "localhost".to_string(),
       api_path: "/graphql".to_string(),
       insecure_cookie: true,
       development_mode: true,
       sqlite_main_pool_size: 1,
+      sqlite_session_pool_size: 1,
       session_ttl_seconds: 3600,
     };
 
-    let schema =
-      create_test_query_schema(TestEmptyQuery, Some(main_pool), Some(session), Some(config));
+    let schema = create_test_query_schema(
+      TestEmptyQuery,
+      databases.clone(),
+      Some(session),
+      Some(config),
+    );
 
     // Verify schema was created successfully
     assert!(schema.execute("{ dummy }").await.is_ok());
@@ -569,7 +577,7 @@ mod tests {
   async fn test_create_test_mutation_schema_no_context() {
     use super::*;
 
-    let schema = create_test_mutation_schema(EmptyMutation, None, None, None);
+    let schema = create_test_mutation_schema(EmptyMutation, databases.clone(), None, None);
 
     // Verify schema was created successfully
     assert!(schema.execute("{ dummy }").await.is_ok());
@@ -579,7 +587,7 @@ mod tests {
   async fn test_create_test_mutation_schema_with_pool() {
     use super::*;
 
-    let schema = create_test_mutation_schema(EmptyMutation, Some(main_pool), None, None);
+    let schema = create_test_mutation_schema(EmptyMutation, databases.clone(), None, None);
 
     // Verify schema was created successfully
     assert!(schema.execute("{ dummy }").await.is_ok());
@@ -590,7 +598,7 @@ mod tests {
     use super::*;
 
     let session = SessionContext::new(None);
-    let schema = create_test_mutation_schema(EmptyMutation, None, Some(session), None);
+    let schema = create_test_mutation_schema(EmptyMutation, databases.clone(), Some(session), None);
 
     // Verify schema was created successfully
     assert!(schema.execute("{ dummy }").await.is_ok());
@@ -603,15 +611,17 @@ mod tests {
     let config = DpsAuthApiConfig {
       port: 3000,
       sqlite_main_file_path: ":memory:".to_string(),
+      sqlite_session_file_path: ":memory:".to_string(),
       session_secret: vec![1, 2, 3, 4], // dummy secret
       cookie_domain: "localhost".to_string(),
       api_path: "/graphql".to_string(),
       insecure_cookie: true,
       development_mode: true,
       sqlite_main_pool_size: 1,
+      sqlite_session_pool_size: 1,
       session_ttl_seconds: 3600,
     };
-    let schema = create_test_mutation_schema(EmptyMutation, None, None, Some(config));
+    let schema = create_test_mutation_schema(EmptyMutation, databases.clone(), None, Some(config));
 
     // Verify schema was created successfully
     assert!(schema.execute("{ dummy }").await.is_ok());
@@ -625,17 +635,23 @@ mod tests {
     let config = DpsAuthApiConfig {
       port: 3000,
       sqlite_main_file_path: ":memory:".to_string(),
+      sqlite_session_file_path: ":memory:".to_string(),
       session_secret: vec![1, 2, 3, 4], // dummy secret
       cookie_domain: "localhost".to_string(),
       api_path: "/graphql".to_string(),
       insecure_cookie: true,
       development_mode: true,
       sqlite_main_pool_size: 1,
+      sqlite_session_pool_size: 1,
       session_ttl_seconds: 3600,
     };
 
-    let schema =
-      create_test_mutation_schema(EmptyMutation, Some(main_pool), Some(session), Some(config));
+    let schema = create_test_mutation_schema(
+      EmptyMutation,
+      databases.clone(),
+      Some(session),
+      Some(config),
+    );
 
     // Verify schema was created successfully
     assert!(schema.execute("{ dummy }").await.is_ok());

@@ -151,6 +151,12 @@ Domain usage is more of a way to organize code than strict boundaries. Cross-dom
   3. All permission checks throughout the codebase use this validation
 - Permission checks are performed through `RoleService::check_user_permission()` which validates that the permission exists in the static array before checking the user's role.
 
+### Other DPS Dependencies
+
+Fetch the following URLs for the READMEs with the specs for each DPS dependency used by this project (e.g., knowing which properties/methods are exposed by DpsConfig):
+
+- DpsConfig: https://raw.githubusercontent.com/dimensionalpocket/dps-config/refs/heads/main/README.md
+
 ### Testing
 
 - Unit tests live in the same files as the code they test, within `#[cfg(test)]` modules

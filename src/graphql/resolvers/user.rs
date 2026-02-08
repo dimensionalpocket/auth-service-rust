@@ -135,8 +135,12 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query_resolver = UserResolver;
-    let schema =
-      create_test_query_schema(query_resolver, Some(main_pool), Some(session_context), None);
+    let schema = create_test_query_schema(
+      query_resolver,
+      databases.clone(),
+      Some(session_context),
+      None,
+    );
 
     let query = format!(
       r#"
@@ -199,8 +203,12 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query_resolver = UserResolver;
-    let schema =
-      create_test_query_schema(query_resolver, Some(main_pool), Some(session_context), None);
+    let schema = create_test_query_schema(
+      query_resolver,
+      databases.clone(),
+      Some(session_context),
+      None,
+    );
 
     let query = r#"
             query {
@@ -222,8 +230,12 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let query_resolver = UserResolver;
-    let schema =
-      create_test_query_schema(query_resolver, Some(main_pool), Some(session_context), None);
+    let schema = create_test_query_schema(
+      query_resolver,
+      databases.clone(),
+      Some(session_context),
+      None,
+    );
 
     let query = r#"
             query {
@@ -271,8 +283,12 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query_resolver = UserResolver;
-    let schema =
-      create_test_query_schema(query_resolver, Some(main_pool), Some(session_context), None);
+    let schema = create_test_query_schema(
+      query_resolver,
+      databases.clone(),
+      Some(session_context),
+      None,
+    );
 
     let query = r#"
             query {

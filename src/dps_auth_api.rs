@@ -1,4 +1,4 @@
-use crate::database::MainDatabase;
+use crate::database::{Databases, MainDatabase, SessionDatabase};
 use crate::graphql::schema::AppSchema;
 use crate::services::{LogShutdownStartService, WaitForShutdownSignalService};
 use axum::{middleware::from_fn, routing::get, Router};
@@ -20,12 +20,14 @@ pub struct DpsAuthApi {
 pub struct DpsAuthApiConfig {
   pub port: u16,
   pub sqlite_main_file_path: String,
+  pub sqlite_session_file_path: String,
   pub session_secret: Vec<u8>,
   pub cookie_domain: String,
   pub api_path: String,
   pub insecure_cookie: bool,
   pub development_mode: bool,
   pub sqlite_main_pool_size: u16,
+  pub sqlite_session_pool_size: u16,
   pub session_ttl_seconds: u32,
 }
 
@@ -100,15 +102,20 @@ impl DpsAuthApi {
     }
 
     // Build resolved config with defaults from DpsConfig
+    let sqlite_main_file_path = dps_config.get_auth_api_sqlite_main_file_path();
+    let sqlite_session_file_path = dps_config.get_auth_api_sqlite_session_file_path();
+
     let config = DpsAuthApiConfig {
       port: dps_config.get_auth_api_port().unwrap_or(3000),
-      sqlite_main_file_path: dps_config.get_auth_api_sqlite_main_file_path(),
+      sqlite_main_file_path,
+      sqlite_session_file_path,
       session_secret,
       cookie_domain: format!(".{}", dps_config.get_domain()),
       api_path: format!("/{}", dps_config.get_api_path()),
       insecure_cookie: dps_config.get_auth_api_insecure_cookie(),
       development_mode: dps_config.get_development_mode(),
       sqlite_main_pool_size: dps_config.get_auth_api_sqlite_main_pool_size(),
+      sqlite_session_pool_size: dps_config.get_auth_api_sqlite_session_pool_size(),
       session_ttl_seconds: dps_config.get_auth_api_session_ttl_seconds(),
     };
 
@@ -137,9 +144,19 @@ impl DpsAuthApi {
   /// This method initializes the database and includes it in the GraphQL schema.
   /// This method is useful for testing and for getting a router without starting the server.
   pub async fn create_app(&self) -> Result<Router, DpsAuthApiError> {
-    let database = self.initialize_database().await?;
+    let main_db = self.initialize_database().await?;
+    let session_db = SessionDatabase::new_with_pool_size(
+      &self.config.sqlite_session_file_path,
+      Some(self.config.sqlite_session_pool_size as u32),
+    )
+    .await
+    .map_err(|e| DpsAuthApiError::DatabaseError(e.to_string()))?;
+
+    let databases = Databases::new(main_db.pool, session_db.pool);
     let schema = crate::graphql::schema::build_schema()
-      .data(database.pool)
+      .data(databases.clone())
+      // Temporary bridge during migration: keep main pool available via schema data.
+      .data(databases.main().clone())
       .data(self.config.as_ref().clone()) // Inject config directly into schema data
       .extension(async_graphql::extensions::Tracing) // Built-in tracing for GraphQL operations
       .finish();

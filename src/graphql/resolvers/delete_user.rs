@@ -88,12 +88,8 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = DeleteUserResolver;
-    let schema = create_test_mutation_schema(
-      mutation,
-      Some(main_pool.clone()),
-      Some(session_context),
-      None,
-    );
+    let schema =
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = format!(
       r#"
@@ -143,12 +139,8 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = DeleteUserResolver;
-    let schema = create_test_mutation_schema(
-      mutation,
-      Some(main_pool.clone()),
-      Some(session_context),
-      None,
-    );
+    let schema =
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = format!(
       r#"
@@ -170,12 +162,8 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let mutation = DeleteUserResolver;
-    let schema = create_test_mutation_schema(
-      mutation,
-      Some(main_pool.clone()),
-      Some(session_context),
-      None,
-    );
+    let schema =
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = r#"
             mutation {
@@ -203,12 +191,8 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = DeleteUserResolver;
-    let schema = create_test_mutation_schema(
-      mutation,
-      Some(main_pool.clone()),
-      Some(session_context),
-      None,
-    );
+    let schema =
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = format!(
       r#"
@@ -250,12 +234,8 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = DeleteUserResolver;
-    let schema = create_test_mutation_schema(
-      mutation,
-      Some(main_pool.clone()),
-      Some(session_context),
-      None,
-    );
+    let schema =
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = r#"
             mutation {
@@ -285,12 +265,8 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = DeleteUserResolver;
-    let schema = create_test_mutation_schema(
-      mutation,
-      Some(main_pool.clone()),
-      Some(session_context),
-      None,
-    );
+    let schema =
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = format!(
       r#"

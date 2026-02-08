@@ -47,17 +47,19 @@ mod tests {
     let test_config = DpsAuthApiConfig {
       port: 0,
       sqlite_main_file_path: "test.db".to_string(),
+      sqlite_session_file_path: "test.db.session".to_string(),
       session_secret: vec![0x42; 32],
       cookie_domain: ".dps.localhost".to_string(),
       api_path: "/api".to_string(),
       insecure_cookie: false,
       development_mode: true,
       sqlite_main_pool_size: 1,
+      sqlite_session_pool_size: 1,
       session_ttl_seconds: 3600,
     };
 
     let mutation = AuthLogoutResolver;
-    let schema = create_test_mutation_schema(mutation, None, None, Some(test_config));
+    let schema = create_test_mutation_schema(mutation, databases.clone(), None, Some(test_config));
 
     let query = r#"
       mutation {
@@ -91,17 +93,19 @@ mod tests {
     let test_config = DpsAuthApiConfig {
       port: 0,
       sqlite_main_file_path: "test.db".to_string(),
+      sqlite_session_file_path: "test.db.session".to_string(),
       session_secret: vec![0x42; 32],
       cookie_domain: ".example.com".to_string(),
       api_path: "/graphql".to_string(),
       insecure_cookie: false,
       development_mode: true,
       sqlite_main_pool_size: 1,
+      sqlite_session_pool_size: 1,
       session_ttl_seconds: 3600,
     };
 
     let mutation = AuthLogoutResolver;
-    let schema = create_test_mutation_schema(mutation, None, None, Some(test_config));
+    let schema = create_test_mutation_schema(mutation, databases.clone(), None, Some(test_config));
 
     let query = r#"
       mutation {
@@ -165,17 +169,19 @@ mod tests {
     let test_config = DpsAuthApiConfig {
       port: 0,
       sqlite_main_file_path: "test.db".to_string(),
+      sqlite_session_file_path: "test.db.session".to_string(),
       session_secret: vec![0x42; 32],
       cookie_domain: ".localhost".to_string(),
       api_path: "/api".to_string(),
       insecure_cookie: true,
       development_mode: true,
       sqlite_main_pool_size: 1,
+      sqlite_session_pool_size: 1,
       session_ttl_seconds: 3600,
     };
 
     let mutation = AuthLogoutResolver;
-    let schema = create_test_mutation_schema(mutation, None, None, Some(test_config));
+    let schema = create_test_mutation_schema(mutation, databases.clone(), None, Some(test_config));
 
     let query = r#"
       mutation {

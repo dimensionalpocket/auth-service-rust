@@ -110,17 +110,19 @@ mod tests {
     let test_config = DpsAuthApiConfig {
       port: 0,
       sqlite_main_file_path: "test.db".to_string(),
+      sqlite_session_file_path: "test.db.session".to_string(),
       session_secret: test_secret,
       cookie_domain: ".dps.localhost".to_string(),
       api_path: "/api".to_string(),
       insecure_cookie: false,
       development_mode: true,
       sqlite_main_pool_size: 1,
+      sqlite_session_pool_size: 1,
       session_ttl_seconds: 3600,
     };
 
     let mutation = AuthRegisterResolver;
-    let schema = create_test_mutation_schema(mutation, Some(main_pool), None, Some(test_config));
+    let schema = create_test_mutation_schema(mutation, databases.clone(), None, Some(test_config));
 
     let query = r#"
       mutation {
@@ -179,17 +181,19 @@ mod tests {
     let test_config = DpsAuthApiConfig {
       port: 0,
       sqlite_main_file_path: "test.db".to_string(),
+      sqlite_session_file_path: "test.db.session".to_string(),
       session_secret: test_secret,
       cookie_domain: ".dps.localhost".to_string(),
       api_path: "/api".to_string(),
       insecure_cookie: false,
       development_mode: true,
       sqlite_main_pool_size: 1,
+      sqlite_session_pool_size: 1,
       session_ttl_seconds: 3600,
     };
 
     let mutation = AuthRegisterResolver;
-    let schema = create_test_mutation_schema(mutation, Some(main_pool), None, Some(test_config));
+    let schema = create_test_mutation_schema(mutation, databases.clone(), None, Some(test_config));
 
     let query = r#"
       mutation {
@@ -224,17 +228,19 @@ mod tests {
     let test_config = DpsAuthApiConfig {
       port: 0,
       sqlite_main_file_path: "test.db".to_string(),
+      sqlite_session_file_path: "test.db.session".to_string(),
       session_secret: test_secret,
       cookie_domain: ".dps.localhost".to_string(),
       api_path: "/api".to_string(),
       insecure_cookie: false,
       development_mode: true,
       sqlite_main_pool_size: 1,
+      sqlite_session_pool_size: 1,
       session_ttl_seconds: 3600,
     };
 
     let mutation = AuthRegisterResolver;
-    let schema = create_test_mutation_schema(mutation, Some(main_pool), None, Some(test_config));
+    let schema = create_test_mutation_schema(mutation, databases.clone(), None, Some(test_config));
 
     // Test empty username
     let query = r#"
@@ -262,17 +268,19 @@ mod tests {
     let test_config = DpsAuthApiConfig {
       port: 0,
       sqlite_main_file_path: "test.db".to_string(),
+      sqlite_session_file_path: "test.db.session".to_string(),
       session_secret: test_secret,
       cookie_domain: ".dps.localhost".to_string(),
       api_path: "/api".to_string(),
       insecure_cookie: false,
       development_mode: true,
       sqlite_main_pool_size: 1,
+      sqlite_session_pool_size: 1,
       session_ttl_seconds: 3600,
     };
 
     let mutation = AuthRegisterResolver;
-    let schema = create_test_mutation_schema(mutation, Some(main_pool), None, Some(test_config));
+    let schema = create_test_mutation_schema(mutation, databases.clone(), None, Some(test_config));
 
     // Test password confirmation mismatch
     let query = r#"
@@ -309,17 +317,19 @@ mod tests {
     let test_config = DpsAuthApiConfig {
       port: 0,
       sqlite_main_file_path: "test.db".to_string(),
+      sqlite_session_file_path: "test.db.session".to_string(),
       session_secret: test_secret,
       cookie_domain: ".dps.localhost".to_string(),
       api_path: "/api".to_string(),
       insecure_cookie: false,
       development_mode: true,
       sqlite_main_pool_size: 1,
+      sqlite_session_pool_size: 1,
       session_ttl_seconds: 3600,
     };
 
     let mutation = AuthRegisterResolver;
-    let schema = create_test_mutation_schema(mutation, Some(main_pool), None, Some(test_config));
+    let schema = create_test_mutation_schema(mutation, databases.clone(), None, Some(test_config));
 
     let query = r#"
       mutation {

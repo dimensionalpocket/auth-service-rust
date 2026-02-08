@@ -127,7 +127,7 @@ mod tests {
 
     let mutation = SetDefaultRoleResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -186,12 +186,8 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = SetDefaultRoleResolver;
-    let schema = create_test_mutation_schema(
-      mutation,
-      Some(main_pool.clone()),
-      Some(session_context),
-      None,
-    );
+    let schema =
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     // Set first role as default
     let query1 = r#"
@@ -259,7 +255,7 @@ mod tests {
 
     let mutation = SetDefaultRoleResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -283,7 +279,7 @@ mod tests {
 
     let mutation = SetDefaultRoleResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -318,7 +314,7 @@ mod tests {
 
     let mutation = SetDefaultRoleResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = r#"
       mutation {

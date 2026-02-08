@@ -282,7 +282,7 @@ pub async fn run(
 
 ## Implementation Phases
 
-### Phase 0: Create SessionDatabase + Shared Trait
+### Phase 0 (Completed): Create SessionDatabase + Shared Trait
 **Files to Create**:
 - `src/database/session_database.rs`
 - `src/types/database.rs` - `Database` trait
@@ -311,7 +311,7 @@ pub async fn run(
 2. Unit test that `migrate()` on session with empty migrations dir is a no-op/succeeds (depending on sqlx behavior)
 3. Unit test that `seed()` on session with empty seeds dir is a no-op/succeeds
 
-### Phase 1: Create Databases Infrastructure
+### Phase 1 (Completed): Create Databases Infrastructure
 **Files to Modify**:
 - `src/database/databases.rs` - New file containing `Databases`
 - `src/database/mod.rs` - Export the new module/types
@@ -328,18 +328,46 @@ pub async fn run(
 3. Test main pool behavior
 4. Test thread-safety with concurrent access
 
-### Phase 2: Update Application Initialization
+### Phase 2: Inject Databases Everywhere (App + Tests)
+We are now using a custom DB test macro (`dps_auth_api_db_test`) that provides a `Databases` instance (and typically a convenience `main_pool` clone).
+
+Goal: keep production schema injection and test schema builders in sync while we transition resolvers from `ctx.data::<SqlitePool>()?` to `ctx.data::<Databases>()?`.
+
+**Can we do a different macro (or macros) for schema testing?**
+Yes, but it's usually not worth it as an attribute proc-macro: most resolver tests need to create DB rows first and then construct a `SessionContext` from those rows, so the schema build tends to remain test-specific.
+
+If we want extra ergonomics anyway, the lowest-friction options are:
+1. Add schema helper functions (recommended), and keep `dps_auth_api_db_test` as the only macro.
+2. Add a small `macro_rules!` convenience macro (not a proc-macro) in `src/test_utils/mod.rs` for common schema wiring patterns (query vs mutation), keeping data setup in normal Rust.
+
+Recommended approach (instead of new schema-building macros):
+- Keep using `dps_auth_api_db_test` for DB setup.
+- Make a breaking change to the existing `create_test_*_schema` helpers so `Databases` is the default input (no `_with_databases` variants).
+- During migration, have schema helpers inject BOTH `Databases` and the main `SqlitePool` (from `databases.main().clone()`) for a short period, so old and new resolver patterns can coexist while the codebase is updated.
+
+In production code, inject `Databases` into the app schema (even if most orchestrators/resolvers still only use `databases.main()` initially) so the runtime matches tests.
+
 **Files to Modify**:
-- `src/dps_auth_api.rs` - Update `DpsAuthApiConfig` and `create_app()`
+- `src/test_utils/mod.rs` - update schema builders
+- `src/dps_auth_api.rs` - create/inject `Databases` into the application schema
+- `src/dps_auth_api.rs` - extend `DpsAuthApiConfig` for the session DB
 
 **Implementation Details**:
-1. Add `sqlite_session_file_path: String` to `DpsAuthApiConfig`
-2. Add `sqlite_session_pool_size: u16` to `DpsAuthApiConfig`
-3. Construct `Databases` and inject it into the schema instead of `SqlitePool`
+1. Breaking change: update `create_test_query_schema(...)` and `create_test_mutation_schema(...)` signatures to take a `Databases` instance (not `Option<SqlitePool>`).
+2. Always inject `Databases` into the schema context.
+3. (Transition-friendly) also inject the main `SqlitePool` derived from `databases.main().clone()` so tests/resolvers still using `ctx.data::<SqlitePool>()?` continue to work temporarily.
+4. Update all schema helper call sites across the codebase to pass `databases.clone()` (global replacement is fine).
+5. Extend `DpsAuthApiConfig` with:
+   - `sqlite_session_file_path: String`
+   - `sqlite_session_pool_size: u16`
+6. In `create_app()`, initialize both databases (main + session), build a `Databases` instance, and inject it into the schema with `.data(databases)`.
+7. (Optional during transition) also inject `.data(databases.main().clone())` so any remaining `ctx.data::<SqlitePool>()?` resolvers keep working until Phase 4 completes.
+8. After Phase 4 is complete (all resolvers use `Databases`), remove the temporary `SqlitePool` injection from both app schema injection and test helpers.
 
 **Testing**:
-1. Test application starts with all configured databases
-2. Test each database is accessible via `Databases`
+1. Update the existing schema helper tests in `src/test_utils/mod.rs`
+2. Update a small set of resolver tests first (smoke) to validate the new injection pattern
+3. Add/update an app-level smoke test that `create_app()` builds a schema containing `Databases`
 
 ### Phase 3: Update Orchestrators to Use Databases
 **Files to Modify**:
@@ -367,22 +395,7 @@ pub async fn run(
 **Testing**:
 1. Run resolver tests (unit/integration) to ensure schema has `Databases` injected
 
-### Phase 5: Update Test Utilities
-**Files to Modify**:
-- `src/test_utils/mod.rs` - Update schema builders
-
-**Implementation Details**:
-1. Add `create_test_query_schema_with_databases()` function
-2. Add `create_test_mutation_schema_with_databases()` function
-3. Update/replace existing schema helpers to inject `Databases` (breaking change)
-4. Add helper to create `Databases` with test pools
-
-**Testing**:
-1. Update tests to use databases-injecting schema builders
-2. Test schema builders work with databases
-3. Test multi-database scenarios in tests
-
-### Phase 6: Incremental Multi-DB Adoption (Optional)
+### Phase 5: Incremental Multi-DB Adoption (Optional)
 **Note**: This phase is optional and can be done incrementally
 
 **Files to Modify**:
@@ -399,20 +412,20 @@ pub async fn run(
 
 ## Effort Estimation
 
-### Phase 0: Create SessionDatabase + Shared Trait
+### Phase 0 (Completed): Create SessionDatabase + Shared Trait
 - **Development**: 3-6 hours
 - **Testing**: 2-4 hours
 - **Total**: 5-10 hours
 
-### Phase 1: Databases Infrastructure
+### Phase 1 (Completed): Databases Infrastructure
 - **Development**: 2-3 hours
 - **Testing**: 1-2 hours
 - **Total**: 3-5 hours
 
-### Phase 2: Application Initialization Updates
-- **Development**: 2-3 hours
-- **Testing**: 1-2 hours
-- **Total**: 3-5 hours
+### Phase 2: Inject Databases Everywhere (App + Tests)
+- **Development**: 2-4 hours
+- **Testing**: 1-3 hours
+- **Total**: 3-7 hours
 
 ### Phase 3: Update Orchestrators to Use Databases
 - **Development**: 2-4 hours
@@ -424,12 +437,7 @@ pub async fn run(
 - **Testing**: 1-2 hours
 - **Total**: 2-4 hours
 
-### Phase 5: Test Utilities Update
-- **Development**: 1-2 hours
-- **Testing**: 1-2 hours
-- **Total**: 2-4 hours
-
-### Phase 6: Incremental Multi-DB Adoption (Optional)
+### Phase 5: Incremental Multi-DB Adoption (Optional)
 - **Development**: Varies by workflow count/complexity
 - **Testing**: Add/extend tests per workflow
 

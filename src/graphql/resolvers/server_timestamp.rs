@@ -39,7 +39,7 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_server_timestamp_calls_service() {
     let query = ServerTimestampResolver;
-    let schema = create_test_query_schema(query, None, None, None);
+    let schema = create_test_query_schema(query, databases.clone(), None, None);
     let result = schema.execute("{ serverTimestamp }").await;
 
     assert!(result.errors.is_empty());
@@ -52,7 +52,7 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_server_timestamp_returns_string() {
     let query = ServerTimestampResolver;
-    let schema = create_test_query_schema(query, None, None, None);
+    let schema = create_test_query_schema(query, databases.clone(), None, None);
     let result = schema.execute("{ serverTimestamp }").await;
 
     assert!(result.errors.is_empty());

@@ -26,12 +26,14 @@ mod tests {
     DpsAuthApiConfig {
       port: 8080,
       sqlite_main_file_path: "test.db".to_string(),
+      sqlite_session_file_path: "test.db.session".to_string(),
       session_secret: vec![0u8; 32],
       cookie_domain: ".example.com".to_string(),
       api_path: "/api".to_string(),
       insecure_cookie: false,
       development_mode: false,
       sqlite_main_pool_size: 1,
+      sqlite_session_pool_size: 1,
       session_ttl_seconds: 3600,
     }
   }

@@ -141,7 +141,7 @@ mod tests {
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     // Test: Change password
     let query = r#"
@@ -190,7 +190,7 @@ mod tests {
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     // Test: Try to change with wrong current password
     let query = r#"
@@ -229,7 +229,7 @@ mod tests {
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     // Test: Try to change with mismatched confirmation
     let query = r#"
@@ -260,7 +260,7 @@ mod tests {
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     // Test: Try to change password without authentication
     let query = r#"
@@ -297,7 +297,7 @@ mod tests {
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     // Test: Try to change with invalid new password (too short)
     let query = r#"

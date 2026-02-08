@@ -108,7 +108,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = UsersResolver;
-    let schema = create_test_query_schema(query, Some(main_pool), Some(session_context), None);
+    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
 
     let result = schema
       .execute("{ users { id uuid name role { id name permissions } createdTs updatedTs } }")
@@ -145,7 +145,7 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let query = UsersResolver;
-    let schema = create_test_query_schema(query, Some(main_pool), Some(session_context), None);
+    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
 
     let result = schema.execute("{ users { id name } }").await;
 
@@ -170,7 +170,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = UsersResolver;
-    let schema = create_test_query_schema(query, Some(main_pool), Some(session_context), None);
+    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
 
     let result = schema.execute("{ users { id name } }").await;
 
@@ -193,7 +193,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = UsersResolver;
-    let schema = create_test_query_schema(query, Some(main_pool), Some(session_context), None);
+    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
 
     let result = schema.execute("{ users { id name role { name } } }").await;
 
@@ -216,7 +216,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = UsersResolver;
-    let schema = create_test_query_schema(query, Some(main_pool), Some(session_context), None);
+    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
 
     let result = schema.execute("{ users { id name } }").await;
 

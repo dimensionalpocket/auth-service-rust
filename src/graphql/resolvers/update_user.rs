@@ -108,7 +108,7 @@ mod tests {
 
     let mutation = UpdateUserResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -171,7 +171,7 @@ mod tests {
 
     let mutation = UpdateUserResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -211,7 +211,7 @@ mod tests {
 
     let mutation = UpdateUserResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -258,7 +258,7 @@ mod tests {
 
     let mutation = UpdateUserResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -301,7 +301,7 @@ mod tests {
 
     let mutation = UpdateUserResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -332,7 +332,7 @@ mod tests {
 
     let mutation = UpdateUserResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -362,7 +362,7 @@ mod tests {
 
     let mutation = UpdateUserResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -392,7 +392,7 @@ mod tests {
 
     let mutation = UpdateUserResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -425,7 +425,7 @@ mod tests {
 
     let mutation = UpdateUserResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -459,7 +459,7 @@ mod tests {
 
     let mutation = UpdateUserResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -498,7 +498,7 @@ mod tests {
 
     let mutation = UpdateUserResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -532,7 +532,7 @@ mod tests {
 
     let mutation = UpdateUserResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -566,7 +566,7 @@ mod tests {
 
     let mutation = UpdateUserResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -600,7 +600,7 @@ mod tests {
 
     let mutation = UpdateUserResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = r#"
       mutation {
@@ -638,7 +638,7 @@ mod tests {
 
     let mutation = UpdateUserResolver;
     let schema =
-      create_test_mutation_schema(mutation, Some(main_pool), Some(session_context), None);
+      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
 
     let query = r#"
       mutation {

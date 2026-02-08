@@ -60,7 +60,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = RolePermissionsResolver;
-    let schema = create_test_query_schema(query, Some(main_pool), Some(session_context), None);
+    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
 
     let result = schema.execute("{ rolePermissions }").await;
 
@@ -87,7 +87,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = RolePermissionsResolver;
-    let schema = create_test_query_schema(query, Some(main_pool), Some(session_context), None);
+    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
 
     let result = schema.execute("{ rolePermissions }").await;
 
@@ -128,7 +128,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = RolePermissionsResolver;
-    let schema = create_test_query_schema(query, Some(main_pool), Some(session_context), None);
+    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
 
     let result = schema.execute("{ rolePermissions }").await;
 
@@ -163,7 +163,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = RolePermissionsResolver;
-    let schema = create_test_query_schema(query, Some(main_pool), Some(session_context), None);
+    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
 
     let result = schema.execute("{ rolePermissions }").await;
 
@@ -188,7 +188,7 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let query = RolePermissionsResolver;
-    let schema = create_test_query_schema(query, Some(main_pool), Some(session_context), None);
+    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
 
     let result = schema.execute("{ rolePermissions }").await;
 
