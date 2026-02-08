@@ -96,7 +96,7 @@ pub fn dps_auth_db_test(attr: TokenStream, item: TokenStream) -> TokenStream {
     #[tokio::test]
     #vis async fn #name() {
       let (databases, _main_temp_file, _session_temp_file) =
-        #crate_path::test_utils::create_test_database_with_config_and_pool_size(
+        #crate_path::test_utils::create_test_databases_with_config_and_pool_size(
           #configure_sqlite,
           #pool_size,
         )

@@ -12,9 +12,9 @@ type Change = {
 };
 
 const DB_HELPERS = [
-  "create_test_database_with_config_and_pool_size",
-  "create_test_database_with_pool_size",
-  "create_test_database_with_config",
+  "create_test_databases_with_config_and_pool_size",
+  "create_test_databases_with_pool_size",
+  "create_test_databases_with_config",
   "create_test_database",
 ];
 
@@ -35,14 +35,14 @@ async function listRustFiles(dir: string): Promise<string[]> {
 }
 
 function parsePoolSizeCall(line: string): { poolSize?: number } {
-  const m = line.match(/create_test_database_with_pool_size\(\s*(\d+)\s*\)\s*\.await\s*;\s*$/);
+  const m = line.match(/create_test_databases_with_pool_size\(\s*(\d+)\s*\)\s*\.await\s*;\s*$/);
   if (!m) return {};
   return { poolSize: Number(m[1]) };
 }
 
 function parseConfigCall(line: string): { configureSqlite?: boolean } {
   const m = line.match(
-    /create_test_database_with_config\(\s*(true|false)\s*\)\s*\.await\s*;\s*$/,
+    /create_test_databases_with_config\(\s*(true|false)\s*\)\s*\.await\s*;\s*$/,
   );
   if (!m) return {};
   return { configureSqlite: m[1] === "true" };
@@ -52,7 +52,7 @@ function parseConfigAndPoolSizeCall(
   line: string,
 ): { configureSqlite?: boolean; poolSize?: number } {
   const m = line.match(
-    /create_test_database_with_config_and_pool_size\(\s*(true|false)\s*,\s*(\d+)\s*\)\s*\.await\s*;\s*$/,
+    /create_test_databases_with_config_and_pool_size\(\s*(true|false)\s*,\s*(\d+)\s*\)\s*\.await\s*;\s*$/,
   );
   if (!m) return {};
   return { configureSqlite: m[1] === "true", poolSize: Number(m[2]) };

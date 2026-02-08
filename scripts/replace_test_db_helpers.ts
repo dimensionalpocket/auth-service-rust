@@ -29,7 +29,7 @@ async function listRustFiles(dir: string): Promise<string[]> {
 
 function applyLineRewrite(line: string): { line: string; did: boolean; tmpVar?: string } {
   // Matches: let (pool, _tmp) = create_test_database().await;
-  // Matches: let (pool, tmp) = create_test_database_with_pool_size(1).await;
+  // Matches: let (pool, tmp) = create_test_databases_with_pool_size(1).await;
   const m = line.match(
     /^\s*let\s*\(\s*pool\s*,\s*(?<tmp>[_a-zA-Z0-9]+)\s*\)\s*=\s*(?<call>create_test_database(?:_with_[a-zA-Z0-9_]+)?\([^;]*\)\.await)\s*;\s*$/,
   );

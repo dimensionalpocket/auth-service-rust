@@ -36,23 +36,23 @@ impl TestEmptyQuery {
   }
 }
 
-pub async fn create_test_database() -> (Databases, NamedTempFile, NamedTempFile) {
-  create_test_database_with_config(true).await
+pub async fn create_test_databases() -> (Databases, NamedTempFile, NamedTempFile) {
+  create_test_databases_with_config(true).await
 }
 
-pub async fn create_test_database_with_pool_size(
+pub async fn create_test_databases_with_pool_size(
   pool_size: u32,
 ) -> (Databases, NamedTempFile, NamedTempFile) {
-  create_test_database_with_config_and_pool_size(true, pool_size).await
+  create_test_databases_with_config_and_pool_size(true, pool_size).await
 }
 
-pub async fn create_test_database_with_config(
+pub async fn create_test_databases_with_config(
   configure_sqlite: bool,
 ) -> (Databases, NamedTempFile, NamedTempFile) {
-  create_test_database_with_config_and_pool_size(configure_sqlite, 1).await
+  create_test_databases_with_config_and_pool_size(configure_sqlite, 1).await
 }
 
-pub async fn create_test_database_with_config_and_pool_size(
+pub async fn create_test_databases_with_config_and_pool_size(
   configure_sqlite: bool,
   pool_size: u32,
 ) -> (Databases, NamedTempFile, NamedTempFile) {

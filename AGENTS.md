@@ -254,7 +254,7 @@ fn example() -> Result<(), UserError> {
 
 - Shared test utilities are available in `src/test_utils/mod.rs`
 - Use `create_test_user()`, `create_test_user_with_password()`, `create_test_user_full()`, `create_test_role()`, `create_test_role_model()`, and `create_test_user_via_mutation()` for creating test data
-- Database setup utilities (`create_test_database()`, `create_test_database_with_pool_size()`, etc.) are also in `src/test_utils/mod.rs`
+- Database setup utilities (`create_test_databases()`, `create_test_databases_with_pool_size()`, etc.) are also in `src/test_utils/mod.rs`
 - Do not create local `create_test_*` functions in test modules - use the shared utilities instead
 
 When writing resolver tests, use centralized `create_test_<query|mutation>_schema` helper from `test_utils` instead of direct `Schema::build` calls:
@@ -277,7 +277,7 @@ Rules for database usage in tests:
 - Use tempfile for test databases
 - **Pool Usage**: Exactly one SQLite pool per test - never multiple pools within single tests
 - **Unit Tests**: Use direct pool access via `create_test_database()` from `src/test_utils/mod.rs`
-- **Configurable Tests**: Use `create_test_database_with_config(configure_sqlite: bool)` for optional SQLite configuration
+- **Configurable Tests**: Use `create_test_databases_with_config(configure_sqlite: bool)` for optional SQLite configuration
 - **Integration Tests**: Use full app with embedded pool via `create_app()` in test files
 - **Ownership**: Clean ownership with automatic temp file cleanup via `NamedTempFile` dropping
 - **Pool Size**: Unit tests use defaults, integration tests set to 1 connection
