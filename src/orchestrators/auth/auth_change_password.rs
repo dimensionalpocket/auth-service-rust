@@ -24,14 +24,14 @@ impl AuthChangePasswordOrchestrator {
     let user_id = session_payload.sub;
 
     let main_pool = databases.main();
-    let mut conn = main_pool.acquire().await?;
+    let mut main_conn = main_pool.acquire().await?;
 
-    let _user = GetUserByIdQuery::run(&mut conn, user_id)
+    let _user = GetUserByIdQuery::run(&mut main_conn, user_id)
       .await?
       .ok_or(UserError::UserNotFound(user_id))?;
 
     UpdateUserPasswordService::run(
-      &mut conn,
+      &mut main_conn,
       user_id,
       current_password,
       new_password,

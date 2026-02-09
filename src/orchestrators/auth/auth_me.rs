@@ -13,11 +13,11 @@ impl AuthMeOrchestrator {
     let main_pool = databases.main();
     match &session_context.payload {
       Some(_payload) => {
-        let mut conn = main_pool
+        let mut main_conn = main_pool
           .acquire()
           .await
           .map_err(|e| SessionError::DatabaseError(e.to_string()))?;
-        AuthGetCurrentUserService::run(&mut conn, &session_context)
+        AuthGetCurrentUserService::run(&mut main_conn, &session_context)
           .await
           .map(Some)
       }

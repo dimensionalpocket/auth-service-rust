@@ -8,7 +8,7 @@ pub struct UpdateRoleService;
 
 impl UpdateRoleService {
   pub async fn run(
-    conn: &mut SqliteConnection,
+    main_conn: &mut SqliteConnection,
     role_id: i64,
     update_data: UpdateRoleData,
   ) -> Result<Role, RoleError> {
@@ -29,7 +29,7 @@ impl UpdateRoleService {
     };
 
     // Run the update query
-    let updated_role = UpdateRoleQuery::run(conn, update_data_with_id)
+    let updated_role = UpdateRoleQuery::run(main_conn, update_data_with_id)
       .await
       .map_err(RoleError::DatabaseError)?;
 
@@ -50,10 +50,10 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_role_success() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     let role =
-      create_test_role_model_with_conn(&mut conn, "test-role", &["can_view_user_self"], false)
+      create_test_role_model_with_conn(&mut main_conn, "test-role", &["can_view_user_self"], false)
         .await;
     let role_id = role.id;
 
@@ -66,7 +66,7 @@ mod tests {
       ]),
     };
 
-    let updated_role = UpdateRoleService::run(&mut conn, role_id, update_data)
+    let updated_role = UpdateRoleService::run(&mut main_conn, role_id, update_data)
       .await
       .unwrap();
 
@@ -80,10 +80,10 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_role_partial_update() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     let role = create_test_role_model_with_conn(
-      &mut conn,
+      &mut main_conn,
       "test-role",
       &["can_view_user_self", "can_list_users"],
       false,
@@ -97,7 +97,7 @@ mod tests {
       permissions: None,
     };
 
-    let updated_role = UpdateRoleService::run(&mut conn, role_id, update_data)
+    let updated_role = UpdateRoleService::run(&mut main_conn, role_id, update_data)
       .await
       .unwrap();
 
@@ -111,7 +111,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_role_not_found() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     let update_data = UpdateRoleData {
       id: 999,
@@ -119,7 +119,7 @@ mod tests {
       permissions: None,
     };
 
-    let result = UpdateRoleService::run(&mut conn, 999, update_data).await;
+    let result = UpdateRoleService::run(&mut main_conn, 999, update_data).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::RoleNotFound(id) => assert_eq!(id, 999),
@@ -129,10 +129,10 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_role_invalid_permission() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     let role =
-      create_test_role_model_with_conn(&mut conn, "test-role", &["can_view_user_self"], false)
+      create_test_role_model_with_conn(&mut main_conn, "test-role", &["can_view_user_self"], false)
         .await;
     let role_id = role.id;
 
@@ -142,7 +142,7 @@ mod tests {
       permissions: Some(vec!["invalid_permission".to_string()]),
     };
 
-    let result = UpdateRoleService::run(&mut conn, role_id, update_data).await;
+    let result = UpdateRoleService::run(&mut main_conn, role_id, update_data).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::InvalidPermission(permission) => assert_eq!(permission, "invalid_permission"),
@@ -152,10 +152,10 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_role_empty_permissions() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     let role = create_test_role_model_with_conn(
-      &mut conn,
+      &mut main_conn,
       "empty-permissions-role",
       &["can_view_user_self"],
       false,
@@ -169,7 +169,7 @@ mod tests {
       permissions: Some(vec![]),
     };
 
-    let updated_role = UpdateRoleService::run(&mut conn, role_id, update_data)
+    let updated_role = UpdateRoleService::run(&mut main_conn, role_id, update_data)
       .await
       .unwrap();
 
@@ -180,10 +180,10 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_role_all_valid_permissions() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     let role = create_test_role_model_with_conn(
-      &mut conn,
+      &mut main_conn,
       "all-permissions-role",
       &["can_view_user_self"],
       false,
@@ -202,7 +202,7 @@ mod tests {
       permissions: Some(all_permissions.clone()),
     };
 
-    let updated_role = UpdateRoleService::run(&mut conn, role_id, update_data)
+    let updated_role = UpdateRoleService::run(&mut main_conn, role_id, update_data)
       .await
       .unwrap();
 

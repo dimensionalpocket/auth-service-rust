@@ -4,12 +4,15 @@ use sqlx::{Row, SqliteConnection};
 pub struct GetRoleByNameQuery;
 
 impl GetRoleByNameQuery {
-  pub async fn run(conn: &mut SqliteConnection, name: &str) -> Result<Option<Role>, sqlx::Error> {
+  pub async fn run(
+    main_conn: &mut SqliteConnection,
+    name: &str,
+  ) -> Result<Option<Role>, sqlx::Error> {
     let row = sqlx::query(
       "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE name = ?",
     )
     .bind(name)
-    .fetch_optional(&mut *conn)
+    .fetch_optional(&mut *main_conn)
     .await?;
 
     if let Some(row) = row {
@@ -45,8 +48,10 @@ mod tests {
       .await
       .unwrap();
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    let role = GetRoleByNameQuery::run(&mut conn, "admin").await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let role = GetRoleByNameQuery::run(&mut main_conn, "admin")
+      .await
+      .unwrap();
 
     assert!(role.is_some());
     let role = role.unwrap();
@@ -57,8 +62,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_role_by_name_not_found() {
-    let mut conn = main_pool.acquire().await.unwrap();
-    let role = GetRoleByNameQuery::run(&mut conn, "nonexistent")
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let role = GetRoleByNameQuery::run(&mut main_conn, "nonexistent")
       .await
       .unwrap();
 
@@ -71,8 +76,10 @@ mod tests {
     create_test_role_model_with_databases(&databases, "admin", &["is_admin"], false).await;
 
     // Should not find with different case
-    let mut conn = main_pool.acquire().await.unwrap();
-    let role = GetRoleByNameQuery::run(&mut conn, "ADMIN").await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let role = GetRoleByNameQuery::run(&mut main_conn, "ADMIN")
+      .await
+      .unwrap();
     assert!(role.is_none());
   }
 }

@@ -97,17 +97,17 @@ pub async fn create_test_user_with_databases(
   role_id: i64,
 ) -> User {
   let main_pool = databases.main();
-  let mut conn = main_pool.acquire().await.unwrap();
-  create_test_user_with_conn(&mut conn, username, role_id).await
+  let mut main_conn = main_pool.acquire().await.unwrap();
+  create_test_user_with_conn(&mut main_conn, username, role_id).await
 }
 
 /// Create a test user with default password (takes connection)
 pub async fn create_test_user_with_conn(
-  conn: &mut SqliteConnection,
+  main_conn: &mut SqliteConnection,
   username: &str,
   role_id: i64,
 ) -> User {
-  create_test_user_with_conn_and_password(conn, username, role_id, "password123").await
+  create_test_user_with_conn_and_password(main_conn, username, role_id, "password123").await
 }
 
 /// Create a test user with custom password
@@ -118,18 +118,18 @@ pub async fn create_test_user_with_databases_and_password(
   password: &str,
 ) -> User {
   let main_pool = databases.main();
-  let mut conn = main_pool.acquire().await.unwrap();
-  create_test_user_with_conn_and_password(&mut conn, username, role_id, password).await
+  let mut main_conn = main_pool.acquire().await.unwrap();
+  create_test_user_with_conn_and_password(&mut main_conn, username, role_id, password).await
 }
 
 /// Create a test user with custom password (takes connection)
 pub async fn create_test_user_with_conn_and_password(
-  conn: &mut SqliteConnection,
+  main_conn: &mut SqliteConnection,
   username: &str,
   role_id: i64,
   password: &str,
 ) -> User {
-  create_test_user_full_with_conn(conn, username, Some(role_id), password, None).await
+  create_test_user_full_with_conn(main_conn, username, Some(role_id), password, None).await
 }
 
 /// Create a test user with all parameters
@@ -141,13 +141,13 @@ pub async fn create_test_user_full_with_databases(
   metadata_json: Option<serde_json::Value>,
 ) -> User {
   let main_pool = databases.main();
-  let mut conn = main_pool.acquire().await.unwrap();
-  create_test_user_full_with_conn(&mut conn, username, role_id, password, metadata_json).await
+  let mut main_conn = main_pool.acquire().await.unwrap();
+  create_test_user_full_with_conn(&mut main_conn, username, role_id, password, metadata_json).await
 }
 
 /// Create a test user with all parameters (takes connection)
 pub async fn create_test_user_full_with_conn(
-  conn: &mut SqliteConnection,
+  main_conn: &mut SqliteConnection,
   username: &str,
   role_id: Option<i64>,
   password: &str,
@@ -156,14 +156,17 @@ pub async fn create_test_user_full_with_conn(
   // If no role_id specified, ensure a default role exists
   let final_role_id = if role_id.is_none() {
     // Check if default role exists
-    let default_role_id = GetDefaultRoleQuery::run(conn).await.unwrap().map(|r| r.id);
+    let default_role_id = GetDefaultRoleQuery::run(main_conn)
+      .await
+      .unwrap()
+      .map(|r| r.id);
 
     match default_role_id {
       Some(id) => Some(id),
       None => {
         // Create a default role if none exists
         Some(
-          create_test_role_model_with_conn(conn, "user", &["can_view_user_self"], true)
+          create_test_role_model_with_conn(main_conn, "user", &["can_view_user_self"], true)
             .await
             .id,
         )
@@ -182,7 +185,7 @@ pub async fn create_test_user_full_with_conn(
     password_hash,
     metadata_json: metadata_json_str,
   };
-  CreateUserQuery::run(conn, create_data).await.unwrap()
+  CreateUserQuery::run(main_conn, create_data).await.unwrap()
 }
 
 /// Create a test user with all parameters including specific UUID
@@ -195,14 +198,21 @@ pub async fn create_test_user_with_databases_and_uuid(
   metadata_json: Option<serde_json::Value>,
 ) -> User {
   let main_pool = databases.main();
-  let mut conn = main_pool.acquire().await.unwrap();
-  create_test_user_with_conn_and_uuid(&mut conn, uuid, username, role_id, password, metadata_json)
-    .await
+  let mut main_conn = main_pool.acquire().await.unwrap();
+  create_test_user_with_conn_and_uuid(
+    &mut main_conn,
+    uuid,
+    username,
+    role_id,
+    password,
+    metadata_json,
+  )
+  .await
 }
 
 /// Create a test user with all parameters including specific UUID (takes connection)
 pub async fn create_test_user_with_conn_and_uuid(
-  conn: &mut SqliteConnection,
+  main_conn: &mut SqliteConnection,
   uuid: &str,
   username: &str,
   role_id: Option<i64>,
@@ -212,14 +222,17 @@ pub async fn create_test_user_with_conn_and_uuid(
   // If no role_id specified, ensure a default role exists
   let final_role_id = if role_id.is_none() {
     // Check if default role exists
-    let default_role_id = GetDefaultRoleQuery::run(conn).await.unwrap().map(|r| r.id);
+    let default_role_id = GetDefaultRoleQuery::run(main_conn)
+      .await
+      .unwrap()
+      .map(|r| r.id);
 
     match default_role_id {
       Some(id) => Some(id),
       None => {
         // Create a default role if none exists
         Some(
-          create_test_role_model_with_conn(conn, "user", &["can_view_user_self"], true)
+          create_test_role_model_with_conn(main_conn, "user", &["can_view_user_self"], true)
             .await
             .id,
         )
@@ -238,7 +251,7 @@ pub async fn create_test_user_with_conn_and_uuid(
     password_hash,
     metadata_json: metadata_json_str,
   };
-  CreateUserQuery::run(conn, create_data).await.unwrap()
+  CreateUserQuery::run(main_conn, create_data).await.unwrap()
 }
 
 /// Create a test role and return ID
@@ -253,11 +266,11 @@ pub async fn create_test_role_with_databases(
 
 /// Create a test role and return ID (takes connection)
 pub async fn create_test_role_with_conn(
-  conn: &mut SqliteConnection,
+  main_conn: &mut SqliteConnection,
   name: &str,
   permissions: &[&str],
 ) -> i64 {
-  let role = create_test_role_model_with_conn(conn, name, permissions, false).await;
+  let role = create_test_role_model_with_conn(main_conn, name, permissions, false).await;
   role.id
 }
 
@@ -269,13 +282,13 @@ pub async fn create_test_role_model_with_databases(
   is_default: bool,
 ) -> Role {
   let main_pool = databases.main();
-  let mut conn = main_pool.acquire().await.unwrap();
-  create_test_role_model_with_conn(&mut conn, name, permissions, is_default).await
+  let mut main_conn = main_pool.acquire().await.unwrap();
+  create_test_role_model_with_conn(&mut main_conn, name, permissions, is_default).await
 }
 
 /// Create a test role and return full Role model (takes connection)
 pub async fn create_test_role_model_with_conn(
-  conn: &mut SqliteConnection,
+  main_conn: &mut SqliteConnection,
   name: &str,
   permissions: &[&str],
   is_default: bool,
@@ -285,7 +298,7 @@ pub async fn create_test_role_model_with_conn(
     permissions: permissions.iter().map(|&p| p.to_string()).collect(),
     is_default,
   };
-  CreateRoleQuery::run(conn, create_data).await.unwrap()
+  CreateRoleQuery::run(main_conn, create_data).await.unwrap()
 }
 
 /// Create a test user via GraphQL mutation (for integration tests)
@@ -406,8 +419,11 @@ mod tests {
     assert!(user.role_id > 0);
 
     // Verify that default role is created automatically
-    let mut conn = main_pool.acquire().await.unwrap();
-    let default_role = GetDefaultRoleQuery::run(&mut conn).await.unwrap().unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let default_role = GetDefaultRoleQuery::run(&mut main_conn)
+      .await
+      .unwrap()
+      .unwrap();
     assert_eq!(user.role_id, default_role.id);
     assert_eq!(default_role.name, "user");
     assert!(default_role.is_default);
@@ -698,8 +714,10 @@ mod tests {
     assert_eq!(user.metadata_json, Some(test_metadata.to_string()));
 
     // Verify user can be retrieved by UUID
-    let mut conn = main_pool.acquire().await.unwrap();
-    let retrieved_user = GetUserByUuidQuery::run(&mut conn, test_uuid).await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let retrieved_user = GetUserByUuidQuery::run(&mut main_conn, test_uuid)
+      .await
+      .unwrap();
     assert!(retrieved_user.is_some());
     let retrieved_user = retrieved_user.unwrap();
     assert_eq!(retrieved_user.id, user.id);

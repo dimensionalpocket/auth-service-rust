@@ -20,8 +20,8 @@ async fn test_complete_user_creation_flow() {
 
   // Get user role
   let role = {
-    let mut conn = main_pool.acquire().await.unwrap();
-    GetRoleByNameQuery::run(&mut conn, "user")
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    GetRoleByNameQuery::run(&mut main_conn, "user")
       .await
       .unwrap()
       .expect("Role should exist")
@@ -42,8 +42,8 @@ async fn test_complete_user_creation_flow() {
   assert_eq!(created_user.role_id, role.id);
 
   // Verify user can be retrieved by UUID
-  let mut conn = main_pool.acquire().await.unwrap();
-  let retrieved_user = GetUserByUuidQuery::run(&mut conn, &created_user.uuid)
+  let mut main_conn = main_pool.acquire().await.unwrap();
+  let retrieved_user = GetUserByUuidQuery::run(&mut main_conn, &created_user.uuid)
     .await
     .unwrap()
     .expect("User should be found");
@@ -61,8 +61,8 @@ async fn test_default_roles_seeded() {
   create_test_role_with_databases(&databases, "user", &["can_view_user_self"]).await;
 
   // Verify default roles exist
-  let mut conn = main_pool.acquire().await.unwrap();
-  let roles = GetAllRolesQuery::run(&mut conn).await.unwrap();
+  let mut main_conn = main_pool.acquire().await.unwrap();
+  let roles = GetAllRolesQuery::run(&mut main_conn).await.unwrap();
 
   assert_eq!(roles.len(), 2);
 
@@ -85,8 +85,8 @@ async fn test_foreign_key_constraint_enforced() {
     metadata_json: None,
   };
 
-  let mut conn = main_pool.acquire().await.unwrap();
-  let result = CreateUserQuery::run(&mut conn, create_data).await;
+  let mut main_conn = main_pool.acquire().await.unwrap();
+  let result = CreateUserQuery::run(&mut main_conn, create_data).await;
 
   // Should fail due to foreign key constraint
   assert!(result.is_err());

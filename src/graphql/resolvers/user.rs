@@ -124,8 +124,10 @@ mod tests {
       metadata_json: None,
     };
     let target_user = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut main_conn, create_data)
+        .await
+        .unwrap()
     }; // Connection released before schema.execute()
 
     // Create session context for admin user

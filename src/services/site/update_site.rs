@@ -9,7 +9,7 @@ pub struct UpdateSiteService;
 
 impl UpdateSiteService {
   pub async fn run(
-    conn: &mut SqliteConnection,
+    main_conn: &mut SqliteConnection,
     id: i64,
     data: UpdateSiteData,
   ) -> Result<Option<Site>, SiteError> {
@@ -23,7 +23,7 @@ impl UpdateSiteService {
       )
       .bind(slug)
       .bind(id)
-      .fetch_optional(&mut *conn)
+      .fetch_optional(&mut *main_conn)
       .await
       .map_err(SiteError::DatabaseError)?;
 
@@ -32,7 +32,7 @@ impl UpdateSiteService {
       }
     }
 
-    match UpdateSiteQuery::run(conn, UpdateSiteData { id, ..data }).await {
+    match UpdateSiteQuery::run(main_conn, UpdateSiteData { id, ..data }).await {
       Ok(Some(site)) => Ok(Some(site)),
       Ok(None) => Err(SiteError::SiteNotFound(id)),
       Err(err) => Err(SiteError::DatabaseError(err)),
@@ -49,7 +49,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_site_success() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     let create_data = crate::queries::sites::CreateSiteData {
       slug: "update-test".to_string(),
@@ -58,7 +58,7 @@ mod tests {
       protocol: None,
       metadata_json: Some(r#"{"test": true}"#.to_string()),
     };
-    let site = CreateSiteService::run(&mut conn, create_data)
+    let site = CreateSiteService::run(&mut main_conn, create_data)
       .await
       .unwrap();
 
@@ -73,7 +73,7 @@ mod tests {
       metadata_json: Some(None),
     };
 
-    let updated_site = UpdateSiteService::run(&mut conn, site.id, update_data)
+    let updated_site = UpdateSiteService::run(&mut main_conn, site.id, update_data)
       .await
       .unwrap()
       .unwrap();
@@ -90,7 +90,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_site_slug_already_exists() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     let data1 = crate::queries::sites::CreateSiteData {
       slug: "site1".to_string(),
@@ -107,8 +107,8 @@ mod tests {
       metadata_json: None,
     };
 
-    let site1 = CreateSiteService::run(&mut conn, data1).await.unwrap();
-    CreateSiteService::run(&mut conn, data2).await.unwrap();
+    let site1 = CreateSiteService::run(&mut main_conn, data1).await.unwrap();
+    CreateSiteService::run(&mut main_conn, data2).await.unwrap();
 
     let update_data = UpdateSiteData {
       id: site1.id,
@@ -119,7 +119,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateSiteService::run(&mut conn, site1.id, update_data).await;
+    let result = UpdateSiteService::run(&mut main_conn, site1.id, update_data).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       SiteError::SlugAlreadyExists(slug) => assert_eq!(slug, "site2"),
@@ -129,7 +129,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_site_not_found() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     let update_data = UpdateSiteData {
       id: 999,
@@ -140,7 +140,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateSiteService::run(&mut conn, 999, update_data).await;
+    let result = UpdateSiteService::run(&mut main_conn, 999, update_data).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       SiteError::SiteNotFound(id) => assert_eq!(id, 999),
@@ -150,7 +150,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_site_invalid_slug() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     let create_data = crate::queries::sites::CreateSiteData {
       slug: "valid-site".to_string(),
@@ -159,7 +159,7 @@ mod tests {
       protocol: None,
       metadata_json: None,
     };
-    let site = CreateSiteService::run(&mut conn, create_data)
+    let site = CreateSiteService::run(&mut main_conn, create_data)
       .await
       .unwrap();
 
@@ -172,7 +172,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateSiteService::run(&mut conn, site.id, update_data).await;
+    let result = UpdateSiteService::run(&mut main_conn, site.id, update_data).await;
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("Validation error"));
   }

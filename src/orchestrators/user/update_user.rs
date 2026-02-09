@@ -19,17 +19,17 @@ impl UpdateUserOrchestrator {
       ))?;
 
     let main_pool = databases.main();
-    let mut conn = main_pool
+    let mut main_conn = main_pool
       .acquire()
       .await
       .map_err(UserError::DatabaseError)?;
 
-    let user = GetUserByIdQuery::run(&mut conn, user_id)
+    let user = GetUserByIdQuery::run(&mut main_conn, user_id)
       .await
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
 
-    let allowed = CheckUserPermissionService::run(&mut conn, &user, "can_edit_user").await?;
+    let allowed = CheckUserPermissionService::run(&mut main_conn, &user, "can_edit_user").await?;
 
     if !allowed {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));
@@ -63,9 +63,9 @@ impl UpdateUserOrchestrator {
     };
 
     let _updated_user =
-      UpdateUserService::run(&mut conn, input.id, update_data, password_to_update).await?;
+      UpdateUserService::run(&mut main_conn, input.id, update_data, password_to_update).await?;
 
-    crate::queries::users::GetUserByIdWithRoleQuery::run(&mut conn, input.id)
+    crate::queries::users::GetUserByIdWithRoleQuery::run(&mut main_conn, input.id)
       .await
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(input.id))

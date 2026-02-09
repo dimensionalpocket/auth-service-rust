@@ -19,17 +19,17 @@ impl DeleteUserOrchestrator {
       ))?;
 
     let main_pool = databases.main();
-    let mut conn = main_pool
+    let mut main_conn = main_pool
       .acquire()
       .await
       .map_err(UserError::DatabaseError)?;
 
-    let user = GetUserByIdQuery::run(&mut conn, user_id)
+    let user = GetUserByIdQuery::run(&mut main_conn, user_id)
       .await
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
 
-    let allowed = CheckUserPermissionService::run(&mut conn, &user, "can_delete_user").await?;
+    let allowed = CheckUserPermissionService::run(&mut main_conn, &user, "can_delete_user").await?;
 
     if !allowed {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));
@@ -39,7 +39,7 @@ impl DeleteUserOrchestrator {
       return Err(UserError::SelfDeletion);
     }
 
-    let deleted = DeleteUserService::run(&mut conn, target_user_id).await?;
+    let deleted = DeleteUserService::run(&mut main_conn, target_user_id).await?;
 
     if !deleted {
       return Err(UserError::UserNotFound(target_user_id));
@@ -81,8 +81,8 @@ mod tests {
     assert!(result.is_ok());
 
     let deleted_user = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      GetUserByIdQuery::run(&mut conn, target_user.id)
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      GetUserByIdQuery::run(&mut main_conn, target_user.id)
         .await
         .unwrap()
     };
@@ -152,8 +152,8 @@ mod tests {
     }
 
     let user_still_exists = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      GetUserByIdQuery::run(&mut conn, admin_user.id)
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      GetUserByIdQuery::run(&mut main_conn, admin_user.id)
         .await
         .unwrap()
     };

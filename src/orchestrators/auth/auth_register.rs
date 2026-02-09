@@ -14,13 +14,13 @@ impl AuthRegisterOrchestrator {
     config: &DpsAuthApiConfig,
   ) -> Result<(RegisterResult, String), SessionError> {
     let main_pool = databases.main();
-    let mut conn = main_pool
+    let mut main_conn = main_pool
       .acquire()
       .await
       .map_err(|e| SessionError::DatabaseError(e.to_string()))?;
 
     let auth_result = AuthRegisterService::run(
-      &mut conn,
+      &mut main_conn,
       username,
       password,
       password_confirmation,

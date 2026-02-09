@@ -12,7 +12,7 @@ pub struct UpdateRoleQuery;
 
 impl UpdateRoleQuery {
   pub async fn run(
-    conn: &mut SqliteConnection,
+    main_conn: &mut SqliteConnection,
     data: UpdateRoleData,
   ) -> Result<Option<Role>, sqlx::Error> {
     let now = chrono::Utc::now().timestamp();
@@ -52,7 +52,7 @@ impl UpdateRoleQuery {
 
     query = query.bind(data.id);
 
-    let result = query.execute(&mut *conn).await?;
+    let result = query.execute(&mut *main_conn).await?;
 
     if result.rows_affected() == 0 {
       return Ok(None);
@@ -63,7 +63,7 @@ impl UpdateRoleQuery {
             "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?"
         )
         .bind(data.id)
-        .fetch_one(&mut *conn)
+        .fetch_one(&mut *main_conn)
         .await?;
 
     let permissions_json: Option<String> = row.try_get("permissions_json")?;
@@ -112,8 +112,8 @@ mod tests {
     // Add a delay to ensure different timestamps
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    let updated_role = UpdateRoleQuery::run(&mut conn, update_data)
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let updated_role = UpdateRoleQuery::run(&mut main_conn, update_data)
       .await
       .unwrap()
       .unwrap();
@@ -152,8 +152,8 @@ mod tests {
       permissions: None,
     };
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    let updated_role = UpdateRoleQuery::run(&mut conn, update_data)
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let updated_role = UpdateRoleQuery::run(&mut main_conn, update_data)
       .await
       .unwrap()
       .unwrap();
@@ -191,8 +191,8 @@ mod tests {
       permissions: Some(vec![]), // Set to empty array
     };
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    let updated_role = UpdateRoleQuery::run(&mut conn, update_data)
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let updated_role = UpdateRoleQuery::run(&mut main_conn, update_data)
       .await
       .unwrap()
       .unwrap();
@@ -211,8 +211,10 @@ mod tests {
       permissions: None,
     };
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    let result = UpdateRoleQuery::run(&mut conn, update_data).await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let result = UpdateRoleQuery::run(&mut main_conn, update_data)
+      .await
+      .unwrap();
     assert!(result.is_none());
   }
 
@@ -237,8 +239,8 @@ mod tests {
       permissions: None,
     };
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    let updated_role = UpdateRoleQuery::run(&mut conn, update_data)
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let updated_role = UpdateRoleQuery::run(&mut main_conn, update_data)
       .await
       .unwrap()
       .unwrap();
@@ -272,8 +274,8 @@ mod tests {
       permissions: Some(all_permissions.clone()),
     };
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    let updated_role = UpdateRoleQuery::run(&mut conn, update_data)
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let updated_role = UpdateRoleQuery::run(&mut main_conn, update_data)
       .await
       .unwrap()
       .unwrap();

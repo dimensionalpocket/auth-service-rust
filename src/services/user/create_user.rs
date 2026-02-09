@@ -11,7 +11,7 @@ pub struct CreateUserService;
 
 impl CreateUserService {
   pub async fn run(
-    conn: &mut SqliteConnection,
+    main_conn: &mut SqliteConnection,
     username: &str,
     password: &str,
   ) -> Result<User, UserError> {
@@ -19,7 +19,7 @@ impl CreateUserService {
     ValidateUserPasswordService::run(password)?;
 
     // Check if username already exists
-    if let Some(_existing_user) = GetUserByNameQuery::run(conn, username).await? {
+    if let Some(_existing_user) = GetUserByNameQuery::run(main_conn, username).await? {
       return Err(UserError::UsernameAlreadyExists(username.to_string()));
     }
 
@@ -37,7 +37,7 @@ impl CreateUserService {
       metadata_json: None,
     };
 
-    CreateUserQuery::run(conn, create_data)
+    CreateUserQuery::run(main_conn, create_data)
       .await
       .map_err(UserError::DatabaseError)
   }
@@ -54,8 +54,8 @@ mod tests {
   async fn test_create_user_success() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    let user = CreateUserService::run(&mut conn, "testuser", "password123")
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let user = CreateUserService::run(&mut main_conn, "testuser", "password123")
       .await
       .unwrap();
 
@@ -72,11 +72,11 @@ mod tests {
   async fn test_create_user_username_already_exists() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    CreateUserService::run(&mut conn, "testuser", "password123")
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    CreateUserService::run(&mut main_conn, "testuser", "password123")
       .await
       .unwrap();
-    let result = CreateUserService::run(&mut conn, "testuser", "password456").await;
+    let result = CreateUserService::run(&mut main_conn, "testuser", "password456").await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -89,11 +89,11 @@ mod tests {
   async fn test_create_user_case_insensitive_username_check() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    CreateUserService::run(&mut conn, "testuser", "password123")
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    CreateUserService::run(&mut main_conn, "testuser", "password123")
       .await
       .unwrap();
-    let result = CreateUserService::run(&mut conn, "TestUser", "password456").await;
+    let result = CreateUserService::run(&mut main_conn, "TestUser", "password456").await;
 
     assert!(result.is_err());
     match result.unwrap_err() {

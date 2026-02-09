@@ -6,8 +6,11 @@ use sqlx::SqliteConnection;
 pub struct GetRoleByNameService;
 
 impl GetRoleByNameService {
-  pub async fn run(conn: &mut SqliteConnection, name: &str) -> Result<Option<Role>, RoleError> {
-    GetRoleByNameQuery::run(conn, name)
+  pub async fn run(
+    main_conn: &mut SqliteConnection,
+    name: &str,
+  ) -> Result<Option<Role>, RoleError> {
+    GetRoleByNameQuery::run(main_conn, name)
       .await
       .map_err(RoleError::DatabaseError)
   }
@@ -24,8 +27,10 @@ mod tests {
   async fn test_get_role_by_name_delegates_to_query() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    let role = GetRoleByNameService::run(&mut conn, "user").await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let role = GetRoleByNameService::run(&mut main_conn, "user")
+      .await
+      .unwrap();
 
     assert!(role.is_some());
     let role = role.unwrap();

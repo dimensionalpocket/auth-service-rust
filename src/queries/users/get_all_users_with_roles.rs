@@ -4,7 +4,7 @@ use sqlx::{Row, SqliteConnection};
 pub struct GetAllUsersWithRolesQuery;
 
 impl GetAllUsersWithRolesQuery {
-  pub async fn run(conn: &mut SqliteConnection) -> Result<Vec<UserWithRole>, sqlx::Error> {
+  pub async fn run(main_conn: &mut SqliteConnection) -> Result<Vec<UserWithRole>, sqlx::Error> {
     let rows = sqlx::query(
       r#"
       SELECT 
@@ -20,7 +20,7 @@ impl GetAllUsersWithRolesQuery {
       ORDER BY u.name
       "#
     )
-    .fetch_all(&mut *conn)
+    .fetch_all(&mut *main_conn)
     .await?;
 
     let mut users_with_roles = Vec::new();
@@ -64,9 +64,11 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_all_users_with_roles_empty() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
-    let result = GetAllUsersWithRolesQuery::run(&mut conn).await.unwrap();
+    let result = GetAllUsersWithRolesQuery::run(&mut main_conn)
+      .await
+      .unwrap();
     assert_eq!(result.len(), 0);
   }
 
@@ -80,7 +82,7 @@ mod tests {
 
     // Only acquire connection after main_pool usage
     // as this will empty the main_pool (size is 1 in tests)
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     // Insert test users
     sqlx::query("INSERT INTO users (uuid, name, role_id, password_hash, metadata_json, created_ts, updated_ts) VALUES (?, ?, ?, ?, ?, ?, ?)")
@@ -91,7 +93,7 @@ mod tests {
       .bind(None::<String>)
       .bind(1234567890)
       .bind(1234567890)
-      .execute(&mut *conn)
+      .execute(&mut *main_conn)
       .await
       .unwrap();
 
@@ -103,11 +105,13 @@ mod tests {
       .bind(None::<String>)
       .bind(1234567890)
       .bind(1234567890)
-      .execute(&mut *conn)
+      .execute(&mut *main_conn)
       .await
       .unwrap();
 
-    let result = GetAllUsersWithRolesQuery::run(&mut conn).await.unwrap();
+    let result = GetAllUsersWithRolesQuery::run(&mut main_conn)
+      .await
+      .unwrap();
     assert_eq!(result.len(), 2);
 
     // Verify ordering by name
@@ -123,7 +127,7 @@ mod tests {
     let test_role =
       create_test_role_model_with_databases(&databases, "test_role", &[], false).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     // Insert test user
     sqlx::query("INSERT INTO users (uuid, name, role_id, password_hash, metadata_json, created_ts, updated_ts) VALUES (?, ?, ?, ?, ?, ?, ?)")
@@ -134,11 +138,13 @@ mod tests {
       .bind("{\"test\": true}")
       .bind(1234567890)
       .bind(1234567890)
-      .execute(&mut *conn)
+      .execute(&mut *main_conn)
       .await
       .unwrap();
 
-    let result = GetAllUsersWithRolesQuery::run(&mut conn).await.unwrap();
+    let result = GetAllUsersWithRolesQuery::run(&mut main_conn)
+      .await
+      .unwrap();
     assert_eq!(result.len(), 1);
 
     let user_with_role = &result[0];

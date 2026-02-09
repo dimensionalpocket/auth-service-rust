@@ -33,8 +33,8 @@ mod tests {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
     let user = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      CreateUserService::run(&mut conn, "testuser", "password123")
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      CreateUserService::run(&mut main_conn, "testuser", "password123")
         .await
         .unwrap()
     };
@@ -51,11 +51,11 @@ mod tests {
   async fn test_create_session_for_user_different_users() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    let user1 = CreateUserService::run(&mut conn, "user1", "password123")
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let user1 = CreateUserService::run(&mut main_conn, "user1", "password123")
       .await
       .unwrap();
-    let user2 = CreateUserService::run(&mut conn, "user2", "password123")
+    let user2 = CreateUserService::run(&mut main_conn, "user2", "password123")
       .await
       .unwrap();
 

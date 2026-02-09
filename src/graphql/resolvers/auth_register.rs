@@ -102,8 +102,8 @@ mod tests {
   async fn test_auth_register_calls_service_with_correct_parameters() {
     // Insert default role first
     {
-      let mut conn = main_pool.acquire().await.unwrap();
-      create_test_role_model_with_conn(&mut conn, "user", &["can_view_user_self"], true).await;
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      create_test_role_model_with_conn(&mut main_conn, "user", &["can_view_user_self"], true).await;
     }
 
     // Test secret - 32 bytes for AES-256
@@ -173,8 +173,8 @@ mod tests {
   async fn test_auth_register_returns_error_for_duplicate_username() {
     // Insert default role first
     {
-      let mut conn = main_pool.acquire().await.unwrap();
-      create_test_role_model_with_conn(&mut conn, "user", &["can_view_user_self"], true).await;
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      create_test_role_model_with_conn(&mut main_conn, "user", &["can_view_user_self"], true).await;
     }
 
     // Test secret - 32 bytes for AES-256
@@ -309,8 +309,8 @@ mod tests {
   async fn test_auth_register_sets_cookie() {
     // Insert default role first
     {
-      let mut conn = main_pool.acquire().await.unwrap();
-      create_test_role_model_with_conn(&mut conn, "user", &["can_view_user_self"], true).await;
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      create_test_role_model_with_conn(&mut main_conn, "user", &["can_view_user_self"], true).await;
     }
 
     // Test secret - 32 bytes for AES-256

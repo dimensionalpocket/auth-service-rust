@@ -13,13 +13,13 @@ impl AuthLoginOrchestrator {
     config: &DpsAuthApiConfig,
   ) -> Result<(AuthResult, String), SessionError> {
     let main_pool = databases.main();
-    let mut conn = main_pool
+    let mut main_conn = main_pool
       .acquire()
       .await
       .map_err(|e| SessionError::DatabaseError(e.to_string()))?;
 
     let auth_result =
-      AuthLoginService::run(&mut conn, username, password, &config.session_secret).await?;
+      AuthLoginService::run(&mut main_conn, username, password, &config.session_secret).await?;
 
     let cookie_value = GenerateSessionCookieService::run(config, &auth_result.session_token);
 

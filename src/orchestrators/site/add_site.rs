@@ -14,7 +14,7 @@ impl AddSiteOrchestrator {
     create_data: CreateSiteData,
   ) -> Result<crate::models::Site, SiteError> {
     let main_pool = databases.main();
-    let mut conn = main_pool
+    let mut main_conn = main_pool
       .acquire()
       .await
       .map_err(SiteError::DatabaseError)?;
@@ -27,19 +27,19 @@ impl AddSiteOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(&mut conn, user_id)
+    let user = GetUserByIdQuery::run(&mut main_conn, user_id)
       .await
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
-    let allowed = CheckUserPermissionService::run(&mut conn, &user, "can_create_site").await?;
+    let allowed = CheckUserPermissionService::run(&mut main_conn, &user, "can_create_site").await?;
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Create site
-    CreateSiteService::run(&mut conn, create_data).await
+    CreateSiteService::run(&mut main_conn, create_data).await
   }
 }
 

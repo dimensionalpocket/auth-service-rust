@@ -9,9 +9,9 @@ use super::types::AuthMeResult;
 pub struct AuthGetCurrentUserService;
 
 impl AuthGetCurrentUserService {
-  #[instrument(skip(conn))]
+  #[instrument(skip(main_conn))]
   pub async fn run(
-    conn: &mut SqliteConnection,
+    main_conn: &mut SqliteConnection,
     session_context: &SessionContext,
   ) -> Result<AuthMeResult, SessionError> {
     let session_payload = session_context
@@ -20,7 +20,7 @@ impl AuthGetCurrentUserService {
       .ok_or_else(|| SessionError::AuthenticationError("No valid session".to_string()))?;
 
     // Get user details from database with role information
-    let user_with_role = GetUserByIdWithRoleQuery::run(conn, session_payload.sub)
+    let user_with_role = GetUserByIdWithRoleQuery::run(main_conn, session_payload.sub)
       .await
       .map_err(|e| SessionError::DatabaseError(e.to_string()))?
       .ok_or_else(|| SessionError::AuthenticationError("User not found".to_string()))?;
@@ -49,14 +49,14 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_current_user_with_role() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     let admin_role_id =
-      create_test_role_model_with_conn(&mut conn, "admin", &["can_manage_users"], false)
+      create_test_role_model_with_conn(&mut main_conn, "admin", &["can_manage_users"], false)
         .await
         .id;
     let user = create_test_user_full_with_conn(
-      &mut conn,
+      &mut main_conn,
       "testuser",
       Some(admin_role_id),
       "test_password",
@@ -72,7 +72,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(payload));
 
-    let result = AuthGetCurrentUserService::run(&mut conn, &session_context).await;
+    let result = AuthGetCurrentUserService::run(&mut main_conn, &session_context).await;
 
     assert!(result.is_ok());
     let auth_me_result = result.unwrap();

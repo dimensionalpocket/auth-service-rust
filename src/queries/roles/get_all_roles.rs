@@ -4,11 +4,11 @@ use sqlx::{Row, SqliteConnection};
 pub struct GetAllRolesQuery;
 
 impl GetAllRolesQuery {
-  pub async fn run(conn: &mut SqliteConnection) -> Result<Vec<Role>, sqlx::Error> {
+  pub async fn run(main_conn: &mut SqliteConnection) -> Result<Vec<Role>, sqlx::Error> {
     let rows = sqlx::query(
       "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles ORDER BY name",
     )
-    .fetch_all(&mut *conn)
+    .fetch_all(&mut *main_conn)
     .await?;
 
     let mut roles = Vec::new();
@@ -43,8 +43,8 @@ mod tests {
     create_test_role_model_with_databases(&databases, "admin", &["is_admin"], false).await;
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    let roles = GetAllRolesQuery::run(&mut conn).await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let roles = GetAllRolesQuery::run(&mut main_conn).await.unwrap();
 
     assert_eq!(roles.len(), 2);
     assert_eq!(roles[0].name, "admin"); // Ordered by name
@@ -55,8 +55,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_all_roles_empty_table() {
-    let mut conn = main_pool.acquire().await.unwrap();
-    let roles = GetAllRolesQuery::run(&mut conn).await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let roles = GetAllRolesQuery::run(&mut main_conn).await.unwrap();
 
     assert_eq!(roles.len(), 0);
   }

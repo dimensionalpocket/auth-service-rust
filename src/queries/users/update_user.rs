@@ -23,7 +23,7 @@ impl UpdateUserQuery {
   /// It automatically updates the updated_ts timestamp.
   ///
   /// # Arguments
-  /// * `conn` - Database connection
+  /// * `main_conn` - Database connection
   /// * `update_data` - The user data to update (partial fields only)
   ///
   /// # Returns
@@ -34,7 +34,7 @@ impl UpdateUserQuery {
   /// * Returns error if user_id doesn't exist
   /// * Returns error if database operation fails
   pub async fn run(
-    conn: &mut SqliteConnection,
+    main_conn: &mut SqliteConnection,
     update_data: UpdateUserData,
   ) -> Result<User, sqlx::Error> {
     let current_timestamp = chrono::Utc::now().timestamp();
@@ -66,7 +66,7 @@ impl UpdateUserQuery {
 
     // No updates requested
     if !has_updates {
-      return GetUserByIdQuery::run(conn, update_data.id)
+      return GetUserByIdQuery::run(main_conn, update_data.id)
         .await?
         .ok_or(sqlx::Error::RowNotFound);
     }
@@ -96,7 +96,7 @@ impl UpdateUserQuery {
 
     query = query.bind(update_data.id);
 
-    query.fetch_one(&mut *conn).await
+    query.fetch_one(&mut *main_conn).await
   }
 }
 
@@ -121,8 +121,10 @@ mod tests {
       metadata_json: None,
     };
     let user = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut main_conn, create_data)
+        .await
+        .unwrap()
     };
 
     // Test: Update only name
@@ -135,8 +137,10 @@ mod tests {
     };
 
     let updated_user = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      UpdateUserQuery::run(&mut conn, update_data).await.unwrap()
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      UpdateUserQuery::run(&mut main_conn, update_data)
+        .await
+        .unwrap()
     };
 
     // Verify: Name changed, other fields unchanged
@@ -162,8 +166,10 @@ mod tests {
       metadata_json: None,
     };
     let user = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut main_conn, create_data)
+        .await
+        .unwrap()
     };
 
     // Test: Update only role
@@ -176,8 +182,10 @@ mod tests {
     };
 
     let updated_user = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      UpdateUserQuery::run(&mut conn, update_data).await.unwrap()
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      UpdateUserQuery::run(&mut main_conn, update_data)
+        .await
+        .unwrap()
     };
 
     // Verify: Role changed, other fields unchanged
@@ -200,8 +208,10 @@ mod tests {
       metadata_json: None,
     };
     let user = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut main_conn, create_data)
+        .await
+        .unwrap()
     };
 
     // Test: Update only password
@@ -215,8 +225,10 @@ mod tests {
     };
 
     let updated_user = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      UpdateUserQuery::run(&mut conn, update_data).await.unwrap()
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      UpdateUserQuery::run(&mut main_conn, update_data)
+        .await
+        .unwrap()
     };
 
     // Verify: Password hash changed, other fields unchanged
@@ -243,8 +255,10 @@ mod tests {
       metadata_json: None,
     };
     let user = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut main_conn, create_data)
+        .await
+        .unwrap()
     };
 
     // Test: Update multiple fields
@@ -258,8 +272,10 @@ mod tests {
     };
 
     let updated_user = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      UpdateUserQuery::run(&mut conn, update_data).await.unwrap()
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      UpdateUserQuery::run(&mut main_conn, update_data)
+        .await
+        .unwrap()
     };
 
     // Verify: All specified fields changed
@@ -285,8 +301,10 @@ mod tests {
       metadata_json: None,
     };
     let user = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut main_conn, create_data)
+        .await
+        .unwrap()
     };
 
     // Test: Change role to admin
@@ -299,8 +317,10 @@ mod tests {
     };
 
     let updated_user = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      UpdateUserQuery::run(&mut conn, update_data).await.unwrap()
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      UpdateUserQuery::run(&mut main_conn, update_data)
+        .await
+        .unwrap()
     };
 
     // Verify: Role changed to admin
@@ -323,8 +343,10 @@ mod tests {
       metadata_json: None,
     };
     let user = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut main_conn, create_data)
+        .await
+        .unwrap()
     };
 
     // Test: Update with no fields
@@ -337,8 +359,10 @@ mod tests {
     };
 
     let updated_user = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      UpdateUserQuery::run(&mut conn, update_data).await.unwrap()
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      UpdateUserQuery::run(&mut main_conn, update_data)
+        .await
+        .unwrap()
     };
 
     // Verify: User unchanged (except possibly timestamp)
@@ -361,8 +385,8 @@ mod tests {
     };
 
     let result = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      UpdateUserQuery::run(&mut conn, update_data).await
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      UpdateUserQuery::run(&mut main_conn, update_data).await
     };
 
     // Verify: Should return error
@@ -381,8 +405,10 @@ mod tests {
       metadata_json: Some(r#"{"key": "value"}"#.to_string()),
     };
     let user = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut main_conn, create_data)
+        .await
+        .unwrap()
     };
 
     // Test: Update only name
@@ -395,8 +421,10 @@ mod tests {
     };
 
     let updated_user = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      UpdateUserQuery::run(&mut conn, update_data).await.unwrap()
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      UpdateUserQuery::run(&mut main_conn, update_data)
+        .await
+        .unwrap()
     };
 
     // Verify: Only name changed, metadata preserved
@@ -419,8 +447,10 @@ mod tests {
       metadata_json: Some(r#"{"key": "value"}"#.to_string()),
     };
     let user = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut main_conn, create_data)
+        .await
+        .unwrap()
     };
 
     // Test: Update only metadata
@@ -433,8 +463,10 @@ mod tests {
     };
 
     let updated_user = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      UpdateUserQuery::run(&mut conn, update_data).await.unwrap()
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      UpdateUserQuery::run(&mut main_conn, update_data)
+        .await
+        .unwrap()
     };
 
     // Verify: Only metadata changed, other fields preserved
@@ -461,8 +493,10 @@ mod tests {
       metadata_json: Some(r#"{"key": "value"}"#.to_string()),
     };
     let user = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      CreateUserQuery::run(&mut conn, create_data).await.unwrap()
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      CreateUserQuery::run(&mut main_conn, create_data)
+        .await
+        .unwrap()
     };
 
     // Test: Set metadata to NULL
@@ -475,8 +509,10 @@ mod tests {
     };
 
     let updated_user = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      UpdateUserQuery::run(&mut conn, update_data).await.unwrap()
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      UpdateUserQuery::run(&mut main_conn, update_data)
+        .await
+        .unwrap()
     };
 
     // Verify: Metadata is now NULL

@@ -14,7 +14,7 @@ impl GetSiteOrchestrator {
     site_id: i64,
   ) -> Result<crate::models::Site, SiteError> {
     let main_pool = databases.main();
-    let mut conn = main_pool
+    let mut main_conn = main_pool
       .acquire()
       .await
       .map_err(SiteError::DatabaseError)?;
@@ -27,20 +27,20 @@ impl GetSiteOrchestrator {
       ))?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(&mut conn, user_id)
+    let user = GetUserByIdQuery::run(&mut main_conn, user_id)
       .await
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::AuthenticationError("User not found".to_string()))?;
 
     let allowed =
-      CheckUserPermissionService::run(&mut conn, &user, "can_view_site_details").await?;
+      CheckUserPermissionService::run(&mut main_conn, &user, "can_view_site_details").await?;
 
     if !allowed {
       return Err(SiteError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Get site details
-    GetSiteByIdQuery::run(&mut conn, site_id)
+    GetSiteByIdQuery::run(&mut main_conn, site_id)
       .await
       .map_err(SiteError::DatabaseError)?
       .ok_or(SiteError::SiteNotFound(site_id))
@@ -73,8 +73,10 @@ mod tests {
       metadata_json: Some("{\"description\": \"Test site\"}".to_string()),
     };
     let site = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      CreateSiteQuery::run(&mut conn, create_data).await.unwrap()
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      CreateSiteQuery::run(&mut main_conn, create_data)
+        .await
+        .unwrap()
     };
 
     // Create session context for admin user
@@ -112,8 +114,10 @@ mod tests {
       metadata_json: None,
     };
     let site = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      CreateSiteQuery::run(&mut conn, create_data).await.unwrap()
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      CreateSiteQuery::run(&mut main_conn, create_data)
+        .await
+        .unwrap()
     };
 
     // Create session context for regular user

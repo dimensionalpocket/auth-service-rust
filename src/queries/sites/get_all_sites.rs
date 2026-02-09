@@ -4,12 +4,12 @@ use sqlx::SqliteConnection;
 pub struct GetAllSitesQuery;
 
 impl GetAllSitesQuery {
-  pub async fn run(conn: &mut SqliteConnection) -> Result<Vec<Site>, sqlx::Error> {
+  pub async fn run(main_conn: &mut SqliteConnection) -> Result<Vec<Site>, sqlx::Error> {
     sqlx::query_as::<_, Site>(
       "SELECT id, created_ts, updated_ts, slug, subdomain, port, protocol, metadata_json 
        FROM sites",
     )
-    .fetch_all(&mut *conn)
+    .fetch_all(&mut *main_conn)
     .await
   }
 }
@@ -23,14 +23,14 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_all_sites_empty() {
-    let mut conn = main_pool.acquire().await.unwrap();
-    let sites = GetAllSitesQuery::run(&mut conn).await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let sites = GetAllSitesQuery::run(&mut main_conn).await.unwrap();
     assert_eq!(sites.len(), 0);
   }
 
   #[dps_auth_db_test]
   async fn test_get_all_sites_with_data() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     // Create test sites
     let site1_data = CreateSiteData {
@@ -49,10 +49,14 @@ mod tests {
       metadata_json: None,
     };
 
-    CreateSiteQuery::run(&mut conn, site1_data).await.unwrap();
-    CreateSiteQuery::run(&mut conn, site2_data).await.unwrap();
+    CreateSiteQuery::run(&mut main_conn, site1_data)
+      .await
+      .unwrap();
+    CreateSiteQuery::run(&mut main_conn, site2_data)
+      .await
+      .unwrap();
 
-    let sites = GetAllSitesQuery::run(&mut conn).await.unwrap();
+    let sites = GetAllSitesQuery::run(&mut main_conn).await.unwrap();
     assert_eq!(sites.len(), 2);
     assert_eq!(sites[0].slug, "site1");
     assert_eq!(sites[1].slug, "site2");

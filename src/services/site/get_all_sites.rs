@@ -6,8 +6,8 @@ use sqlx::SqliteConnection;
 pub struct GetAllSitesService;
 
 impl GetAllSitesService {
-  pub async fn run(conn: &mut SqliteConnection) -> Result<Vec<Site>, SiteError> {
-    GetAllSitesQuery::run(conn)
+  pub async fn run(main_conn: &mut SqliteConnection) -> Result<Vec<Site>, SiteError> {
+    GetAllSitesQuery::run(main_conn)
       .await
       .map_err(SiteError::DatabaseError)
   }
@@ -22,7 +22,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_all_sites() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     let data1 = crate::queries::sites::CreateSiteData {
       slug: "test1".to_string(),
@@ -40,10 +40,10 @@ mod tests {
       metadata_json: None,
     };
 
-    CreateSiteService::run(&mut conn, data1).await.unwrap();
-    CreateSiteService::run(&mut conn, data2).await.unwrap();
+    CreateSiteService::run(&mut main_conn, data1).await.unwrap();
+    CreateSiteService::run(&mut main_conn, data2).await.unwrap();
 
-    let sites = GetAllSitesService::run(&mut conn).await.unwrap();
+    let sites = GetAllSitesService::run(&mut main_conn).await.unwrap();
     assert_eq!(sites.len(), 2);
     assert_eq!(sites[0].slug, "test1");
     assert_eq!(sites[1].slug, "test2");

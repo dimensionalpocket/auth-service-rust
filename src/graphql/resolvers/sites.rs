@@ -103,9 +103,13 @@ mod tests {
     };
 
     {
-      let mut conn = main_pool.acquire().await.unwrap();
-      CreateSiteQuery::run(&mut conn, site1_data).await.unwrap();
-      CreateSiteQuery::run(&mut conn, site2_data).await.unwrap();
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      CreateSiteQuery::run(&mut main_conn, site1_data)
+        .await
+        .unwrap();
+      CreateSiteQuery::run(&mut main_conn, site2_data)
+        .await
+        .unwrap();
     }
 
     let query = SitesResolver;

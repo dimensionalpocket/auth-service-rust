@@ -4,12 +4,15 @@ use sqlx::{Row, SqliteConnection};
 pub struct GetRoleByIdQuery;
 
 impl GetRoleByIdQuery {
-  pub async fn run(conn: &mut SqliteConnection, role_id: i64) -> Result<Option<Role>, sqlx::Error> {
+  pub async fn run(
+    main_conn: &mut SqliteConnection,
+    role_id: i64,
+  ) -> Result<Option<Role>, sqlx::Error> {
     let row = sqlx::query(
       "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?",
     )
     .bind(role_id)
-    .fetch_optional(&mut *conn)
+    .fetch_optional(&mut *main_conn)
     .await?;
 
     if let Some(row) = row {
@@ -37,15 +40,17 @@ mod tests {
   use super::*;
   #[dps_auth_db_test]
   async fn test_get_role_by_id_found() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     // Insert test role
     let role_id = sqlx::query("INSERT INTO roles (name, created_ts, updated_ts, is_default) VALUES ('admin', 1234567890, 1234567890, FALSE)")
-      .execute(&mut *conn)
+      .execute(&mut *main_conn)
       .await
       .unwrap()
       .last_insert_rowid();
-    let role = GetRoleByIdQuery::run(&mut conn, role_id).await.unwrap();
+    let role = GetRoleByIdQuery::run(&mut main_conn, role_id)
+      .await
+      .unwrap();
 
     assert!(role.is_some());
     let role = role.unwrap();
@@ -57,9 +62,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_role_by_id_not_found() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
-    let role = GetRoleByIdQuery::run(&mut conn, 999).await.unwrap();
+    let role = GetRoleByIdQuery::run(&mut main_conn, 999).await.unwrap();
 
     assert!(role.is_none());
   }

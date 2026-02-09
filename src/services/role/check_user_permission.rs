@@ -9,7 +9,7 @@ pub struct CheckUserPermissionService;
 
 impl CheckUserPermissionService {
   pub async fn run(
-    conn: &mut SqliteConnection,
+    main_conn: &mut SqliteConnection,
     user: &User,
     permission: &str,
   ) -> Result<bool, RoleError> {
@@ -19,7 +19,7 @@ impl CheckUserPermissionService {
       return Ok(false);
     }
 
-    let role = GetRoleByIdQuery::run(&mut *conn, user.role_id)
+    let role = GetRoleByIdQuery::run(&mut *main_conn, user.role_id)
       .await
       .map_err(RoleError::DatabaseError)?;
 
@@ -61,19 +61,19 @@ mod tests {
       metadata_json: None,
     };
 
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
     assert!(
-      CheckUserPermissionService::run(&mut conn, &admin_user, "can_list_users")
+      CheckUserPermissionService::run(&mut main_conn, &admin_user, "can_list_users")
         .await
         .unwrap()
     );
     assert!(
-      CheckUserPermissionService::run(&mut conn, &admin_user, "can_create_site")
+      CheckUserPermissionService::run(&mut main_conn, &admin_user, "can_create_site")
         .await
         .unwrap()
     );
     assert!(
-      CheckUserPermissionService::run(&mut conn, &admin_user, "can_delete_user")
+      CheckUserPermissionService::run(&mut main_conn, &admin_user, "can_delete_user")
         .await
         .unwrap()
     );
@@ -97,20 +97,20 @@ mod tests {
       metadata_json: None,
     };
 
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
     assert!(
-      CheckUserPermissionService::run(&mut conn, &regular_user, "can_view_user_self")
+      CheckUserPermissionService::run(&mut main_conn, &regular_user, "can_view_user_self")
         .await
         .unwrap()
     );
 
     assert!(
-      !CheckUserPermissionService::run(&mut conn, &regular_user, "can_list_users")
+      !CheckUserPermissionService::run(&mut main_conn, &regular_user, "can_list_users")
         .await
         .unwrap()
     );
     assert!(
-      !CheckUserPermissionService::run(&mut conn, &regular_user, "is_admin")
+      !CheckUserPermissionService::run(&mut main_conn, &regular_user, "is_admin")
         .await
         .unwrap()
     );
@@ -129,9 +129,9 @@ mod tests {
       metadata_json: None,
     };
 
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
     assert!(
-      !CheckUserPermissionService::run(&mut conn, &user_no_role, "can_list_users")
+      !CheckUserPermissionService::run(&mut main_conn, &user_no_role, "can_list_users")
         .await
         .unwrap()
     );
@@ -154,20 +154,24 @@ mod tests {
       metadata_json: None,
     };
 
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
     assert!(
-      !CheckUserPermissionService::run(&mut conn, &admin_user, "invalid_permission")
+      !CheckUserPermissionService::run(&mut main_conn, &admin_user, "invalid_permission")
         .await
         .unwrap()
     );
-    assert!(!CheckUserPermissionService::run(&mut conn, &admin_user, "")
-      .await
-      .unwrap());
     assert!(
-      !CheckUserPermissionService::run(&mut conn, &admin_user, "nonexistent_can_permission")
+      !CheckUserPermissionService::run(&mut main_conn, &admin_user, "")
         .await
         .unwrap()
     );
+    assert!(!CheckUserPermissionService::run(
+      &mut main_conn,
+      &admin_user,
+      "nonexistent_can_permission"
+    )
+    .await
+    .unwrap());
   }
 
   #[dps_auth_db_test]
@@ -192,30 +196,36 @@ mod tests {
       metadata_json: None,
     };
 
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    assert!(CheckUserPermissionService::run(
+      &mut main_conn,
+      &role_manager_user,
+      "can_edit_user_role"
+    )
+    .await
+    .unwrap());
+    assert!(CheckUserPermissionService::run(
+      &mut main_conn,
+      &role_manager_user,
+      "can_manage_roles"
+    )
+    .await
+    .unwrap());
     assert!(
-      CheckUserPermissionService::run(&mut conn, &role_manager_user, "can_edit_user_role")
+      !CheckUserPermissionService::run(&mut main_conn, &role_manager_user, "can_list_users")
         .await
         .unwrap()
     );
-    assert!(
-      CheckUserPermissionService::run(&mut conn, &role_manager_user, "can_manage_roles")
-        .await
-        .unwrap()
-    );
-    assert!(
-      !CheckUserPermissionService::run(&mut conn, &role_manager_user, "can_list_users")
-        .await
-        .unwrap()
-    );
-    assert!(
-      CheckUserPermissionService::run(&mut conn, &role_manager_user, "can_manage_roles")
-        .await
-        .unwrap()
-    );
+    assert!(CheckUserPermissionService::run(
+      &mut main_conn,
+      &role_manager_user,
+      "can_manage_roles"
+    )
+    .await
+    .unwrap());
 
     assert!(!CheckUserPermissionService::run(
-      &mut conn,
+      &mut main_conn,
       &role_manager_user,
       "can_manage_admin_role_permission"
     )
@@ -240,19 +250,19 @@ mod tests {
       metadata_json: None,
     };
 
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
     assert!(
-      CheckUserPermissionService::run(&mut conn, &admin_user, "can_edit_user_role")
+      CheckUserPermissionService::run(&mut main_conn, &admin_user, "can_edit_user_role")
         .await
         .unwrap()
     );
     assert!(
-      CheckUserPermissionService::run(&mut conn, &admin_user, "can_manage_roles")
+      CheckUserPermissionService::run(&mut main_conn, &admin_user, "can_manage_roles")
         .await
         .unwrap()
     );
     assert!(CheckUserPermissionService::run(
-      &mut conn,
+      &mut main_conn,
       &admin_user,
       "can_manage_admin_role_permission"
     )

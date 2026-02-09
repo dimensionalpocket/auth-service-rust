@@ -8,7 +8,7 @@ pub struct CreateRoleService;
 
 impl CreateRoleService {
   pub async fn run(
-    conn: &mut SqliteConnection,
+    main_conn: &mut SqliteConnection,
     create_data: CreateRoleData,
   ) -> Result<Role, RoleError> {
     // Validate role name format
@@ -26,7 +26,7 @@ impl CreateRoleService {
     }
 
     // Check if role name already exists and create role in one connection block
-    let existing_role = GetRoleByNameQuery::run(conn, &create_data.name)
+    let existing_role = GetRoleByNameQuery::run(main_conn, &create_data.name)
       .await
       .map_err(RoleError::DatabaseError)?;
 
@@ -39,7 +39,7 @@ impl CreateRoleService {
       permissions: create_data.permissions,
       is_default: false,
     };
-    CreateRoleQuery::run(conn, create_data_with_default_false)
+    CreateRoleQuery::run(main_conn, create_data_with_default_false)
       .await
       .map_err(RoleError::DatabaseError)
   }
@@ -54,7 +54,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_role_success() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
       name: "test_role".to_string(),
@@ -65,7 +65,7 @@ mod tests {
       is_default: false,
     };
 
-    let role = CreateRoleService::run(&mut conn, create_data)
+    let role = CreateRoleService::run(&mut main_conn, create_data)
       .await
       .unwrap();
 
@@ -82,7 +82,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_role_empty_permissions() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
       name: "empty_permissions_role".to_string(),
@@ -90,7 +90,7 @@ mod tests {
       is_default: true,
     };
 
-    let role = CreateRoleService::run(&mut conn, create_data)
+    let role = CreateRoleService::run(&mut main_conn, create_data)
       .await
       .unwrap();
 
@@ -101,7 +101,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_role_duplicate_name_fails() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     let create_data1 = CreateRoleData {
       name: "duplicate".to_string(),
@@ -109,7 +109,7 @@ mod tests {
       is_default: false,
     };
 
-    CreateRoleService::run(&mut conn, create_data1)
+    CreateRoleService::run(&mut main_conn, create_data1)
       .await
       .unwrap();
 
@@ -119,7 +119,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = CreateRoleService::run(&mut conn, create_data2).await;
+    let result = CreateRoleService::run(&mut main_conn, create_data2).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::RoleNameAlreadyExists(name) => assert_eq!(name, "duplicate"),
@@ -129,7 +129,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_role_empty_name_fails() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
       name: "".to_string(),
@@ -137,7 +137,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = CreateRoleService::run(&mut conn, create_data).await;
+    let result = CreateRoleService::run(&mut main_conn, create_data).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::ValidationError(msg) => assert_eq!(msg, "Role name cannot be empty"),
@@ -147,7 +147,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_role_whitespace_name_fails() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
       name: "   ".to_string(),
@@ -155,7 +155,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = CreateRoleService::run(&mut conn, create_data).await;
+    let result = CreateRoleService::run(&mut main_conn, create_data).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::ValidationError(msg) => assert_eq!(msg, "Role name cannot be empty"),
@@ -165,7 +165,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_role_invalid_permission_fails() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
       name: "invalid_permission_role".to_string(),
@@ -173,7 +173,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = CreateRoleService::run(&mut conn, create_data).await;
+    let result = CreateRoleService::run(&mut main_conn, create_data).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::InvalidPermission(permission) => assert_eq!(permission, "invalid_permission"),
@@ -183,7 +183,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_role_multiple_invalid_permissions_fails() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
       name: "multiple_invalid_role".to_string(),
@@ -195,7 +195,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = CreateRoleService::run(&mut conn, create_data).await;
+    let result = CreateRoleService::run(&mut main_conn, create_data).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::InvalidPermission(permission) => assert_eq!(permission, "invalid_permission1"),
@@ -205,7 +205,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_role_all_valid_permissions() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     let all_permissions: Vec<String> = ROLE_PERMISSIONS
       .iter()
@@ -218,7 +218,7 @@ mod tests {
       is_default: false,
     };
 
-    let role = CreateRoleService::run(&mut conn, create_data)
+    let role = CreateRoleService::run(&mut main_conn, create_data)
       .await
       .unwrap();
 
@@ -238,7 +238,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_role_default_role() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     let create_data = CreateRoleData {
       name: "default_test_role".to_string(),
@@ -246,7 +246,7 @@ mod tests {
       is_default: true,
     };
 
-    let role = CreateRoleService::run(&mut conn, create_data)
+    let role = CreateRoleService::run(&mut main_conn, create_data)
       .await
       .unwrap();
 

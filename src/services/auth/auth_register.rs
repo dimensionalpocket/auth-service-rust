@@ -9,9 +9,9 @@ use super::types::RegisterResult;
 pub struct AuthRegisterService;
 
 impl AuthRegisterService {
-  #[instrument(skip(conn, session_secret), fields(username = %username))]
+  #[instrument(skip(main_conn, session_secret), fields(username = %username))]
   pub async fn run(
-    conn: &mut SqliteConnection,
+    main_conn: &mut SqliteConnection,
     username: &str,
     password: &str,
     password_confirmation: &str,
@@ -25,10 +25,10 @@ impl AuthRegisterService {
     }
 
     // Create user which includes validation and password hashing
-    let user = CreateUserService::run(conn, username, password).await?;
+    let user = CreateUserService::run(main_conn, username, password).await?;
 
     // Get user with role information
-    let user_with_role = GetUserByNameWithRoleQuery::run(conn, username)
+    let user_with_role = GetUserByNameWithRoleQuery::run(main_conn, username)
       .await
       .map_err(UserError::DatabaseError)?
       .ok_or_else(|| UserError::UserNotFound(user.id))?;

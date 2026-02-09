@@ -28,19 +28,19 @@ impl AddRoleOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
-    let mut conn = main_pool
+    let mut main_conn = main_pool
       .acquire()
       .await
       .map_err(RoleError::DatabaseError)?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(&mut conn, user_id)
+    let user = GetUserByIdQuery::run(&mut main_conn, user_id)
       .await
       .map_err(RoleError::DatabaseError)?
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
     let can_manage_roles =
-      CheckUserPermissionService::run(&mut conn, &user, "can_manage_roles").await?;
+      CheckUserPermissionService::run(&mut main_conn, &user, "can_manage_roles").await?;
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
@@ -51,7 +51,7 @@ impl AddRoleOrchestrator {
       permissions: create_data.permissions,
       is_default: false,
     };
-    CreateRoleService::run(&mut conn, create_data_with_default_false).await
+    CreateRoleService::run(&mut main_conn, create_data_with_default_false).await
   }
 }
 

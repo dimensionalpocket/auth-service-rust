@@ -9,15 +9,15 @@ use super::types::AuthResult;
 pub struct AuthLoginService;
 
 impl AuthLoginService {
-  #[instrument(skip(conn, session_secret, password), fields(username = %username))]
+  #[instrument(skip(main_conn, session_secret, password), fields(username = %username))]
   pub async fn run(
-    conn: &mut SqliteConnection,
+    main_conn: &mut SqliteConnection,
     username: &str,
     password: &str,
     session_secret: &[u8],
   ) -> Result<AuthResult, SessionError> {
     // Find user by username with role information first
-    let user_with_role = GetUserByNameWithRoleQuery::run(conn, username)
+    let user_with_role = GetUserByNameWithRoleQuery::run(main_conn, username)
       .await
       .map_err(|e| SessionError::DatabaseError(e.to_string()))?;
 
@@ -26,7 +26,8 @@ impl AuthLoginService {
       .ok_or_else(|| SessionError::AuthenticationError("User not found".to_string()))?;
 
     // Create session which includes password verification
-    let session_token = CreateSessionService::run(conn, username, password, session_secret).await?;
+    let session_token =
+      CreateSessionService::run(main_conn, username, password, session_secret).await?;
 
     Ok(AuthResult {
       user_id: user_with_role.user.id,
@@ -54,11 +55,12 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_auth_login_success() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
-    let mut conn = main_pool.acquire().await.unwrap();
-    CreateUserService::run(&mut conn, "testuser", "password123")
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    CreateUserService::run(&mut main_conn, "testuser", "password123")
       .await
       .unwrap();
-    let result = AuthLoginService::run(&mut conn, "testuser", "password123", TEST_SECRET).await;
+    let result =
+      AuthLoginService::run(&mut main_conn, "testuser", "password123", TEST_SECRET).await;
 
     assert!(result.is_ok());
     let auth_result = result.unwrap();
@@ -70,19 +72,21 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_auth_login_invalid_credentials() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
-    let mut conn = main_pool.acquire().await.unwrap();
-    CreateUserService::run(&mut conn, "testuser", "password123")
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    CreateUserService::run(&mut main_conn, "testuser", "password123")
       .await
       .unwrap();
-    let result = AuthLoginService::run(&mut conn, "testuser", "wrongpassword", TEST_SECRET).await;
+    let result =
+      AuthLoginService::run(&mut main_conn, "testuser", "wrongpassword", TEST_SECRET).await;
 
     assert!(result.is_err());
   }
 
   #[dps_auth_db_test]
   async fn test_auth_login_user_not_found() {
-    let mut conn = main_pool.acquire().await.unwrap();
-    let result = AuthLoginService::run(&mut conn, "nonexistent", "password123", TEST_SECRET).await;
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let result =
+      AuthLoginService::run(&mut main_conn, "nonexistent", "password123", TEST_SECRET).await;
 
     assert!(result.is_err());
   }

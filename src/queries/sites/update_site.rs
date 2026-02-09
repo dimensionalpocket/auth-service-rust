@@ -15,7 +15,7 @@ pub struct UpdateSiteQuery;
 
 impl UpdateSiteQuery {
   pub async fn run(
-    conn: &mut SqliteConnection,
+    main_conn: &mut SqliteConnection,
     data: UpdateSiteData,
   ) -> Result<Option<Site>, sqlx::Error> {
     let now = chrono::Utc::now().timestamp();
@@ -73,7 +73,7 @@ impl UpdateSiteQuery {
 
     query = query.bind(data.id);
 
-    let result = query.execute(&mut *conn).await?;
+    let result = query.execute(&mut *main_conn).await?;
 
     if result.rows_affected() == 0 {
       return Ok(None);
@@ -84,7 +84,7 @@ impl UpdateSiteQuery {
             "SELECT id, created_ts, updated_ts, slug, subdomain, port, protocol, metadata_json FROM sites WHERE id = ?"
         )
         .bind(data.id)
-        .fetch_one(&mut *conn)
+        .fetch_one(&mut *main_conn)
         .await
         .map(Some)
   }
@@ -99,7 +99,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_site_success() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -109,7 +109,9 @@ mod tests {
       protocol: Some("https".to_string()),
       metadata_json: Some(r#"{"description": "test"}"#.to_string()),
     };
-    let site = CreateSiteQuery::run(&mut conn, create_data).await.unwrap();
+    let site = CreateSiteQuery::run(&mut main_conn, create_data)
+      .await
+      .unwrap();
 
     // Update the site
     let update_data = UpdateSiteData {
@@ -124,7 +126,7 @@ mod tests {
     // Add a delay to ensure different timestamps
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
-    let updated_site = UpdateSiteQuery::run(&mut conn, update_data)
+    let updated_site = UpdateSiteQuery::run(&mut main_conn, update_data)
       .await
       .unwrap()
       .unwrap();
@@ -141,7 +143,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_site_partial_update() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -151,7 +153,9 @@ mod tests {
       protocol: Some("https".to_string()),
       metadata_json: Some(r#"{"description": "test"}"#.to_string()),
     };
-    let site = CreateSiteQuery::run(&mut conn, create_data).await.unwrap();
+    let site = CreateSiteQuery::run(&mut main_conn, create_data)
+      .await
+      .unwrap();
 
     // Add a delay to ensure different timestamps
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -166,7 +170,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let updated_site = UpdateSiteQuery::run(&mut conn, update_data)
+    let updated_site = UpdateSiteQuery::run(&mut main_conn, update_data)
       .await
       .unwrap()
       .unwrap();
@@ -194,14 +198,16 @@ mod tests {
       metadata_json: None,
     };
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    let result = UpdateSiteQuery::run(&mut conn, update_data).await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let result = UpdateSiteQuery::run(&mut main_conn, update_data)
+      .await
+      .unwrap();
     assert!(result.is_none());
   }
 
   #[dps_auth_db_test]
   async fn test_update_site_no_changes() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
     // Create a site first
     let create_data = CreateSiteData {
@@ -211,7 +217,9 @@ mod tests {
       protocol: Some("https".to_string()),
       metadata_json: Some(r#"{"description": "test"}"#.to_string()),
     };
-    let site = CreateSiteQuery::run(&mut conn, create_data).await.unwrap();
+    let site = CreateSiteQuery::run(&mut main_conn, create_data)
+      .await
+      .unwrap();
 
     // Add a delay to ensure different timestamps
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -226,7 +234,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let updated_site = UpdateSiteQuery::run(&mut conn, update_data)
+    let updated_site = UpdateSiteQuery::run(&mut main_conn, update_data)
       .await
       .unwrap()
       .unwrap();

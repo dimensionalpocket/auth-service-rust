@@ -10,7 +10,7 @@ pub struct UpdateUserPasswordService;
 
 impl UpdateUserPasswordService {
   pub async fn run(
-    conn: &mut SqliteConnection,
+    main_conn: &mut SqliteConnection,
     user_id: i64,
     current_password: &str,
     new_password: &str,
@@ -24,7 +24,7 @@ impl UpdateUserPasswordService {
       ));
     }
 
-    let user = GetUserByIdQuery::run(conn, user_id)
+    let user = GetUserByIdQuery::run(main_conn, user_id)
       .await
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
@@ -45,7 +45,7 @@ impl UpdateUserPasswordService {
       password_hash: new_password_hash,
     };
 
-    let updated_user = UpdateUserPasswordQuery::run(conn, user_id, update_data)
+    let updated_user = UpdateUserPasswordQuery::run(main_conn, user_id, update_data)
       .await
       .map_err(UserError::DatabaseError)?;
 
@@ -64,12 +64,12 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_update_password_success() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
-    let mut conn = main_pool.acquire().await.unwrap();
-    let user = CreateUserService::run(&mut conn, "testuser", "oldpassword123")
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let user = CreateUserService::run(&mut main_conn, "testuser", "oldpassword123")
       .await
       .unwrap();
     let updated_user = UpdateUserPasswordService::run(
-      &mut conn,
+      &mut main_conn,
       user.id,
       "oldpassword123",
       "newpassword456",
@@ -94,12 +94,12 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_update_password_invalid_current_password() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
-    let mut conn = main_pool.acquire().await.unwrap();
-    let user = CreateUserService::run(&mut conn, "testuser", "correctpassword")
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let user = CreateUserService::run(&mut main_conn, "testuser", "correctpassword")
       .await
       .unwrap();
     let result = UpdateUserPasswordService::run(
-      &mut conn,
+      &mut main_conn,
       user.id,
       "wrongpassword",
       "newpassword456",
@@ -119,12 +119,12 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_update_password_password_confirmation_mismatch() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
-    let mut conn = main_pool.acquire().await.unwrap();
-    let user = CreateUserService::run(&mut conn, "testuser", "currentpassword")
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let user = CreateUserService::run(&mut main_conn, "testuser", "currentpassword")
       .await
       .unwrap();
     let result = UpdateUserPasswordService::run(
-      &mut conn,
+      &mut main_conn,
       user.id,
       "currentpassword",
       "newpassword456",
@@ -144,12 +144,13 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_update_password_invalid_new_password() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
-    let mut conn = main_pool.acquire().await.unwrap();
-    let user = CreateUserService::run(&mut conn, "testuser", "currentpassword")
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let user = CreateUserService::run(&mut main_conn, "testuser", "currentpassword")
       .await
       .unwrap();
     let result =
-      UpdateUserPasswordService::run(&mut conn, user.id, "currentpassword", "123", "123").await;
+      UpdateUserPasswordService::run(&mut main_conn, user.id, "currentpassword", "123", "123")
+        .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -162,9 +163,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_password_nonexistent_user() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
     let result = UpdateUserPasswordService::run(
-      &mut conn,
+      &mut main_conn,
       999,
       "anypassword",
       "newpassword456",

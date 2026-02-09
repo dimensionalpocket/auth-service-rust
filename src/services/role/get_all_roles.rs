@@ -6,8 +6,8 @@ use sqlx::SqliteConnection;
 pub struct GetAllRolesService;
 
 impl GetAllRolesService {
-  pub async fn run(conn: &mut SqliteConnection) -> Result<Vec<Role>, RoleError> {
-    GetAllRolesQuery::run(conn)
+  pub async fn run(main_conn: &mut SqliteConnection) -> Result<Vec<Role>, RoleError> {
+    GetAllRolesQuery::run(main_conn)
       .await
       .map_err(RoleError::DatabaseError)
   }
@@ -31,8 +31,8 @@ mod tests {
     .await;
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    let roles = GetAllRolesService::run(&mut conn).await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let roles = GetAllRolesService::run(&mut main_conn).await.unwrap();
 
     assert_eq!(roles.len(), 2);
 
@@ -48,9 +48,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_all_roles_empty_table() {
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
 
-    let roles = GetAllRolesService::run(&mut conn).await.unwrap();
+    let roles = GetAllRolesService::run(&mut main_conn).await.unwrap();
     assert_eq!(roles.len(), 0);
   }
 }

@@ -4,9 +4,12 @@ use sqlx::{Connection, Row, SqliteConnection};
 pub struct SetDefaultRoleQuery;
 
 impl SetDefaultRoleQuery {
-  pub async fn run(conn: &mut SqliteConnection, role_id: i64) -> Result<Option<Role>, sqlx::Error> {
+  pub async fn run(
+    main_conn: &mut SqliteConnection,
+    role_id: i64,
+  ) -> Result<Option<Role>, sqlx::Error> {
     // Use a transaction for atomic operation
-    let mut tx = conn.begin().await?;
+    let mut tx = main_conn.begin().await?;
 
     // First verify the role exists
     let role_exists = sqlx::query("SELECT COUNT(*) FROM roles WHERE id = ?")
@@ -41,7 +44,7 @@ impl SetDefaultRoleQuery {
             "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?"
         )
         .bind(role_id)
-        .fetch_one(&mut *conn)
+        .fetch_one(&mut *main_conn)
         .await?;
 
     let permissions_json: Option<String> = row.try_get("permissions_json")?;
@@ -72,8 +75,10 @@ mod tests {
     let role2_id = create_test_role_with_databases(&databases, "role2", &[]).await;
 
     // Set role1 as default
-    let mut conn = main_pool.acquire().await.unwrap();
-    let result = SetDefaultRoleQuery::run(&mut conn, role1_id).await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let result = SetDefaultRoleQuery::run(&mut main_conn, role1_id)
+      .await
+      .unwrap();
 
     assert!(result.is_some());
     let updated_role = result.unwrap();
@@ -85,7 +90,7 @@ mod tests {
             "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?"
         )
         .bind(role2_id)
-        .fetch_one(&mut *conn)
+        .fetch_one(&mut *main_conn)
         .await
         .unwrap();
     let permissions_json: Option<String> = role2_row.try_get("permissions_json").unwrap();
@@ -111,11 +116,15 @@ mod tests {
     let role2_id = create_test_role_with_databases(&databases, "role2", &[]).await;
 
     // Set role1 as default first
-    let mut conn = main_pool.acquire().await.unwrap();
-    SetDefaultRoleQuery::run(&mut conn, role1_id).await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    SetDefaultRoleQuery::run(&mut main_conn, role1_id)
+      .await
+      .unwrap();
 
     // Then set role2 as default
-    let result = SetDefaultRoleQuery::run(&mut conn, role2_id).await.unwrap();
+    let result = SetDefaultRoleQuery::run(&mut main_conn, role2_id)
+      .await
+      .unwrap();
 
     assert!(result.is_some());
     let updated_role2 = result.unwrap();
@@ -127,7 +136,7 @@ mod tests {
             "SELECT id, name, created_ts, updated_ts, is_default, permissions_json FROM roles WHERE id = ?"
         )
         .bind(role1_id)
-        .fetch_one(&mut *conn)
+        .fetch_one(&mut *main_conn)
         .await
         .unwrap();
     let permissions_json: Option<String> = role1_row.try_get("permissions_json").unwrap();
@@ -147,7 +156,7 @@ mod tests {
 
     // Verify only one default role exists
     let default_count = sqlx::query("SELECT COUNT(*) FROM roles WHERE is_default = TRUE")
-      .fetch_one(&mut *conn)
+      .fetch_one(&mut *main_conn)
       .await
       .unwrap()
       .get::<i64, _>(0);
@@ -157,8 +166,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_set_default_role_not_found() {
     // Try to set non-existent role as default
-    let mut conn = main_pool.acquire().await.unwrap();
-    let result = SetDefaultRoleQuery::run(&mut conn, 999).await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let result = SetDefaultRoleQuery::run(&mut main_conn, 999).await.unwrap();
 
     assert!(result.is_none());
   }
@@ -195,8 +204,10 @@ mod tests {
     tokio::time::sleep(tokio::time::Duration::from_millis(1050)).await;
 
     // Set role as default
-    let mut conn = main_pool.acquire().await.unwrap();
-    let result = SetDefaultRoleQuery::run(&mut conn, role_id).await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let result = SetDefaultRoleQuery::run(&mut main_conn, role_id)
+      .await
+      .unwrap();
 
     assert!(result.is_some());
     let updated_role = result.unwrap();

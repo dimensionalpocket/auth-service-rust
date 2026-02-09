@@ -4,12 +4,15 @@ use sqlx::SqliteConnection;
 pub struct GetUserByIdQuery;
 
 impl GetUserByIdQuery {
-  pub async fn run(conn: &mut SqliteConnection, user_id: i64) -> Result<Option<User>, sqlx::Error> {
+  pub async fn run(
+    main_conn: &mut SqliteConnection,
+    user_id: i64,
+  ) -> Result<Option<User>, sqlx::Error> {
     sqlx::query_as::<_, User>(
       "SELECT id, uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json FROM users WHERE id = ?"
     )
     .bind(user_id)
-    .fetch_optional(&mut *conn)
+    .fetch_optional(&mut *main_conn)
     .await
   }
 }
@@ -44,8 +47,10 @@ mod tests {
       .await
       .unwrap()
       .last_insert_rowid();
-    let mut conn = main_pool.acquire().await.unwrap();
-    let user = GetUserByIdQuery::run(&mut conn, user_id).await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let user = GetUserByIdQuery::run(&mut main_conn, user_id)
+      .await
+      .unwrap();
 
     assert!(user.is_some());
     let user = user.unwrap();
@@ -59,8 +64,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_user_by_id_not_found() {
-    let mut conn = main_pool.acquire().await.unwrap();
-    let user = GetUserByIdQuery::run(&mut conn, 999).await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let user = GetUserByIdQuery::run(&mut main_conn, 999).await.unwrap();
 
     assert!(user.is_none());
   }

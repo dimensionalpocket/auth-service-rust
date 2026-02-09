@@ -12,12 +12,12 @@ pub struct UpdateUserService;
 
 impl UpdateUserService {
   pub async fn run(
-    conn: &mut SqliteConnection,
+    main_conn: &mut SqliteConnection,
     user_id: i64,
     mut update_data: UpdateUserData,
     password: Option<String>,
   ) -> Result<User, UserError> {
-    let current_user = GetUserByIdQuery::run(conn, user_id)
+    let current_user = GetUserByIdQuery::run(main_conn, user_id)
       .await
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
@@ -26,7 +26,7 @@ impl UpdateUserService {
       ValidateUserNameService::run(name)?;
 
       if name != &current_user.name {
-        if let Some(_existing_user) = GetUserByNameQuery::run(conn, name).await? {
+        if let Some(_existing_user) = GetUserByNameQuery::run(main_conn, name).await? {
           return Err(UserError::UsernameAlreadyExists(name.to_string()));
         }
       }
@@ -38,7 +38,7 @@ impl UpdateUserService {
       update_data.password_hash = Some(password_hash);
     }
 
-    UpdateUserQuery::run(conn, update_data)
+    UpdateUserQuery::run(main_conn, update_data)
       .await
       .map_err(UserError::DatabaseError)
   }
@@ -57,7 +57,7 @@ mod tests {
   async fn test_update_user_success_name_only() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -65,7 +65,9 @@ mod tests {
       password_hash: GeneratePasswordHashService::run("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut main_conn, create_data)
+      .await
+      .unwrap();
 
     let update_data = UpdateUserData {
       id: user.id,
@@ -75,7 +77,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserService::run(&mut conn, user.id, update_data, None).await;
+    let result = UpdateUserService::run(&mut main_conn, user.id, update_data, None).await;
     assert!(result.is_ok());
 
     let updated_user = result.unwrap();
@@ -91,7 +93,7 @@ mod tests {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
     let admin_role_id = create_test_role_with_databases(&databases, "admin", &["is_admin"]).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -99,7 +101,9 @@ mod tests {
       password_hash: GeneratePasswordHashService::run("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut main_conn, create_data)
+      .await
+      .unwrap();
 
     let update_data = UpdateUserData {
       id: user.id,
@@ -109,7 +113,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserService::run(&mut conn, user.id, update_data, None).await;
+    let result = UpdateUserService::run(&mut main_conn, user.id, update_data, None).await;
     assert!(result.is_ok());
 
     let updated_user = result.unwrap();
@@ -124,7 +128,7 @@ mod tests {
   async fn test_update_user_success_password_only() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -132,7 +136,9 @@ mod tests {
       password_hash: GeneratePasswordHashService::run("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut main_conn, create_data)
+      .await
+      .unwrap();
 
     let update_data = UpdateUserData {
       id: user.id,
@@ -143,7 +149,7 @@ mod tests {
     };
 
     let result = UpdateUserService::run(
-      &mut conn,
+      &mut main_conn,
       user.id,
       update_data,
       Some("newpassword123".to_string()),
@@ -163,7 +169,7 @@ mod tests {
   async fn test_update_user_success_metadata_only() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -171,7 +177,9 @@ mod tests {
       password_hash: GeneratePasswordHashService::run("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut main_conn, create_data)
+      .await
+      .unwrap();
 
     let update_data = UpdateUserData {
       id: user.id,
@@ -181,7 +189,7 @@ mod tests {
       metadata_json: Some(Some(r#"{"key": "value"}"#.to_string())),
     };
 
-    let result = UpdateUserService::run(&mut conn, user.id, update_data, None).await;
+    let result = UpdateUserService::run(&mut main_conn, user.id, update_data, None).await;
     assert!(result.is_ok());
 
     let updated_user = result.unwrap();
@@ -200,7 +208,7 @@ mod tests {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
     let admin_role_id = create_test_role_with_databases(&databases, "admin", &["is_admin"]).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -208,7 +216,9 @@ mod tests {
       password_hash: GeneratePasswordHashService::run("password123").unwrap(),
       metadata_json: Some(r#"{"old": "data"}"#.to_string()),
     };
-    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut main_conn, create_data)
+      .await
+      .unwrap();
 
     let update_data = UpdateUserData {
       id: user.id,
@@ -218,7 +228,7 @@ mod tests {
       metadata_json: Some(None),
     };
 
-    let result = UpdateUserService::run(&mut conn, user.id, update_data, None).await;
+    let result = UpdateUserService::run(&mut main_conn, user.id, update_data, None).await;
     assert!(result.is_ok());
 
     let updated_user = result.unwrap();
@@ -234,7 +244,7 @@ mod tests {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
     let admin_role_id = create_test_role_with_databases(&databases, "admin", &["is_admin"]).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -242,7 +252,9 @@ mod tests {
       password_hash: GeneratePasswordHashService::run("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut main_conn, create_data)
+      .await
+      .unwrap();
 
     let update_data = UpdateUserData {
       id: user.id,
@@ -253,7 +265,7 @@ mod tests {
     };
 
     let result = UpdateUserService::run(
-      &mut conn,
+      &mut main_conn,
       user.id,
       update_data,
       Some("newpassword123".to_string()),
@@ -276,7 +288,7 @@ mod tests {
   async fn test_update_user_no_updates() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -284,7 +296,9 @@ mod tests {
       password_hash: GeneratePasswordHashService::run("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut main_conn, create_data)
+      .await
+      .unwrap();
 
     let update_data = UpdateUserData {
       id: user.id,
@@ -294,7 +308,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserService::run(&mut conn, user.id, update_data, None).await;
+    let result = UpdateUserService::run(&mut main_conn, user.id, update_data, None).await;
     assert!(result.is_ok());
 
     let updated_user = result.unwrap();
@@ -314,8 +328,8 @@ mod tests {
       metadata_json: None,
     };
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    let result = UpdateUserService::run(&mut conn, 999, update_data, None).await;
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let result = UpdateUserService::run(&mut main_conn, 999, update_data, None).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::UserNotFound(user_id) => {
@@ -329,7 +343,7 @@ mod tests {
   async fn test_update_user_username_validation_empty() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -337,7 +351,9 @@ mod tests {
       password_hash: GeneratePasswordHashService::run("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut main_conn, create_data)
+      .await
+      .unwrap();
 
     let update_data = UpdateUserData {
       id: user.id,
@@ -347,7 +363,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserService::run(&mut conn, user.id, update_data, None).await;
+    let result = UpdateUserService::run(&mut main_conn, user.id, update_data, None).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::ValidationError(msg) => {
@@ -361,7 +377,7 @@ mod tests {
   async fn test_update_user_username_validation_too_short() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -369,7 +385,9 @@ mod tests {
       password_hash: GeneratePasswordHashService::run("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut main_conn, create_data)
+      .await
+      .unwrap();
 
     let update_data = UpdateUserData {
       id: user.id,
@@ -379,7 +397,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserService::run(&mut conn, user.id, update_data, None).await;
+    let result = UpdateUserService::run(&mut main_conn, user.id, update_data, None).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::ValidationError(msg) => {
@@ -393,7 +411,7 @@ mod tests {
   async fn test_update_user_username_validation_too_long() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -401,7 +419,9 @@ mod tests {
       password_hash: GeneratePasswordHashService::run("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut main_conn, create_data)
+      .await
+      .unwrap();
 
     let long_name = "a".repeat(21);
     let update_data = UpdateUserData {
@@ -412,7 +432,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserService::run(&mut conn, user.id, update_data, None).await;
+    let result = UpdateUserService::run(&mut main_conn, user.id, update_data, None).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::ValidationError(msg) => {
@@ -426,7 +446,7 @@ mod tests {
   async fn test_update_user_username_validation_invalid_chars() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
     let create_data = CreateUserData {
       uuid: "test-uuid".to_string(),
       name: "testuser".to_string(),
@@ -434,7 +454,9 @@ mod tests {
       password_hash: GeneratePasswordHashService::run("password123").unwrap(),
       metadata_json: None,
     };
-    let user = CreateUserQuery::run(&mut conn, create_data).await.unwrap();
+    let user = CreateUserQuery::run(&mut main_conn, create_data)
+      .await
+      .unwrap();
 
     let update_data = UpdateUserData {
       id: user.id,
@@ -444,7 +466,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserService::run(&mut conn, user.id, update_data, None).await;
+    let result = UpdateUserService::run(&mut main_conn, user.id, update_data, None).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::ValidationError(msg) => {
@@ -460,9 +482,9 @@ mod tests {
   async fn test_update_user_username_already_exists() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
     let user1 = CreateUserQuery::run(
-      &mut conn,
+      &mut main_conn,
       CreateUserData {
         uuid: "test-uuid-1".to_string(),
         name: "testuser1".to_string(),
@@ -475,7 +497,7 @@ mod tests {
     .unwrap();
 
     CreateUserQuery::run(
-      &mut conn,
+      &mut main_conn,
       CreateUserData {
         uuid: "test-uuid-2".to_string(),
         name: "testuser2".to_string(),
@@ -495,7 +517,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserService::run(&mut conn, user1.id, update_data, None).await;
+    let result = UpdateUserService::run(&mut main_conn, user1.id, update_data, None).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::UsernameAlreadyExists(username) => {
@@ -509,8 +531,8 @@ mod tests {
   async fn test_update_user_password_validation_too_short() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    let user = CreateUserService::run(&mut conn, "testuser", "password123")
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let user = CreateUserService::run(&mut main_conn, "testuser", "password123")
       .await
       .unwrap();
 
@@ -522,8 +544,13 @@ mod tests {
       metadata_json: None,
     };
 
-    let result =
-      UpdateUserService::run(&mut conn, user.id, update_data, Some("123".to_string())).await;
+    let result = UpdateUserService::run(
+      &mut main_conn,
+      user.id,
+      update_data,
+      Some("123".to_string()),
+    )
+    .await;
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::ValidationError(msg) => {
@@ -537,8 +564,8 @@ mod tests {
   async fn test_update_user_password_validation_too_long() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    let user = CreateUserService::run(&mut conn, "testuser", "password123")
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let user = CreateUserService::run(&mut main_conn, "testuser", "password123")
       .await
       .unwrap();
 
@@ -551,7 +578,7 @@ mod tests {
     };
 
     let result =
-      UpdateUserService::run(&mut conn, user.id, update_data, Some("a".repeat(129))).await;
+      UpdateUserService::run(&mut main_conn, user.id, update_data, Some("a".repeat(129))).await;
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::ValidationError(msg) => {
@@ -565,8 +592,8 @@ mod tests {
   async fn test_update_user_same_username_no_conflict() {
     create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    let user = CreateUserService::run(&mut conn, "testuser", "password123")
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let user = CreateUserService::run(&mut main_conn, "testuser", "password123")
       .await
       .unwrap();
 
@@ -578,7 +605,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserService::run(&mut conn, user.id, update_data, None).await;
+    let result = UpdateUserService::run(&mut main_conn, user.id, update_data, None).await;
     assert!(result.is_ok());
 
     let updated_user = result.unwrap();

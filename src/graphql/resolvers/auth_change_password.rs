@@ -102,17 +102,17 @@ mod tests {
   ];
 
   async fn create_authenticated_session(
-    conn: &mut SqliteConnection,
+    main_conn: &mut SqliteConnection,
     username: &str,
     password: &str,
   ) -> (SessionContext, i64) {
     // Create user
-    let user = CreateUserService::run(conn, username, password)
+    let user = CreateUserService::run(main_conn, username, password)
       .await
       .unwrap();
 
     // Create session (we don't need the result for this test)
-    let _auth_result = AuthLoginService::run(conn, username, password, TEST_SECRET)
+    let _auth_result = AuthLoginService::run(main_conn, username, password, TEST_SECRET)
       .await
       .unwrap();
 
@@ -131,9 +131,9 @@ mod tests {
   async fn test_auth_change_password_success() {
     // Setup: Create authenticated user
     let session_context = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      create_test_role_model_with_conn(&mut conn, "user", &["can_view_user_self"], true).await;
-      create_authenticated_session(&mut conn, "testuser", "oldpassword123")
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      create_test_role_model_with_conn(&mut main_conn, "user", &["can_view_user_self"], true).await;
+      create_authenticated_session(&mut main_conn, "testuser", "oldpassword123")
         .await
         .0
     };
@@ -180,9 +180,9 @@ mod tests {
   async fn test_auth_change_password_invalid_current_password() {
     // Setup: Create authenticated user
     let session_context = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      create_test_role_model_with_conn(&mut conn, "user", &["can_view_user_self"], true).await;
-      create_authenticated_session(&mut conn, "testuser", "correctpassword")
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      create_test_role_model_with_conn(&mut main_conn, "user", &["can_view_user_self"], true).await;
+      create_authenticated_session(&mut main_conn, "testuser", "correctpassword")
         .await
         .0
     };
@@ -219,9 +219,9 @@ mod tests {
   async fn test_auth_change_password_password_confirmation_mismatch() {
     // Setup: Create authenticated user
     let session_context = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      create_test_role_model_with_conn(&mut conn, "user", &["can_view_user_self"], true).await;
-      create_authenticated_session(&mut conn, "testuser", "currentpassword")
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      create_test_role_model_with_conn(&mut main_conn, "user", &["can_view_user_self"], true).await;
+      create_authenticated_session(&mut main_conn, "testuser", "currentpassword")
         .await
         .0
     };
@@ -287,9 +287,9 @@ mod tests {
   async fn test_auth_change_password_invalid_new_password() {
     // Setup: Create authenticated user
     let session_context = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      create_test_role_model_with_conn(&mut conn, "user", &["can_view_user_self"], true).await;
-      create_authenticated_session(&mut conn, "testuser", "currentpassword")
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      create_test_role_model_with_conn(&mut main_conn, "user", &["can_view_user_self"], true).await;
+      create_authenticated_session(&mut main_conn, "testuser", "currentpassword")
         .await
         .0
     };

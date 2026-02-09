@@ -29,26 +29,26 @@ impl UpdateRoleOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
-    let mut conn = main_pool
+    let mut main_conn = main_pool
       .acquire()
       .await
       .map_err(RoleError::DatabaseError)?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(&mut conn, user_id)
+    let user = GetUserByIdQuery::run(&mut main_conn, user_id)
       .await
       .map_err(RoleError::DatabaseError)?
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
     let can_manage_roles =
-      CheckUserPermissionService::run(&mut conn, &user, "can_manage_roles").await?;
+      CheckUserPermissionService::run(&mut main_conn, &user, "can_manage_roles").await?;
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Update role
-    UpdateRoleService::run(&mut conn, role_id, update_data).await
+    UpdateRoleService::run(&mut main_conn, role_id, update_data).await
   }
 }
 

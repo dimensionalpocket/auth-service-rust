@@ -30,7 +30,7 @@ impl UpdateUserPasswordQuery {
   /// * Returns error if user_id doesn't exist
   /// * Returns error if database operation fails
   pub async fn run(
-    conn: &mut SqliteConnection,
+    main_conn: &mut SqliteConnection,
     user_id: i64,
     data: UpdateUserPasswordData,
   ) -> Result<User, sqlx::Error> {
@@ -47,7 +47,7 @@ impl UpdateUserPasswordQuery {
       .bind(&data.password_hash)
       .bind(current_timestamp)
       .bind(user_id)
-      .fetch_one(&mut *conn)
+      .fetch_one(&mut *main_conn)
       .await?;
 
     Ok(user)
@@ -86,8 +86,8 @@ mod tests {
       password_hash: new_password_hash,
     };
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    let updated_user = UpdateUserPasswordQuery::run(&mut conn, user.id, update_data)
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let updated_user = UpdateUserPasswordQuery::run(&mut main_conn, user.id, update_data)
       .await
       .unwrap();
 
@@ -105,8 +105,8 @@ mod tests {
       password_hash: GeneratePasswordHashService::run("newpassword").unwrap(),
     };
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    let result = UpdateUserPasswordQuery::run(&mut conn, 999, update_data).await;
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let result = UpdateUserPasswordQuery::run(&mut main_conn, 999, update_data).await;
 
     // Verify: Should return error
     assert!(result.is_err());
@@ -130,8 +130,8 @@ mod tests {
       password_hash: GeneratePasswordHashService::run("newpassword").unwrap(),
     };
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    let updated_user = UpdateUserPasswordQuery::run(&mut conn, user.id, update_data)
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let updated_user = UpdateUserPasswordQuery::run(&mut main_conn, user.id, update_data)
       .await
       .unwrap();
 

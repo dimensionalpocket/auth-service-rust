@@ -20,24 +20,24 @@ impl GetUserOrchestrator {
       ))?;
 
     let main_pool = databases.main();
-    let mut conn = main_pool
+    let mut main_conn = main_pool
       .acquire()
       .await
       .map_err(UserError::DatabaseError)?;
 
-    let user = GetUserByIdQuery::run(&mut conn, user_id)
+    let user = GetUserByIdQuery::run(&mut main_conn, user_id)
       .await
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(user_id))?;
 
     let allowed =
-      CheckUserPermissionService::run(&mut conn, &user, "can_view_user_details").await?;
+      CheckUserPermissionService::run(&mut main_conn, &user, "can_view_user_details").await?;
 
     if !allowed {
       return Err(UserError::AuthorizationError("Forbidden".to_string()));
     }
 
-    GetUserByIdWithRoleQuery::run(&mut conn, target_user_id)
+    GetUserByIdWithRoleQuery::run(&mut main_conn, target_user_id)
       .await
       .map_err(UserError::DatabaseError)?
       .ok_or(UserError::UserNotFound(target_user_id))

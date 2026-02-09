@@ -120,8 +120,10 @@ mod tests {
       metadata_json: Some(r#"{"description": "Test site"}"#.to_string()),
     };
     let site = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      CreateSiteQuery::run(&mut conn, create_data).await.unwrap()
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      CreateSiteQuery::run(&mut main_conn, create_data)
+        .await
+        .unwrap()
     };
 
     // Create session context for admin user

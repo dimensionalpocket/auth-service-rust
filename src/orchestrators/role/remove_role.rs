@@ -27,26 +27,26 @@ impl RemoveRoleOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
-    let mut conn = main_pool
+    let mut main_conn = main_pool
       .acquire()
       .await
       .map_err(RoleError::DatabaseError)?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(&mut conn, user_id)
+    let user = GetUserByIdQuery::run(&mut main_conn, user_id)
       .await
       .map_err(RoleError::DatabaseError)?
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
     let can_manage_roles =
-      CheckUserPermissionService::run(&mut conn, &user, "can_manage_roles").await?;
+      CheckUserPermissionService::run(&mut main_conn, &user, "can_manage_roles").await?;
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Delete role
-    DeleteRoleService::run(&mut conn, role_id).await
+    DeleteRoleService::run(&mut main_conn, role_id).await
   }
 }
 
@@ -88,8 +88,8 @@ mod tests {
     assert_eq!(deleted_role.name, "test_role");
 
     // Verify role is actually deleted
-    let mut conn = main_pool.acquire().await.unwrap();
-    let check_result = GetRoleByIdService::run(&mut conn, test_role_id).await;
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let check_result = GetRoleByIdService::run(&mut main_conn, test_role_id).await;
     assert!(check_result.is_ok());
     assert!(check_result.unwrap().is_none());
   }
@@ -230,15 +230,15 @@ mod tests {
 
     // Verify the user still exists and has the role
     let check_user = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      GetUserByIdQuery::run(&mut conn, user_with_role.id).await
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      GetUserByIdQuery::run(&mut main_conn, user_with_role.id).await
     };
     assert!(check_user.is_ok());
     assert!(check_user.unwrap().is_some());
 
     // Verify the role still exists
-    let mut conn = main_pool.acquire().await.unwrap();
-    let check_role = GetRoleByIdService::run(&mut conn, test_role_id).await;
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let check_role = GetRoleByIdService::run(&mut main_conn, test_role_id).await;
     assert!(check_role.is_ok());
     assert!(check_role.unwrap().is_some());
   }
@@ -260,8 +260,8 @@ mod tests {
 
     // Get the role data before deletion for comparison
     let role_before = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      GetRoleByIdService::run(&mut conn, test_role_id)
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      GetRoleByIdService::run(&mut main_conn, test_role_id)
         .await
         .unwrap()
         .unwrap()

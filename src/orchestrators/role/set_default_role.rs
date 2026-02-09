@@ -27,26 +27,26 @@ impl SetDefaultRoleOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
-    let mut conn = main_pool
+    let mut main_conn = main_pool
       .acquire()
       .await
       .map_err(RoleError::DatabaseError)?;
 
     // Authorization: Get user and check permissions
-    let user = GetUserByIdQuery::run(&mut conn, user_id)
+    let user = GetUserByIdQuery::run(&mut main_conn, user_id)
       .await
       .map_err(RoleError::DatabaseError)?
       .ok_or(RoleError::AuthenticationError("User not found".to_string()))?;
 
     let can_manage_roles =
-      CheckUserPermissionService::run(&mut conn, &user, "can_manage_roles").await?;
+      CheckUserPermissionService::run(&mut main_conn, &user, "can_manage_roles").await?;
 
     if !can_manage_roles {
       return Err(RoleError::AuthorizationError("Forbidden".to_string()));
     }
 
     // Business logic: Set default role
-    SetDefaultRoleService::run(&mut conn, role_id).await
+    SetDefaultRoleService::run(&mut main_conn, role_id).await
   }
 }
 
@@ -221,8 +221,8 @@ mod tests {
 
     // Verify only role1 is default
     {
-      let mut conn = main_pool.acquire().await.unwrap();
-      let all_roles = GetAllRolesService::run(&mut conn).await.unwrap();
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      let all_roles = GetAllRolesService::run(&mut main_conn).await.unwrap();
       let default_roles: Vec<_> = all_roles.iter().filter(|r| r.is_default).collect();
       assert_eq!(default_roles.len(), 1);
       assert_eq!(default_roles[0].id, role1_id);
@@ -240,8 +240,8 @@ mod tests {
 
     // Verify only role2 is default now
     {
-      let mut conn = main_pool.acquire().await.unwrap();
-      let all_roles = GetAllRolesService::run(&mut conn).await.unwrap();
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      let all_roles = GetAllRolesService::run(&mut main_conn).await.unwrap();
       let default_roles: Vec<_> = all_roles.iter().filter(|r| r.is_default).collect();
       assert_eq!(default_roles.len(), 1);
       assert_eq!(default_roles[0].id, role2_id);
@@ -249,8 +249,10 @@ mod tests {
 
     // Verify role1 is no longer default
     {
-      let mut conn = main_pool.acquire().await.unwrap();
-      let current_role1 = GetRoleByIdService::run(&mut conn, role1_id).await.unwrap();
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      let current_role1 = GetRoleByIdService::run(&mut main_conn, role1_id)
+        .await
+        .unwrap();
       assert!(current_role1.is_some());
       assert!(!current_role1.unwrap().is_default);
     }
@@ -266,8 +268,8 @@ mod tests {
 
     // Verify only role3 is default now
     {
-      let mut conn = main_pool.acquire().await.unwrap();
-      let all_roles = GetAllRolesService::run(&mut conn).await.unwrap();
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      let all_roles = GetAllRolesService::run(&mut main_conn).await.unwrap();
       let default_roles: Vec<_> = all_roles.iter().filter(|r| r.is_default).collect();
       assert_eq!(default_roles.len(), 1);
       assert_eq!(default_roles[0].id, role3_id);
@@ -275,8 +277,10 @@ mod tests {
 
     // Verify role2 is no longer default
     {
-      let mut conn = main_pool.acquire().await.unwrap();
-      let current_role2 = GetRoleByIdService::run(&mut conn, role2_id).await.unwrap();
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      let current_role2 = GetRoleByIdService::run(&mut main_conn, role2_id)
+        .await
+        .unwrap();
       assert!(current_role2.is_some());
       assert!(!current_role2.unwrap().is_default);
     }
@@ -295,8 +299,8 @@ mod tests {
 
     // Get role before setting as default to compare timestamps
     let role_before = {
-      let mut conn = main_pool.acquire().await.unwrap();
-      GetRoleByIdService::run(&mut conn, test_role_id)
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      GetRoleByIdService::run(&mut main_conn, test_role_id)
         .await
         .unwrap()
         .unwrap()

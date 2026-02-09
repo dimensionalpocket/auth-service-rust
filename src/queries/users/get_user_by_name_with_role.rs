@@ -8,7 +8,7 @@ impl GetUserByNameWithRoleQuery {
   /// Execute query to get a user with their role information by username
   ///
   /// # Arguments
-  /// * `conn` - Database connection
+  /// * `main_conn` - Database connection
   /// * `name` - The username of user to retrieve
   ///
   /// # Returns
@@ -16,7 +16,7 @@ impl GetUserByNameWithRoleQuery {
   /// * `Ok(None)` - User not found
   /// * `Err(sqlx::Error)` - Database error occurred
   pub async fn run(
-    conn: &mut SqliteConnection,
+    main_conn: &mut SqliteConnection,
     name: &str,
   ) -> Result<Option<UserWithRole>, sqlx::Error> {
     let row = sqlx::query(
@@ -35,7 +35,7 @@ impl GetUserByNameWithRoleQuery {
       "#
     )
     .bind(name)
-    .fetch_optional(&mut *conn)
+    .fetch_optional(&mut *main_conn)
     .await?;
 
     if let Some(row) = row {
@@ -84,8 +84,8 @@ mod tests {
     let user = create_test_user_with_databases(&databases, "testuser", role_id).await;
 
     // Query user with role
-    let mut conn = main_pool.acquire().await.unwrap();
-    let result = GetUserByNameWithRoleQuery::run(&mut conn, "testuser")
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let result = GetUserByNameWithRoleQuery::run(&mut main_conn, "testuser")
       .await
       .unwrap();
 
@@ -100,8 +100,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_user_by_name_with_role_not_found() {
     // Query non-existent user
-    let mut conn = main_pool.acquire().await.unwrap();
-    let result = GetUserByNameWithRoleQuery::run(&mut conn, "nonexistent")
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let result = GetUserByNameWithRoleQuery::run(&mut main_conn, "nonexistent")
       .await
       .unwrap();
 
@@ -115,14 +115,14 @@ mod tests {
     create_test_user_with_databases(&databases, "TestUser", role_id).await;
 
     // Query with different cases
-    let mut conn = main_pool.acquire().await.unwrap();
-    let result_lower = GetUserByNameWithRoleQuery::run(&mut conn, "testuser")
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let result_lower = GetUserByNameWithRoleQuery::run(&mut main_conn, "testuser")
       .await
       .unwrap();
-    let result_upper = GetUserByNameWithRoleQuery::run(&mut conn, "TESTUSER")
+    let result_upper = GetUserByNameWithRoleQuery::run(&mut main_conn, "TESTUSER")
       .await
       .unwrap();
-    let result_mixed = GetUserByNameWithRoleQuery::run(&mut conn, "tEsTuSeR")
+    let result_mixed = GetUserByNameWithRoleQuery::run(&mut main_conn, "tEsTuSeR")
       .await
       .unwrap();
 
@@ -144,8 +144,8 @@ mod tests {
     let _user = create_test_user_with_databases(&databases, "adminuser", role_id).await;
 
     // Query user with role
-    let mut conn = main_pool.acquire().await.unwrap();
-    let result = GetUserByNameWithRoleQuery::run(&mut conn, "adminuser")
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let result = GetUserByNameWithRoleQuery::run(&mut main_conn, "adminuser")
       .await
       .unwrap();
 

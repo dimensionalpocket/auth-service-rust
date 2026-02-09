@@ -4,12 +4,15 @@ use sqlx::SqliteConnection;
 pub struct GetUserByNameQuery;
 
 impl GetUserByNameQuery {
-  pub async fn run(conn: &mut SqliteConnection, name: &str) -> Result<Option<User>, sqlx::Error> {
+  pub async fn run(
+    main_conn: &mut SqliteConnection,
+    name: &str,
+  ) -> Result<Option<User>, sqlx::Error> {
     sqlx::query_as::<_, User>(
       "SELECT id, uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json FROM users WHERE name = ? COLLATE NOCASE"
     )
     .bind(name)
-    .fetch_optional(&mut *conn)
+    .fetch_optional(&mut *main_conn)
     .await
   }
 }
@@ -44,8 +47,8 @@ mod tests {
       .await
       .unwrap();
 
-    let mut conn = main_pool.acquire().await.unwrap();
-    let user = GetUserByNameQuery::run(&mut conn, "TestUser")
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let user = GetUserByNameQuery::run(&mut main_conn, "TestUser")
       .await
       .unwrap();
 
@@ -81,14 +84,14 @@ mod tests {
       .unwrap();
 
     // Should find user regardless of case
-    let mut conn = main_pool.acquire().await.unwrap();
-    let user_lower = GetUserByNameQuery::run(&mut conn, "testuser")
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let user_lower = GetUserByNameQuery::run(&mut main_conn, "testuser")
       .await
       .unwrap();
-    let user_upper = GetUserByNameQuery::run(&mut conn, "TESTUSER")
+    let user_upper = GetUserByNameQuery::run(&mut main_conn, "TESTUSER")
       .await
       .unwrap();
-    let user_mixed = GetUserByNameQuery::run(&mut conn, "tEsTuSeR")
+    let user_mixed = GetUserByNameQuery::run(&mut main_conn, "tEsTuSeR")
       .await
       .unwrap();
 
@@ -103,8 +106,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_get_user_by_name_not_found() {
-    let mut conn = main_pool.acquire().await.unwrap();
-    let user = GetUserByNameQuery::run(&mut conn, "NonExistentUser")
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let user = GetUserByNameQuery::run(&mut main_conn, "NonExistentUser")
       .await
       .unwrap();
 

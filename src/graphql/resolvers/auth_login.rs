@@ -95,9 +95,9 @@ mod tests {
   async fn test_auth_login_calls_service_with_correct_parameters() {
     // Setup: Create a user
     {
-      let mut conn = main_pool.acquire().await.unwrap();
-      create_test_role_model_with_conn(&mut conn, "user", &["can_view_user_self"], true).await;
-      CreateUserService::run(&mut conn, "testuser", "password123")
+      let mut main_conn = main_pool.acquire().await.unwrap();
+      create_test_role_model_with_conn(&mut main_conn, "user", &["can_view_user_self"], true).await;
+      CreateUserService::run(&mut main_conn, "testuser", "password123")
         .await
         .unwrap();
     }
