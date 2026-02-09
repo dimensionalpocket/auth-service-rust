@@ -52,7 +52,9 @@ mod tests {
   async fn test_update_role_success() {
     let mut conn = main_pool.acquire().await.unwrap();
 
-    let role = create_test_role_model_with_conn(&mut conn, "test-role", &["can_view_user_self"], false).await;
+    let role =
+      create_test_role_model_with_conn(&mut conn, "test-role", &["can_view_user_self"], false)
+        .await;
     let role_id = role.id;
 
     let update_data = UpdateRoleData {
@@ -129,7 +131,9 @@ mod tests {
   async fn test_update_role_invalid_permission() {
     let mut conn = main_pool.acquire().await.unwrap();
 
-    let role = create_test_role_model_with_conn(&mut conn, "test-role", &["can_view_user_self"], false).await;
+    let role =
+      create_test_role_model_with_conn(&mut conn, "test-role", &["can_view_user_self"], false)
+        .await;
     let role_id = role.id;
 
     let update_data = UpdateRoleData {

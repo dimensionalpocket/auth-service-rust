@@ -16,11 +16,11 @@ mod tests {
 
   use super::*;
   use crate::services::user::create_user::CreateUserService;
-  use crate::test_utils::create_test_role_model_with_pool;
+  use crate::test_utils::create_test_role_model_with_databases;
 
   #[dps_auth_db_test]
   async fn test_get_user_by_id_query_works_correctly() {
-    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
     let mut conn = main_pool.acquire().await.unwrap();
     let user = CreateUserService::run(&mut conn, "testuser", "password123")

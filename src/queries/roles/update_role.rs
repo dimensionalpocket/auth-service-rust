@@ -86,13 +86,13 @@ mod tests {
 
   use super::*;
   use crate::models::ROLE_PERMISSIONS;
-  use crate::test_utils::create_test_role_model_with_pool;
+  use crate::test_utils::create_test_role_model_with_databases;
 
   #[dps_auth_db_test]
   async fn test_update_role_success() {
     // Create a role first
-    let role = create_test_role_model_with_pool(
-      &main_pool,
+    let role = create_test_role_model_with_databases(
+      &databases,
       "test-role",
       &["can_view_user_self", "can_list_users"],
       false,
@@ -134,8 +134,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_update_role_partial_update() {
     // Create a role first
-    let role = create_test_role_model_with_pool(
-      &main_pool,
+    let role = create_test_role_model_with_databases(
+      &databases,
       "partial-role",
       &["can_view_user_self", "can_list_users"],
       false,
@@ -173,8 +173,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_update_role_set_permissions_to_empty() {
     // Create a role first
-    let role = create_test_role_model_with_pool(
-      &main_pool,
+    let role = create_test_role_model_with_databases(
+      &databases,
       "empty-permissions-role",
       &["can_view_user_self"],
       false,
@@ -219,8 +219,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_update_role_no_changes() {
     // Create a role first
-    let role = create_test_role_model_with_pool(
-      &main_pool,
+    let role = create_test_role_model_with_databases(
+      &databases,
       "no-changes-role",
       &["can_view_user_self"],
       false,
@@ -252,8 +252,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_update_role_with_all_valid_permissions() {
     // Create a role first
-    let role = create_test_role_model_with_pool(
-      &main_pool,
+    let role = create_test_role_model_with_databases(
+      &databases,
       "all-permissions-role",
       &["can_view_user_self"],
       false,

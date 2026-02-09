@@ -51,9 +51,10 @@ mod tests {
   async fn test_get_current_user_with_role() {
     let mut conn = main_pool.acquire().await.unwrap();
 
-    let admin_role_id = create_test_role_model_with_conn(&mut conn, "admin", &["can_manage_users"], false)
-      .await
-      .id;
+    let admin_role_id =
+      create_test_role_model_with_conn(&mut conn, "admin", &["can_manage_users"], false)
+        .await
+        .id;
     let user = create_test_user_full_with_conn(
       &mut conn,
       "testuser",

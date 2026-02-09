@@ -13,7 +13,7 @@ use crate::models::{Role, User};
 use crate::queries::roles::{CreateRoleData, CreateRoleQuery, GetDefaultRoleQuery};
 use crate::queries::users::{CreateUserData, CreateUserQuery};
 use crate::services::GeneratePasswordHashService;
-use sqlx::{SqliteConnection, SqlitePool};
+use sqlx::SqliteConnection;
 use tempfile::NamedTempFile;
 use uuid::Uuid;
 
@@ -91,24 +91,34 @@ pub async fn create_test_databases_with_config_and_pool_size(
 }
 
 /// Create a test user with default password
-pub async fn create_test_user_with_pool(pool: &SqlitePool, username: &str, role_id: i64) -> User {
-  let mut conn = pool.acquire().await.unwrap();
+pub async fn create_test_user_with_databases(
+  databases: &Databases,
+  username: &str,
+  role_id: i64,
+) -> User {
+  let main_pool = databases.main();
+  let mut conn = main_pool.acquire().await.unwrap();
   create_test_user_with_conn(&mut conn, username, role_id).await
 }
 
 /// Create a test user with default password (takes connection)
-pub async fn create_test_user_with_conn(conn: &mut SqliteConnection, username: &str, role_id: i64) -> User {
+pub async fn create_test_user_with_conn(
+  conn: &mut SqliteConnection,
+  username: &str,
+  role_id: i64,
+) -> User {
   create_test_user_with_conn_and_password(conn, username, role_id, "password123").await
 }
 
 /// Create a test user with custom password
-pub async fn create_test_user_with_pool_and_password(
-  pool: &SqlitePool,
+pub async fn create_test_user_with_databases_and_password(
+  databases: &Databases,
   username: &str,
   role_id: i64,
   password: &str,
 ) -> User {
-  let mut conn = pool.acquire().await.unwrap();
+  let main_pool = databases.main();
+  let mut conn = main_pool.acquire().await.unwrap();
   create_test_user_with_conn_and_password(&mut conn, username, role_id, password).await
 }
 
@@ -123,14 +133,15 @@ pub async fn create_test_user_with_conn_and_password(
 }
 
 /// Create a test user with all parameters
-pub async fn create_test_user_full_with_pool(
-  pool: &SqlitePool,
+pub async fn create_test_user_full_with_databases(
+  databases: &Databases,
   username: &str,
   role_id: Option<i64>,
   password: &str,
   metadata_json: Option<serde_json::Value>,
 ) -> User {
-  let mut conn = pool.acquire().await.unwrap();
+  let main_pool = databases.main();
+  let mut conn = main_pool.acquire().await.unwrap();
   create_test_user_full_with_conn(&mut conn, username, role_id, password, metadata_json).await
 }
 
@@ -175,16 +186,18 @@ pub async fn create_test_user_full_with_conn(
 }
 
 /// Create a test user with all parameters including specific UUID
-pub async fn create_test_user_with_pool_and_uuid(
-  pool: &SqlitePool,
+pub async fn create_test_user_with_databases_and_uuid(
+  databases: &Databases,
   uuid: &str,
   username: &str,
   role_id: Option<i64>,
   password: &str,
   metadata_json: Option<serde_json::Value>,
 ) -> User {
-  let mut conn = pool.acquire().await.unwrap();
-  create_test_user_with_conn_and_uuid(&mut conn, uuid, username, role_id, password, metadata_json).await
+  let main_pool = databases.main();
+  let mut conn = main_pool.acquire().await.unwrap();
+  create_test_user_with_conn_and_uuid(&mut conn, uuid, username, role_id, password, metadata_json)
+    .await
 }
 
 /// Create a test user with all parameters including specific UUID (takes connection)
@@ -229,12 +242,12 @@ pub async fn create_test_user_with_conn_and_uuid(
 }
 
 /// Create a test role and return ID
-pub async fn create_test_role_with_pool(
-  pool: &SqlitePool,
+pub async fn create_test_role_with_databases(
+  databases: &Databases,
   name: &str,
   permissions: &[&str],
 ) -> i64 {
-  let role = create_test_role_model_with_pool(pool, name, permissions, false).await;
+  let role = create_test_role_model_with_databases(databases, name, permissions, false).await;
   role.id
 }
 
@@ -249,13 +262,14 @@ pub async fn create_test_role_with_conn(
 }
 
 /// Create a test role and return full Role model
-pub async fn create_test_role_model_with_pool(
-  pool: &SqlitePool,
+pub async fn create_test_role_model_with_databases(
+  databases: &Databases,
   name: &str,
   permissions: &[&str],
   is_default: bool,
 ) -> Role {
-  let mut conn = pool.acquire().await.unwrap();
+  let main_pool = databases.main();
+  let mut conn = main_pool.acquire().await.unwrap();
   create_test_role_model_with_conn(&mut conn, name, permissions, is_default).await
 }
 
@@ -389,7 +403,7 @@ mod tests {
   async fn test_create_test_user_no_role() {
     // Create user without role (will create and use default role automatically)
     let user =
-      create_test_user_full_with_pool(&main_pool, "testuser", None, "password123", None).await;
+      create_test_user_full_with_databases(&databases, "testuser", None, "password123", None).await;
 
     assert_eq!(user.name, "testuser");
     // Should have the default role ID (created automatically)
@@ -406,11 +420,12 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_create_test_user_custom_password() {
     let role_id =
-      create_test_role_with_pool(&main_pool, "test_role", &["can_view_user_self"]).await;
+      create_test_role_with_databases(&databases, "test_role", &["can_view_user_self"]).await;
 
     // Create user with custom password
     let user =
-      create_test_user_with_pool_and_password(&main_pool, "testuser", role_id, "custompass").await;
+      create_test_user_with_databases_and_password(&databases, "testuser", role_id, "custompass")
+        .await;
 
     assert_eq!(user.name, "testuser");
     assert_eq!(user.role_id, role_id);
@@ -419,12 +434,12 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_create_test_user_full() {
     let role_id =
-      create_test_role_with_pool(&main_pool, "test_role", &["can_view_user_self"]).await;
+      create_test_role_with_databases(&databases, "test_role", &["can_view_user_self"]).await;
     let metadata = serde_json::json!({"key": "value"});
 
     // Create user with all parameters
-    let user = create_test_user_full_with_pool(
-      &main_pool,
+    let user = create_test_user_full_with_databases(
+      &databases,
       "testuser",
       Some(role_id),
       "password123",
@@ -440,8 +455,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_create_test_role_id() {
     // Create role and get ID
-    let role_id = create_test_role_with_pool(
-      &main_pool,
+    let role_id = create_test_role_with_databases(
+      &databases,
       "test_role",
       &["can_view_user_self", "can_list_users"],
     )
@@ -453,8 +468,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_create_test_role_model() {
     // Create role and get full model
-    let role = create_test_role_model_with_pool(
-      &main_pool,
+    let role = create_test_role_model_with_databases(
+      &databases,
       "test_role",
       &["can_view_user_self", "can_list_users"],
       true,
@@ -471,7 +486,7 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_create_test_role_empty_permissions() {
     // Create role with no permissions
-    let role = create_test_role_model_with_pool(&main_pool, "empty_role", &[], false).await;
+    let role = create_test_role_model_with_databases(&databases, "empty_role", &[], false).await;
 
     assert_eq!(role.name, "empty_role");
     assert!(!role.is_default);
@@ -482,7 +497,8 @@ mod tests {
   async fn test_create_test_role_all_permissions() {
     // Create role with all available permissions
     let role =
-      create_test_role_model_with_pool(&main_pool, "admin_role", ROLE_PERMISSIONS, false).await;
+      create_test_role_model_with_databases(&databases, "admin_role", ROLE_PERMISSIONS, false)
+        .await;
 
     assert_eq!(role.name, "admin_role");
     assert_eq!(role.permissions.len(), ROLE_PERMISSIONS.len());
@@ -668,8 +684,8 @@ mod tests {
     let test_metadata = serde_json::json!({"key": "value"});
 
     // Create user with specific UUID
-    let user = create_test_user_with_pool_and_uuid(
-      &main_pool,
+    let user = create_test_user_with_databases_and_uuid(
+      &databases,
       test_uuid,
       test_username,
       None, // Use default role

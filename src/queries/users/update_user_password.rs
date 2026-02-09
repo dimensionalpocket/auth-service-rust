@@ -60,14 +60,16 @@ mod tests {
 
   use super::*;
   use crate::services::GeneratePasswordHashService;
-  use crate::test_utils::{create_test_role_model_with_pool, create_test_user_full_with_pool};
+  use crate::test_utils::{
+    create_test_role_model_with_databases, create_test_user_full_with_databases,
+  };
 
   #[dps_auth_db_test]
   async fn test_update_user_password_success() {
     // Setup: Create a user
-    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
-    let user = create_test_user_full_with_pool(
-      &main_pool,
+    create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
+    let user = create_test_user_full_with_databases(
+      &databases,
       "test-uuid",
       None,
       &GeneratePasswordHashService::run("oldpassword").unwrap(),
@@ -113,9 +115,9 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_update_user_password_timestamp_increases() {
     // Setup: Create a user
-    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
-    let user = create_test_user_full_with_pool(
-      &main_pool,
+    create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
+    let user = create_test_user_full_with_databases(
+      &databases,
       "test-uuid",
       None,
       &GeneratePasswordHashService::run("oldpassword").unwrap(),

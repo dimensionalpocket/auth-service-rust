@@ -42,12 +42,12 @@ mod tests {
 
   use super::*;
   use crate::models::user::User;
-  use crate::test_utils::create_test_role_model_with_pool;
+  use crate::test_utils::create_test_role_model_with_databases;
 
   #[dps_auth_db_test]
   async fn test_check_user_permission_admin_has_all_permissions() {
     let admin_role =
-      create_test_role_model_with_pool(&main_pool, "admin", &["is_admin"], false).await;
+      create_test_role_model_with_databases(&databases, "admin", &["is_admin"], false).await;
     let admin_role_id = admin_role.id;
 
     let admin_user = User {
@@ -82,7 +82,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_check_user_permission_regular_user_specific_permissions() {
     let user_role =
-      create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+      create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true)
+        .await;
     let user_role_id = user_role.id;
 
     let regular_user = User {
@@ -139,7 +140,7 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_check_user_permission_invalid_permission() {
     let admin_role =
-      create_test_role_model_with_pool(&main_pool, "admin", &["is_admin"], false).await;
+      create_test_role_model_with_databases(&databases, "admin", &["is_admin"], false).await;
     let admin_role_id = admin_role.id;
 
     let admin_user = User {
@@ -171,8 +172,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_check_user_permission_valid_new_permissions() {
-    let role = create_test_role_model_with_pool(
-      &main_pool,
+    let role = create_test_role_model_with_databases(
+      &databases,
       "role_manager",
       &["can_edit_user_role", "can_manage_roles"],
       false,
@@ -225,7 +226,7 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_check_user_permission_admin_bypasses_validation() {
     let admin_role =
-      create_test_role_model_with_pool(&main_pool, "admin", &["is_admin"], false).await;
+      create_test_role_model_with_databases(&databases, "admin", &["is_admin"], false).await;
     let admin_role_id = admin_role.id;
 
     let admin_user = User {

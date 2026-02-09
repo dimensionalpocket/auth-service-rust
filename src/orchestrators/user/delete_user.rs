@@ -52,16 +52,18 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::queries::users::GetUserByIdQuery;
-  use crate::test_utils::{create_test_role_with_pool, create_test_user_with_pool};
+  use crate::test_utils::{create_test_role_with_databases, create_test_user_with_databases};
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[dps_auth_db_test]
   async fn test_delete_user_with_permission_check_success() {
-    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_delete_user"]).await;
-    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    let admin_role_id =
+      create_test_role_with_databases(&databases, "admin", &["can_delete_user"]).await;
+    let user_role_id = create_test_role_with_databases(&databases, "user", &[]).await;
 
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
-    let target_user = create_test_user_with_pool(&main_pool, "target_user", user_role_id).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
+    let target_user =
+      create_test_user_with_databases(&databases, "target_user", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -100,10 +102,11 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_delete_user_without_permission() {
-    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    let user_role_id = create_test_role_with_databases(&databases, "user", &[]).await;
 
-    let regular_user = create_test_user_with_pool(&main_pool, "user1", user_role_id).await;
-    let target_user = create_test_user_with_pool(&main_pool, "target_user", user_role_id).await;
+    let regular_user = create_test_user_with_databases(&databases, "user1", user_role_id).await;
+    let target_user =
+      create_test_user_with_databases(&databases, "target_user", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: regular_user.id,
@@ -125,8 +128,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_delete_user_self_deletion_prevented() {
-    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_delete_user"]).await;
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role_with_databases(&databases, "admin", &["can_delete_user"]).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -154,8 +158,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_delete_user_nonexistent_target() {
-    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_delete_user"]).await;
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role_with_databases(&databases, "admin", &["can_delete_user"]).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -177,8 +182,9 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_delete_user_nonexistent_session_user() {
-    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
-    let target_user = create_test_user_with_pool(&main_pool, "target_user", user_role_id).await;
+    let user_role_id = create_test_role_with_databases(&databases, "user", &[]).await;
+    let target_user =
+      create_test_user_with_databases(&databases, "target_user", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: 999,

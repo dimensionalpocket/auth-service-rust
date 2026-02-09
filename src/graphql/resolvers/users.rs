@@ -84,20 +84,21 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_query_schema, create_test_role_with_pool, create_test_user_with_pool,
+    create_test_query_schema, create_test_role_with_databases, create_test_user_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[dps_auth_db_test]
   async fn test_users_success() {
     // Create roles
-    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_list_users"]).await;
-    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    let admin_role_id =
+      create_test_role_with_databases(&databases, "admin", &["can_list_users"]).await;
+    let user_role_id = create_test_role_with_databases(&databases, "user", &[]).await;
 
     // Create users
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
-    let _regular_user = create_test_user_with_pool(&main_pool, "user1", user_role_id).await;
-    let _another_user = create_test_user_with_pool(&main_pool, "user2", user_role_id).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
+    let _regular_user = create_test_user_with_databases(&databases, "user1", user_role_id).await;
+    let _another_user = create_test_user_with_databases(&databases, "user2", user_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -156,10 +157,10 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_users_forbidden() {
     // Create role without can_list_users permission
-    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    let user_role_id = create_test_role_with_databases(&databases, "user", &[]).await;
 
     // Create regular user
-    let regular_user = create_test_user_with_pool(&main_pool, "user1", user_role_id).await;
+    let regular_user = create_test_user_with_databases(&databases, "user1", user_role_id).await;
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -181,8 +182,9 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_users_empty_database() {
     // Create admin role and user
-    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_list_users"]).await;
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role_with_databases(&databases, "admin", &["can_list_users"]).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {

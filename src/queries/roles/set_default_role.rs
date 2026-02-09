@@ -68,8 +68,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_set_default_role_success() {
     // Create test roles
-    let role1_id = create_test_role_with_pool(&main_pool, "role1", &[]).await;
-    let role2_id = create_test_role_with_pool(&main_pool, "role2", &[]).await;
+    let role1_id = create_test_role_with_databases(&databases, "role1", &[]).await;
+    let role2_id = create_test_role_with_databases(&databases, "role2", &[]).await;
 
     // Set role1 as default
     let mut conn = main_pool.acquire().await.unwrap();
@@ -107,8 +107,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_set_default_role_atomic_behavior() {
     // Create test roles
-    let role1_id = create_test_role_with_pool(&main_pool, "role1", &[]).await;
-    let role2_id = create_test_role_with_pool(&main_pool, "role2", &[]).await;
+    let role1_id = create_test_role_with_databases(&databases, "role1", &[]).await;
+    let role2_id = create_test_role_with_databases(&databases, "role2", &[]).await;
 
     // Set role1 as default first
     let mut conn = main_pool.acquire().await.unwrap();
@@ -166,7 +166,7 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_set_default_role_timestamp_update() {
     // Create test role
-    let role_id = create_test_role_with_pool(&main_pool, "role1", &[]).await;
+    let role_id = create_test_role_with_databases(&databases, "role1", &[]).await;
 
     // Get original role to check timestamp
     let original_role_row = sqlx::query(

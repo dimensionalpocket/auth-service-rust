@@ -46,13 +46,13 @@ mod tests {
 
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{create_test_role_with_pool, create_test_user_with_pool};
+  use crate::test_utils::{create_test_role_with_databases, create_test_user_with_databases};
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[dps_auth_db_test]
   async fn test_change_authenticated_user_password_success() {
-    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
-    let user = create_test_user_with_pool(&main_pool, "testuser", user_role_id).await;
+    let user_role_id = create_test_role_with_databases(&databases, "user", &[]).await;
+    let user = create_test_user_with_databases(&databases, "testuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: user.id,
@@ -128,8 +128,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_change_authenticated_user_password_wrong_current_password() {
-    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
-    let user = create_test_user_with_pool(&main_pool, "testuser", user_role_id).await;
+    let user_role_id = create_test_role_with_databases(&databases, "user", &[]).await;
+    let user = create_test_user_with_databases(&databases, "testuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: user.id,
@@ -158,8 +158,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_change_authenticated_user_password_password_mismatch() {
-    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
-    let user = create_test_user_with_pool(&main_pool, "testuser", user_role_id).await;
+    let user_role_id = create_test_role_with_databases(&databases, "user", &[]).await;
+    let user = create_test_user_with_databases(&databases, "testuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: user.id,
@@ -188,8 +188,8 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_change_authenticated_user_password_invalid_new_password() {
-    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
-    let user = create_test_user_with_pool(&main_pool, "testuser", user_role_id).await;
+    let user_role_id = create_test_role_with_databases(&databases, "user", &[]).await;
+    let user = create_test_user_with_databases(&databases, "testuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: user.id,

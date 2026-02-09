@@ -35,7 +35,7 @@ mod tests {
   use dps_auth_test_macros::dps_auth_db_test;
 
   use super::*;
-  use crate::test_utils::create_test_role_model_with_pool;
+  use crate::test_utils::create_test_role_model_with_databases;
 
   #[dps_auth_db_test]
   async fn test_get_role_by_name_found() {
@@ -68,7 +68,7 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_role_by_name_case_sensitive() {
     // Insert test role
-    create_test_role_model_with_pool(&main_pool, "admin", &["is_admin"], false).await;
+    create_test_role_model_with_databases(&databases, "admin", &["is_admin"], false).await;
 
     // Should not find with different case
     let mut conn = main_pool.acquire().await.unwrap();

@@ -60,7 +60,7 @@ mod tests {
   use dps_auth_test_macros::dps_auth_db_test;
 
   use super::*;
-  use crate::test_utils::create_test_role_model_with_pool;
+  use crate::test_utils::create_test_role_model_with_databases;
 
   #[dps_auth_db_test]
   async fn test_get_all_users_with_roles_empty() {
@@ -73,9 +73,10 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_all_users_with_roles_with_data() {
     // Insert test roles
-    let admin_role = create_test_role_model_with_pool(&main_pool, "admin", &[], false).await;
+    let admin_role = create_test_role_model_with_databases(&databases, "admin", &[], false).await;
     let user_role =
-      create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+      create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true)
+        .await;
 
     // Only acquire connection after main_pool usage
     // as this will empty the main_pool (size is 1 in tests)
@@ -119,7 +120,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_all_users_with_roles_joins_correctly() {
     // Insert test role
-    let test_role = create_test_role_model_with_pool(&main_pool, "test_role", &[], false).await;
+    let test_role =
+      create_test_role_model_with_databases(&databases, "test_role", &[], false).await;
 
     let mut conn = main_pool.acquire().await.unwrap();
 

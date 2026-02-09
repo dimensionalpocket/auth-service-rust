@@ -53,19 +53,19 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::services::{GetAllRolesService, GetRoleByIdService};
-  use crate::test_utils::{create_test_role_with_pool, create_test_user_with_pool};
+  use crate::test_utils::{create_test_role_with_databases, create_test_user_with_databases};
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[dps_auth_db_test]
   async fn test_set_default_role_with_permission_check_admin_success() {
     // Create admin role and user
     let admin_role_id =
-      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+      create_test_role_with_databases(&databases, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
 
     // Create a role to set as default
     let test_role_id =
-      create_test_role_with_pool(&main_pool, "user", &["can_view_user_self"]).await;
+      create_test_role_with_databases(&databases, "user", &["can_view_user_self"]).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -89,7 +89,7 @@ mod tests {
   async fn test_set_default_role_with_permission_check_unauthenticated() {
     // Create a role to try to set as default
     let test_role_id =
-      create_test_role_with_pool(&main_pool, "user", &["can_view_user_self"]).await;
+      create_test_role_with_databases(&databases, "user", &["can_view_user_self"]).await;
 
     // Create session context without user (not authenticated)
     let session_context = SessionContext::new(None);
@@ -109,7 +109,7 @@ mod tests {
   async fn test_set_default_role_with_permission_check_nonexistent_user() {
     // Create a role to try to set as default
     let test_role_id =
-      create_test_role_with_pool(&main_pool, "user", &["can_view_user_self"]).await;
+      create_test_role_with_databases(&databases, "user", &["can_view_user_self"]).await;
 
     // Create session context for non-existent user
     let session_payload = DpsAuthSessionPayload {
@@ -134,12 +134,12 @@ mod tests {
   async fn test_set_default_role_with_permission_check_forbidden() {
     // Create user role without required permissions
     let user_role_id =
-      create_test_role_with_pool(&main_pool, "user", &["can_view_user_self"]).await;
-    let regular_user = create_test_user_with_pool(&main_pool, "user", user_role_id).await;
+      create_test_role_with_databases(&databases, "user", &["can_view_user_self"]).await;
+    let regular_user = create_test_user_with_databases(&databases, "user", user_role_id).await;
 
     // Create a role to try to set as default
     let test_role_id =
-      create_test_role_with_pool(&main_pool, "editor", &["can_edit_content"]).await;
+      create_test_role_with_databases(&databases, "editor", &["can_edit_content"]).await;
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -164,8 +164,8 @@ mod tests {
   async fn test_set_default_role_with_permission_check_not_found() {
     // Create admin role and user
     let admin_role_id =
-      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+      create_test_role_with_databases(&databases, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -190,13 +190,15 @@ mod tests {
   async fn test_set_default_role_with_permission_check_atomic_behavior() {
     // Create admin role and user
     let admin_role_id =
-      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+      create_test_role_with_databases(&databases, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
 
     // Create multiple roles
-    let role1_id = create_test_role_with_pool(&main_pool, "role1", &["can_view_user_self"]).await;
-    let role2_id = create_test_role_with_pool(&main_pool, "role2", &["can_list_users"]).await;
-    let role3_id = create_test_role_with_pool(&main_pool, "role3", &["can_manage_roles"]).await;
+    let role1_id =
+      create_test_role_with_databases(&databases, "role1", &["can_view_user_self"]).await;
+    let role2_id = create_test_role_with_databases(&databases, "role2", &["can_list_users"]).await;
+    let role3_id =
+      create_test_role_with_databases(&databases, "role3", &["can_manage_roles"]).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -280,12 +282,12 @@ mod tests {
   async fn test_set_default_role_with_permission_check_timestamp_update() {
     // Create admin role and user
     let admin_role_id =
-      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+      create_test_role_with_databases(&databases, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
 
     // Create a role to set as default
     let test_role_id =
-      create_test_role_with_pool(&main_pool, "user", &["can_view_user_self"]).await;
+      create_test_role_with_databases(&databases, "user", &["can_view_user_self"]).await;
 
     // Get role before setting as default to compare timestamps
     let role_before = {

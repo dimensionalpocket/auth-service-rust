@@ -43,7 +43,7 @@ mod tests {
 
   use super::*;
   use crate::services::CreateUserService;
-  use crate::test_utils::create_test_role_model_with_pool;
+  use crate::test_utils::create_test_role_model_with_databases;
 
   // Test secret - 32 bytes for AES-256
   const TEST_SECRET: &[u8] = &[
@@ -53,7 +53,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_auth_login_success() {
-    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
     let mut conn = main_pool.acquire().await.unwrap();
     CreateUserService::run(&mut conn, "testuser", "password123")
       .await
@@ -69,7 +69,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_auth_login_invalid_credentials() {
-    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
     let mut conn = main_pool.acquire().await.unwrap();
     CreateUserService::run(&mut conn, "testuser", "password123")
       .await

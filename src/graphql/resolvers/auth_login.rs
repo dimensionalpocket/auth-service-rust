@@ -80,7 +80,9 @@ mod tests {
 
   use super::*;
   use crate::services::CreateUserService;
-  use crate::test_utils::{create_test_mutation_schema, create_test_role_model_with_conn, TestEmptyQuery};
+  use crate::test_utils::{
+    create_test_mutation_schema, create_test_role_model_with_conn, TestEmptyQuery,
+  };
   use async_graphql::{EmptySubscription, Schema};
 
   // Test secret - 32 bytes for AES-256 (base64-decoded from QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=)

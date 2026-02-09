@@ -74,16 +74,18 @@ mod tests {
 
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{create_test_role_with_pool, create_test_user_with_pool};
+  use crate::test_utils::{create_test_role_with_databases, create_test_user_with_databases};
   use crate::types::user::update_user_input::UpdateUserInput;
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_with_permission_check_success() {
-    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_edit_user"]).await;
+    let admin_role_id =
+      create_test_role_with_databases(&databases, "admin", &["can_edit_user"]).await;
 
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
-    let target_user = create_test_user_with_pool(&main_pool, "targetuser", admin_role_id).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
+    let target_user =
+      create_test_user_with_databases(&databases, "targetuser", admin_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -117,8 +119,8 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_with_permission_check_unauthenticated() {
-    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
-    let target_user = create_test_user_with_pool(&main_pool, "targetuser", user_role_id).await;
+    let user_role_id = create_test_role_with_databases(&databases, "user", &[]).await;
+    let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_context = SessionContext::new(None);
 
@@ -144,8 +146,8 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_with_permission_check_session_user_not_found() {
-    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
-    let target_user = create_test_user_with_pool(&main_pool, "targetuser", user_role_id).await;
+    let user_role_id = create_test_role_with_databases(&databases, "user", &[]).await;
+    let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: 999,
@@ -176,10 +178,10 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_with_permission_check_forbidden() {
-    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    let user_role_id = create_test_role_with_databases(&databases, "user", &[]).await;
 
-    let regular_user = create_test_user_with_pool(&main_pool, "regular", user_role_id).await;
-    let target_user = create_test_user_with_pool(&main_pool, "targetuser", user_role_id).await;
+    let regular_user = create_test_user_with_databases(&databases, "regular", user_role_id).await;
+    let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: regular_user.id,
@@ -210,8 +212,9 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_with_permission_check_target_user_not_found() {
-    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_edit_user"]).await;
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role_with_databases(&databases, "admin", &["can_edit_user"]).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -242,11 +245,12 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_with_permission_check_validation_error() {
-    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_edit_user"]).await;
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role_with_databases(&databases, "admin", &["can_edit_user"]).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
 
-    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
-    let target_user = create_test_user_with_pool(&main_pool, "targetuser", user_role_id).await;
+    let user_role_id = create_test_role_with_databases(&databases, "user", &[]).await;
+    let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -277,11 +281,12 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_with_permission_check_password_validation_error() {
-    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_edit_user"]).await;
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role_with_databases(&databases, "admin", &["can_edit_user"]).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
 
-    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
-    let target_user = create_test_user_with_pool(&main_pool, "targetuser", user_role_id).await;
+    let user_role_id = create_test_role_with_databases(&databases, "user", &[]).await;
+    let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -312,12 +317,14 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_with_permission_check_username_conflict() {
-    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_edit_user"]).await;
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role_with_databases(&databases, "admin", &["can_edit_user"]).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
 
-    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
-    let target_user = create_test_user_with_pool(&main_pool, "targetuser", user_role_id).await;
-    let _existing_user = create_test_user_with_pool(&main_pool, "existinguser", user_role_id).await;
+    let user_role_id = create_test_role_with_databases(&databases, "user", &[]).await;
+    let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
+    let _existing_user =
+      create_test_user_with_databases(&databases, "existinguser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -348,11 +355,12 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_password_confirmation_missing() {
-    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_edit_user"]).await;
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role_with_databases(&databases, "admin", &["can_edit_user"]).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
 
-    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
-    let target_user = create_test_user_with_pool(&main_pool, "targetuser", user_role_id).await;
+    let user_role_id = create_test_role_with_databases(&databases, "user", &[]).await;
+    let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -383,11 +391,12 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_password_confirmation_mismatch() {
-    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_edit_user"]).await;
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role_with_databases(&databases, "admin", &["can_edit_user"]).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
 
-    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
-    let target_user = create_test_user_with_pool(&main_pool, "targetuser", user_role_id).await;
+    let user_role_id = create_test_role_with_databases(&databases, "user", &[]).await;
+    let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,
@@ -418,11 +427,12 @@ mod tests {
 
   #[dps_auth_db_test(pool_size = 1)]
   async fn test_update_user_password_confirmation_match() {
-    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["can_edit_user"]).await;
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let admin_role_id =
+      create_test_role_with_databases(&databases, "admin", &["can_edit_user"]).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
 
-    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
-    let target_user = create_test_user_with_pool(&main_pool, "targetuser", user_role_id).await;
+    let user_role_id = create_test_role_with_databases(&databases, "user", &[]).await;
+    let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
       sub: admin_user.id,

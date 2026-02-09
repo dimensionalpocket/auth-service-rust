@@ -48,11 +48,11 @@ mod tests {
   use dps_auth_test_macros::dps_auth_db_test;
 
   use super::*;
-  use crate::test_utils::create_test_role_model_with_pool;
+  use crate::test_utils::create_test_role_model_with_databases;
 
   #[dps_auth_db_test]
   async fn test_create_user_success() {
-    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
     let mut conn = main_pool.acquire().await.unwrap();
     let user = CreateUserService::run(&mut conn, "testuser", "password123")
@@ -70,7 +70,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_user_username_already_exists() {
-    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
     let mut conn = main_pool.acquire().await.unwrap();
     CreateUserService::run(&mut conn, "testuser", "password123")
@@ -87,7 +87,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_user_case_insensitive_username_check() {
-    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
     let mut conn = main_pool.acquire().await.unwrap();
     CreateUserService::run(&mut conn, "testuser", "password123")

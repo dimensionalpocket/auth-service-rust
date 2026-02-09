@@ -54,19 +54,19 @@ mod tests {
   use crate::middleware::session::SessionContext;
   use crate::queries::users::GetUserByIdQuery;
   use crate::services::GetRoleByIdService;
-  use crate::test_utils::{create_test_role_with_pool, create_test_user_with_pool};
+  use crate::test_utils::{create_test_role_with_databases, create_test_user_with_databases};
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[dps_auth_db_test]
   async fn test_delete_role_with_permission_check_admin_success() {
     // Create admin role and user
     let admin_role_id =
-      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+      create_test_role_with_databases(&databases, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
 
     // Create a role to delete
     let test_role_id =
-      create_test_role_with_pool(&main_pool, "test_role", &["can_view_user_self"]).await;
+      create_test_role_with_databases(&databases, "test_role", &["can_view_user_self"]).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -94,7 +94,7 @@ mod tests {
   async fn test_delete_role_with_permission_check_unauthenticated() {
     // Create a role to try to delete
     let test_role_id =
-      create_test_role_with_pool(&main_pool, "test_role", &["can_view_user_self"]).await;
+      create_test_role_with_databases(&databases, "test_role", &["can_view_user_self"]).await;
 
     // Create session context without user (not authenticated)
     let session_context = SessionContext::new(None);
@@ -114,7 +114,7 @@ mod tests {
   async fn test_delete_role_with_permission_check_nonexistent_user() {
     // Create a role to try to delete
     let test_role_id =
-      create_test_role_with_pool(&main_pool, "test_role", &["can_view_user_self"]).await;
+      create_test_role_with_databases(&databases, "test_role", &["can_view_user_self"]).await;
 
     // Create session context for non-existent user
     let session_payload = DpsAuthSessionPayload {
@@ -139,12 +139,12 @@ mod tests {
   async fn test_delete_role_with_permission_check_forbidden() {
     // Create user role without required permissions
     let user_role_id =
-      create_test_role_with_pool(&main_pool, "user", &["can_view_user_self"]).await;
-    let regular_user = create_test_user_with_pool(&main_pool, "user", user_role_id).await;
+      create_test_role_with_databases(&databases, "user", &["can_view_user_self"]).await;
+    let regular_user = create_test_user_with_databases(&databases, "user", user_role_id).await;
 
     // Create a role to try to delete
     let test_role_id =
-      create_test_role_with_pool(&main_pool, "test_role", &["can_edit_content"]).await;
+      create_test_role_with_databases(&databases, "test_role", &["can_edit_content"]).await;
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -169,8 +169,8 @@ mod tests {
   async fn test_delete_role_with_permission_check_not_found() {
     // Create admin role and user
     let admin_role_id =
-      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+      create_test_role_with_databases(&databases, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -195,16 +195,16 @@ mod tests {
   async fn test_delete_role_with_permission_check_role_in_use() {
     // Create admin role and user
     let admin_role_id =
-      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+      create_test_role_with_databases(&databases, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
 
     // Create a role to delete
     let test_role_id =
-      create_test_role_with_pool(&main_pool, "test_role", &["can_view_user_self"]).await;
+      create_test_role_with_databases(&databases, "test_role", &["can_view_user_self"]).await;
 
     // Create a user with the role to be deleted
     let user_with_role =
-      create_test_user_with_pool(&main_pool, "user_with_role", test_role_id).await;
+      create_test_user_with_databases(&databases, "user_with_role", test_role_id).await;
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
@@ -243,12 +243,12 @@ mod tests {
   async fn test_delete_role_with_permission_check_returns_deleted_data() {
     // Create admin role and user
     let admin_role_id =
-      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_manage_roles"]).await;
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+      create_test_role_with_databases(&databases, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
 
     // Create a role with specific data to delete
-    let test_role_id = create_test_role_with_pool(
-      &main_pool,
+    let test_role_id = create_test_role_with_databases(
+      &databases,
       "detailed_role",
       &["can_edit_user", "can_delete_user"],
     )

@@ -74,13 +74,14 @@ mod tests {
   use dps_auth_test_macros::dps_auth_db_test;
 
   use super::*;
-  use crate::test_utils::{create_test_role_with_pool, create_test_user_with_pool};
+  use crate::test_utils::{create_test_role_with_databases, create_test_user_with_databases};
 
   #[dps_auth_db_test]
   async fn test_get_user_by_id_with_role_success() {
     // Create role and user
-    let role_id = create_test_role_with_pool(&main_pool, "admin", &["can_view_user_details"]).await;
-    let user = create_test_user_with_pool(&main_pool, "testuser", role_id).await;
+    let role_id =
+      create_test_role_with_databases(&databases, "admin", &["can_view_user_details"]).await;
+    let user = create_test_user_with_databases(&databases, "testuser", role_id).await;
 
     // Query user with role
     let mut conn = main_pool.acquire().await.unwrap();
@@ -108,12 +109,12 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_user_by_id_with_role_different_roles() {
     // Create different roles
-    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &[]).await;
-    let user_role_id = create_test_role_with_pool(&main_pool, "user", &[]).await;
+    let admin_role_id = create_test_role_with_databases(&databases, "admin", &[]).await;
+    let user_role_id = create_test_role_with_databases(&databases, "user", &[]).await;
 
     // Create users with different roles
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
-    let regular_user = create_test_user_with_pool(&main_pool, "regular", user_role_id).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
+    let regular_user = create_test_user_with_databases(&databases, "regular", user_role_id).await;
 
     // Query admin user
     let mut conn = main_pool.acquire().await.unwrap();
@@ -134,10 +135,10 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_user_by_id_with_role_joined_correctly() {
     // Create role
-    let role_id = create_test_role_with_pool(&main_pool, "test_role", &[]).await;
+    let role_id = create_test_role_with_databases(&databases, "test_role", &[]).await;
 
     // Create user
-    let user = create_test_user_with_pool(&main_pool, "test_user", role_id).await;
+    let user = create_test_user_with_databases(&databases, "test_user", role_id).await;
 
     // Query user and verify all fields are populated correctly
     let mut conn = main_pool.acquire().await.unwrap();

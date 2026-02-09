@@ -18,11 +18,12 @@ mod tests {
   use dps_auth_test_macros::dps_auth_db_test;
 
   use super::*;
-  use crate::test_utils::create_test_role_model_with_pool;
+  use crate::test_utils::create_test_role_model_with_databases;
 
   #[dps_auth_db_test]
   async fn test_get_role_by_id_delegates_to_query() {
-    let role = create_test_role_model_with_pool(&main_pool, "admin", &["is_admin"], false).await;
+    let role =
+      create_test_role_model_with_databases(&databases, "admin", &["is_admin"], false).await;
     let role_id = role.id;
 
     let mut conn = main_pool.acquire().await.unwrap();

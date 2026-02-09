@@ -52,6 +52,17 @@ When using the Edit tool to modify files:
 - Make surgical, targeted edits - only change the specific lines that need to change
 - Comments that are unrelated to your change must remain intact
 
+### Bun Scripting
+
+- For large-scale replacement tasks with predictable patterns, write Bun scripts in `scripts/` to make project-wide changes in one go.
+- Avoid resorting to Bun scripts if the task is small enough (e.g., changes to a couple of files), or patterns are not predictable enough.
+- If for some reason Bun is not available if you need to write a script, STOP and tell the user; do not try to write the script in another language, neither try to install Bun yourself.
+
+### Git Access
+
+- You are not allowed to run any git commands.
+- If you need to revert a large amount of changes due to irreversible breakage (e.g., a Bun script going awry), STOP and ask the user to revert the changes.
+
 ## Project Structure
 
 ### Domains
@@ -136,7 +147,7 @@ Domain usage is more of a way to organize code than strict boundaries. Cross-dom
   - The "main" database for core data (users, roles, sites, etc)
   - A separate "session" database for session management (not yet implemented)
 - The Database instances are managed by `*Database` structs in `src/database/` folder.
-  - There are (will be) multiple database structs: `MainDatabase` and `SessionDatabase`.
+  - There are multiple database structs: `MainDatabase` and `SessionDatabase`.
 - Use async/await for database operations
 - Database migrations live in `config/databases/<database_name>/migrations`
   - Each migration has two files: `.sql` (forward) and `.down.sql` (rollback)

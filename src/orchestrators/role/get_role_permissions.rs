@@ -70,15 +70,15 @@ mod tests {
 
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{create_test_role_with_pool, create_test_user_with_pool};
+  use crate::test_utils::{create_test_role_with_databases, create_test_user_with_databases};
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[dps_auth_db_test]
   async fn test_get_all_role_permissions_with_permission_check_without_manage_roles() {
     // Create regular user without can_manage_roles
     let user_role_id =
-      create_test_role_with_pool(&main_pool, "user", &["can_view_user_self"]).await;
-    let regular_user = create_test_user_with_pool(&main_pool, "user", user_role_id).await;
+      create_test_role_with_databases(&databases, "user", &["can_view_user_self"]).await;
+    let regular_user = create_test_user_with_databases(&databases, "user", user_role_id).await;
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
@@ -103,9 +103,9 @@ mod tests {
   async fn test_get_all_role_permissions_with_permission_check_role_manager() {
     // Create role manager with can_manage_roles but not can_manage_admin_role_permission
     let role_manager_id =
-      create_test_role_with_pool(&main_pool, "role_manager", &["can_manage_roles"]).await;
+      create_test_role_with_databases(&databases, "role_manager", &["can_manage_roles"]).await;
     let role_manager_user =
-      create_test_user_with_pool(&main_pool, "role_manager", role_manager_id).await;
+      create_test_user_with_databases(&databases, "role_manager", role_manager_id).await;
 
     // Create session context for role manager
     let session_payload = DpsAuthSessionPayload {
@@ -127,14 +127,14 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_all_role_permissions_with_permission_check_admin_manager() {
     // Create admin manager with both permissions
-    let admin_manager_id = create_test_role_with_pool(
-      &main_pool,
+    let admin_manager_id = create_test_role_with_databases(
+      &databases,
       "admin_manager",
       &["can_manage_roles", "can_manage_admin_role_permission"],
     )
     .await;
     let admin_manager_user =
-      create_test_user_with_pool(&main_pool, "admin_manager", admin_manager_id).await;
+      create_test_user_with_databases(&databases, "admin_manager", admin_manager_id).await;
 
     // Create session context for admin manager
     let session_payload = DpsAuthSessionPayload {
@@ -157,8 +157,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_all_role_permissions_with_permission_check_admin() {
     // Create admin user (with is_admin, bypasses can_manage_roles requirement)
-    let admin_role_id = create_test_role_with_pool(&main_pool, "admin", &["is_admin"]).await;
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let admin_role_id = create_test_role_with_databases(&databases, "admin", &["is_admin"]).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
 
     // Create session context for admin
     let session_payload = DpsAuthSessionPayload {

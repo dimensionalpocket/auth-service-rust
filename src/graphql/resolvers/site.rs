@@ -93,7 +93,7 @@ mod tests {
   use crate::middleware::session::SessionContext;
   use crate::queries::sites::{CreateSiteData, CreateSiteQuery};
   use crate::test_utils::{
-    create_test_query_schema, create_test_role_with_pool, create_test_user_with_pool,
+    create_test_query_schema, create_test_role_with_databases, create_test_user_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
@@ -101,10 +101,11 @@ mod tests {
   async fn test_get_site_details_success() {
     // Create admin role with can_view_site_details permission
     let admin_role_id =
-      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_view_site_details"]).await;
+      create_test_role_with_databases(&databases, "admin", &["is_admin", "can_view_site_details"])
+        .await;
 
     // Create admin user
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
     let admin_user_id = admin_user.id;
 
     // Create test site
@@ -177,10 +178,10 @@ mod tests {
   async fn test_get_site_details_forbidden() {
     // Create user role without can_view_site_details permission
     let user_role_id =
-      create_test_role_with_pool(&main_pool, "user", &["can_view_user_self"]).await;
+      create_test_role_with_databases(&databases, "user", &["can_view_user_self"]).await;
 
     // Create regular user
-    let user = create_test_user_with_pool(&main_pool, "user", user_role_id).await;
+    let user = create_test_user_with_databases(&databases, "user", user_role_id).await;
     let user_id = user.id;
 
     // Create session context for regular user
@@ -244,10 +245,11 @@ mod tests {
   async fn test_get_site_details_not_found() {
     // Create admin role with can_view_site_details permission
     let admin_role_id =
-      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_view_site_details"]).await;
+      create_test_role_with_databases(&databases, "admin", &["is_admin", "can_view_site_details"])
+        .await;
 
     // Create admin user
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
     let admin_user_id = admin_user.id;
 
     // Create session context for admin user

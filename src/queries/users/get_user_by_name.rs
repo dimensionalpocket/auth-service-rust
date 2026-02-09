@@ -19,14 +19,15 @@ mod tests {
   use dps_auth_test_macros::dps_auth_db_test;
 
   use super::*;
-  use crate::test_utils::create_test_role_model_with_pool;
+  use crate::test_utils::create_test_role_model_with_databases;
   use uuid::Uuid;
 
   #[dps_auth_db_test]
   async fn test_get_user_by_name_found() {
     // Insert test role first
     let role =
-      create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+      create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true)
+        .await;
     let role_id = role.id;
 
     // Insert test user
@@ -61,7 +62,8 @@ mod tests {
   async fn test_get_user_by_name_case_insensitive() {
     // Insert test role first
     let role =
-      create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+      create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true)
+        .await;
     let role_id = role.id;
 
     // Insert test user with mixed case

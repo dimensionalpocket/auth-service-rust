@@ -82,15 +82,16 @@ mod tests {
   use crate::middleware::session::SessionContext;
   use crate::queries::users::{CreateUserData, CreateUserQuery};
   use crate::test_utils::{
-    create_test_query_schema, create_test_role_model_with_pool, create_test_user_full_with_pool,
+    create_test_query_schema, create_test_role_model_with_databases,
+    create_test_user_full_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
   #[dps_auth_db_test]
   async fn test_get_user_details_success() {
     // Insert admin role with can_view_user_details permission
-    let admin_role = create_test_role_model_with_pool(
-      &main_pool,
+    let admin_role = create_test_role_model_with_databases(
+      &databases,
       "admin",
       &["is_admin", "can_view_user_details"],
       false,
@@ -99,12 +100,12 @@ mod tests {
     let admin_role_id = admin_role.id;
 
     // Insert user role without special permissions
-    let user_role = create_test_role_model_with_pool(&main_pool, "user", &[], true).await;
+    let user_role = create_test_role_model_with_databases(&databases, "user", &[], true).await;
     let user_role_id = user_role.id;
 
     // Insert admin user
-    let admin_user = create_test_user_full_with_pool(
-      &main_pool,
+    let admin_user = create_test_user_full_with_databases(
+      &databases,
       "admin",
       Some(admin_role_id),
       "test_password",
@@ -180,12 +181,13 @@ mod tests {
   async fn test_get_user_details_forbidden() {
     // Insert user role without can_view_user_details permission
     let user_role =
-      create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+      create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true)
+        .await;
     let user_role_id = user_role.id;
 
     // Insert regular user
-    let user = create_test_user_full_with_pool(
-      &main_pool,
+    let user = create_test_user_full_with_databases(
+      &databases,
       "user",
       Some(user_role_id),
       "test_password",
@@ -254,8 +256,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_get_user_details_not_found() {
     // Insert admin role with can_view_user_details permission
-    let admin_role = create_test_role_model_with_pool(
-      &main_pool,
+    let admin_role = create_test_role_model_with_databases(
+      &databases,
       "admin",
       &["is_admin", "can_view_user_details"],
       false,
@@ -264,8 +266,8 @@ mod tests {
     let admin_role_id = admin_role.id;
 
     // Insert admin user
-    let admin_user = create_test_user_full_with_pool(
-      &main_pool,
+    let admin_user = create_test_user_full_with_databases(
+      &databases,
       "admin",
       Some(admin_role_id),
       "test_password",

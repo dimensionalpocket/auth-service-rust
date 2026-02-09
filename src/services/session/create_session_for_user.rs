@@ -19,7 +19,7 @@ mod tests {
 
   use super::*;
   use crate::services::CreateUserService;
-  use crate::test_utils::create_test_role_model_with_pool;
+  use crate::test_utils::create_test_role_model_with_databases;
   use dps_auth_session::DpsAuthSession;
 
   // Test secret - 32 bytes for AES-256
@@ -30,7 +30,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_session_for_user_success() {
-    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
     let user = {
       let mut conn = main_pool.acquire().await.unwrap();
@@ -49,7 +49,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_create_session_for_user_different_users() {
-    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
     let mut conn = main_pool.acquire().await.unwrap();
     let user1 = CreateUserService::run(&mut conn, "user1", "password123")

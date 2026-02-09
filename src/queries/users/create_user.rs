@@ -66,14 +66,15 @@ mod tests {
   use dps_auth_test_macros::dps_auth_db_test;
 
   use super::*;
-  use crate::test_utils::create_test_role_model_with_pool;
+  use crate::test_utils::create_test_role_model_with_databases;
   use uuid::Uuid;
 
   #[dps_auth_db_test]
   async fn test_create_user_success() {
     // Insert test role first
     let role =
-      create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+      create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true)
+        .await;
     let role_id = role.id;
 
     let user_uuid = Uuid::new_v4().to_string();
@@ -101,7 +102,8 @@ mod tests {
   async fn test_create_user_duplicate_uuid_fails() {
     // Insert test role first
     let role =
-      create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+      create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true)
+        .await;
     let role_id = role.id;
 
     let user_uuid = Uuid::new_v4().to_string();
@@ -149,8 +151,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_create_user_with_default_role() {
     // Insert test roles with one default
-    create_test_role_model_with_pool(&main_pool, "admin", &["is_admin"], false).await;
-    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_databases(&databases, "admin", &["is_admin"], false).await;
+    create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {
@@ -175,9 +177,9 @@ mod tests {
   async fn test_create_user_with_explicit_role() {
     // Insert test roles with one default
     let admin_role =
-      create_test_role_model_with_pool(&main_pool, "admin", &["is_admin"], false).await;
+      create_test_role_model_with_databases(&databases, "admin", &["is_admin"], false).await;
     let admin_role_id = admin_role.id;
-    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {
@@ -199,8 +201,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_create_user_no_default_role_fails() {
     // Insert test roles with no default
-    create_test_role_model_with_pool(&main_pool, "admin", &["is_admin"], false).await;
-    create_test_role_model_with_pool(&main_pool, "moderator", &["can_moderate"], false).await;
+    create_test_role_model_with_databases(&databases, "admin", &["is_admin"], false).await;
+    create_test_role_model_with_databases(&databases, "moderator", &["can_moderate"], false).await;
 
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {

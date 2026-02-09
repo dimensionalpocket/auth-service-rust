@@ -145,14 +145,14 @@ mod tests {
 
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{create_test_query_schema, create_test_user_full_with_pool};
+  use crate::test_utils::{create_test_query_schema, create_test_user_full_with_databases};
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
   #[dps_auth_db_test]
   async fn test_auth_me_with_authenticated_user() {
     // Setup: Create a test user
-    let user = create_test_user_full_with_pool(
-      &main_pool,
+    let user = create_test_user_full_with_databases(
+      &databases,
       "testuser",
       None, // Will create and use default role
       "test_password",

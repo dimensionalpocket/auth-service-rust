@@ -59,11 +59,11 @@ mod tests {
 
   use super::*;
   use crate::services::user::create_user::CreateUserService;
-  use crate::test_utils::create_test_role_model_with_pool;
+  use crate::test_utils::create_test_role_model_with_databases;
 
   #[dps_auth_db_test]
   async fn test_update_password_success() {
-    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
     let mut conn = main_pool.acquire().await.unwrap();
     let user = CreateUserService::run(&mut conn, "testuser", "oldpassword123")
       .await
@@ -93,7 +93,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_password_invalid_current_password() {
-    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
     let mut conn = main_pool.acquire().await.unwrap();
     let user = CreateUserService::run(&mut conn, "testuser", "correctpassword")
       .await
@@ -118,7 +118,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_password_password_confirmation_mismatch() {
-    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
     let mut conn = main_pool.acquire().await.unwrap();
     let user = CreateUserService::run(&mut conn, "testuser", "currentpassword")
       .await
@@ -143,7 +143,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_update_password_invalid_new_password() {
-    create_test_role_model_with_pool(&main_pool, "user", &["can_view_user_self"], true).await;
+    create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
     let mut conn = main_pool.acquire().await.unwrap();
     let user = CreateUserService::run(&mut conn, "testuser", "currentpassword")
       .await

@@ -118,7 +118,7 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_mutation_schema, create_test_role_with_pool, create_test_user_with_pool,
+    create_test_mutation_schema, create_test_role_with_databases, create_test_user_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
@@ -126,10 +126,10 @@ mod tests {
   async fn test_add_role_success() {
     // Create admin role with can_manage_roles permission
     let admin_role_id =
-      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_manage_roles"]).await;
+      create_test_role_with_databases(&databases, "admin", &["is_admin", "can_manage_roles"]).await;
 
     // Create admin user
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
     let admin_user_id = admin_user.id;
 
     // Create session context for admin user
@@ -187,10 +187,10 @@ mod tests {
   async fn test_add_role_empty_permissions() {
     // Create admin role with can_manage_roles permission
     let admin_role_id =
-      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_manage_roles"]).await;
+      create_test_role_with_databases(&databases, "admin", &["is_admin", "can_manage_roles"]).await;
 
     // Create admin user
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
     let admin_user_id = admin_user.id;
 
     // Create session context for admin user
@@ -241,10 +241,10 @@ mod tests {
   async fn test_add_role_forbidden() {
     // Create user role without can_manage_roles permission
     let user_role_id =
-      create_test_role_with_pool(&main_pool, "user", &["can_view_user_self"]).await;
+      create_test_role_with_databases(&databases, "user", &["can_view_user_self"]).await;
 
     // Create regular user
-    let user = create_test_user_with_pool(&main_pool, "user", user_role_id).await;
+    let user = create_test_user_with_databases(&databases, "user", user_role_id).await;
     let user_id = user.id;
 
     // Create session context for regular user
@@ -306,10 +306,10 @@ mod tests {
   async fn test_add_role_duplicate_name() {
     // Create admin role with can_manage_roles permission
     let admin_role_id =
-      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_manage_roles"]).await;
+      create_test_role_with_databases(&databases, "admin", &["is_admin", "can_manage_roles"]).await;
 
     // Create admin user
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
     let admin_user_id = admin_user.id;
 
     // Create session context for admin user
@@ -350,10 +350,10 @@ mod tests {
   async fn test_add_role_invalid_permission() {
     // Create admin role with can_manage_roles permission
     let admin_role_id =
-      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_manage_roles"]).await;
+      create_test_role_with_databases(&databases, "admin", &["is_admin", "can_manage_roles"]).await;
 
     // Create admin user
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
     let admin_user_id = admin_user.id;
 
     // Create session context for admin user
@@ -389,10 +389,10 @@ mod tests {
   async fn test_add_role_empty_name() {
     // Create admin role with can_manage_roles permission
     let admin_role_id =
-      create_test_role_with_pool(&main_pool, "admin", &["is_admin", "can_manage_roles"]).await;
+      create_test_role_with_databases(&databases, "admin", &["is_admin", "can_manage_roles"]).await;
 
     // Create admin user
-    let admin_user = create_test_user_with_pool(&main_pool, "admin", admin_role_id).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
     let admin_user_id = admin_user.id;
 
     // Create session context for admin user
