@@ -1,19 +1,20 @@
+use crate::database::Databases;
 use crate::services::{AuthRegisterService, GenerateSessionCookieService, RegisterResult};
 use crate::types::SessionError;
 use crate::DpsAuthApiConfig;
-use sqlx::{Pool, Sqlite};
 
 pub struct AuthRegisterOrchestrator;
 
 impl AuthRegisterOrchestrator {
   pub async fn run(
-    pool: &Pool<Sqlite>,
+    databases: &Databases,
     username: &str,
     password: &str,
     password_confirmation: &str,
     config: &DpsAuthApiConfig,
   ) -> Result<(RegisterResult, String), SessionError> {
-    let mut conn = pool
+    let main_pool = databases.main();
+    let mut conn = main_pool
       .acquire()
       .await
       .map_err(|e| SessionError::DatabaseError(e.to_string()))?;

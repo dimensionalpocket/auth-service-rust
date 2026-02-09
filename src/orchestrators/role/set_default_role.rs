@@ -1,9 +1,9 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::models::role::Role;
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::{CheckUserPermissionService, SetDefaultRoleService};
 use crate::types::RoleError;
-use sqlx::SqlitePool;
 
 pub struct SetDefaultRoleOrchestrator;
 
@@ -15,10 +15,11 @@ impl SetDefaultRoleOrchestrator {
   /// - Verifies user has "can_manage_roles" permission
   /// - Sets the role with the given ID as default
   pub async fn run(
-    pool: &SqlitePool,
+    databases: &Databases,
     session_context: SessionContext,
     role_id: i64,
   ) -> Result<Role, RoleError> {
+    let main_pool = databases.main();
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -26,7 +27,10 @@ impl SetDefaultRoleOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
-    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+    let mut conn = main_pool
+      .acquire()
+      .await
+      .map_err(RoleError::DatabaseError)?;
 
     // Authorization: Get user and check permissions
     let user = GetUserByIdQuery::run(&mut conn, user_id)
@@ -75,7 +79,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = SetDefaultRoleOrchestrator::run(&main_pool, session_context, test_role_id).await;
+    let result = SetDefaultRoleOrchestrator::run(&databases, session_context, test_role_id).await;
 
     assert!(result.is_ok());
     let updated_role = result.unwrap();
@@ -94,7 +98,7 @@ mod tests {
     // Create session context without user (not authenticated)
     let session_context = SessionContext::new(None);
 
-    let result = SetDefaultRoleOrchestrator::run(&main_pool, session_context, test_role_id).await;
+    let result = SetDefaultRoleOrchestrator::run(&databases, session_context, test_role_id).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -119,7 +123,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = SetDefaultRoleOrchestrator::run(&main_pool, session_context, test_role_id).await;
+    let result = SetDefaultRoleOrchestrator::run(&databases, session_context, test_role_id).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -149,7 +153,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = SetDefaultRoleOrchestrator::run(&main_pool, session_context, test_role_id).await;
+    let result = SetDefaultRoleOrchestrator::run(&databases, session_context, test_role_id).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -175,7 +179,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = SetDefaultRoleOrchestrator::run(&main_pool, session_context, 999).await;
+    let result = SetDefaultRoleOrchestrator::run(&databases, session_context, 999).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -210,7 +214,7 @@ mod tests {
 
     // Set role1 as default
     let result1 =
-      SetDefaultRoleOrchestrator::run(&main_pool, session_context.clone(), role1_id).await;
+      SetDefaultRoleOrchestrator::run(&databases, session_context.clone(), role1_id).await;
     assert!(result1.is_ok());
     let updated_role1 = result1.unwrap();
     assert!(updated_role1.is_default);
@@ -229,7 +233,7 @@ mod tests {
 
     // Set role2 as default (should unset role1)
     let result2 =
-      SetDefaultRoleOrchestrator::run(&main_pool, session_context.clone(), role2_id).await;
+      SetDefaultRoleOrchestrator::run(&databases, session_context.clone(), role2_id).await;
     assert!(result2.is_ok());
     let updated_role2 = result2.unwrap();
     assert!(updated_role2.is_default);
@@ -255,7 +259,7 @@ mod tests {
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
     // Set role3 as default (should unset role2)
-    let result3 = SetDefaultRoleOrchestrator::run(&main_pool, session_context, role3_id).await;
+    let result3 = SetDefaultRoleOrchestrator::run(&databases, session_context, role3_id).await;
     assert!(result3.is_ok());
     let updated_role3 = result3.unwrap();
     assert!(updated_role3.is_default);
@@ -310,7 +314,7 @@ mod tests {
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
     // Set role as default
-    let result = SetDefaultRoleOrchestrator::run(&main_pool, session_context, test_role_id).await;
+    let result = SetDefaultRoleOrchestrator::run(&databases, session_context, test_role_id).await;
 
     assert!(result.is_ok());
     let updated_role = result.unwrap();

@@ -1,10 +1,10 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::models::role::Role;
 use crate::queries::roles::UpdateRoleData;
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::{CheckUserPermissionService, UpdateRoleService};
 use crate::types::RoleError;
-use sqlx::SqlitePool;
 
 pub struct UpdateRoleOrchestrator;
 
@@ -16,11 +16,12 @@ impl UpdateRoleOrchestrator {
   /// - Verifies user has "can_manage_roles" permission
   /// - Updates the role with the given ID
   pub async fn run(
-    pool: &SqlitePool,
+    databases: &Databases,
     session_context: SessionContext,
     role_id: i64,
     update_data: UpdateRoleData,
   ) -> Result<Role, RoleError> {
+    let main_pool = databases.main();
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -28,7 +29,10 @@ impl UpdateRoleOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
-    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+    let mut conn = main_pool
+      .acquire()
+      .await
+      .map_err(RoleError::DatabaseError)?;
 
     // Authorization: Get user and check permissions
     let user = GetUserByIdQuery::run(&mut conn, user_id)
@@ -87,7 +91,7 @@ mod tests {
     };
 
     let result =
-      UpdateRoleOrchestrator::run(&main_pool, session_context, test_role_id, update_data).await;
+      UpdateRoleOrchestrator::run(&databases, session_context, test_role_id, update_data).await;
 
     assert!(result.is_ok());
     let updated_role = result.unwrap();
@@ -130,7 +134,7 @@ mod tests {
     };
 
     let result =
-      UpdateRoleOrchestrator::run(&main_pool, session_context, test_role_id, update_data).await;
+      UpdateRoleOrchestrator::run(&databases, session_context, test_role_id, update_data).await;
 
     assert!(result.is_ok());
     let updated_role = result.unwrap();
@@ -158,7 +162,7 @@ mod tests {
     };
 
     let result =
-      UpdateRoleOrchestrator::run(&main_pool, session_context, test_role_id, update_data).await;
+      UpdateRoleOrchestrator::run(&databases, session_context, test_role_id, update_data).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -190,7 +194,7 @@ mod tests {
     };
 
     let result =
-      UpdateRoleOrchestrator::run(&main_pool, session_context, test_role_id, update_data).await;
+      UpdateRoleOrchestrator::run(&databases, session_context, test_role_id, update_data).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -227,7 +231,7 @@ mod tests {
     };
 
     let result =
-      UpdateRoleOrchestrator::run(&main_pool, session_context, test_role_id, update_data).await;
+      UpdateRoleOrchestrator::run(&databases, session_context, test_role_id, update_data).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -259,7 +263,7 @@ mod tests {
       permissions: None,
     };
 
-    let result = UpdateRoleOrchestrator::run(&main_pool, session_context, 999, update_data).await;
+    let result = UpdateRoleOrchestrator::run(&databases, session_context, 999, update_data).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -297,7 +301,7 @@ mod tests {
     };
 
     let result =
-      UpdateRoleOrchestrator::run(&main_pool, session_context, test_role_id, update_data).await;
+      UpdateRoleOrchestrator::run(&databases, session_context, test_role_id, update_data).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -335,7 +339,7 @@ mod tests {
     };
 
     let result =
-      UpdateRoleOrchestrator::run(&main_pool, session_context, test_role_id, update_data).await;
+      UpdateRoleOrchestrator::run(&databases, session_context, test_role_id, update_data).await;
 
     assert!(result.is_ok());
     let updated_role = result.unwrap();

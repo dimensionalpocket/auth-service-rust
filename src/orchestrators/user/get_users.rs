@@ -1,15 +1,15 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::models::user::UserWithRole;
 use crate::queries::users::{GetAllUsersWithRolesQuery, GetUserByIdQuery};
 use crate::services::CheckUserPermissionService;
 use crate::types::UserError;
-use sqlx::SqlitePool;
 
 pub struct GetUsersOrchestrator;
 
 impl GetUsersOrchestrator {
   pub async fn run(
-    pool: &SqlitePool,
+    databases: &Databases,
     session_context: SessionContext,
   ) -> Result<Vec<UserWithRole>, UserError> {
     let user_id = session_context
@@ -18,7 +18,11 @@ impl GetUsersOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
-    let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
+    let main_pool = databases.main();
+    let mut conn = main_pool
+      .acquire()
+      .await
+      .map_err(UserError::DatabaseError)?;
 
     let user = GetUserByIdQuery::run(&mut conn, user_id)
       .await
@@ -63,7 +67,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetUsersOrchestrator::run(&main_pool, session_context).await;
+    let result = GetUsersOrchestrator::run(&databases, session_context).await;
 
     assert!(result.is_ok());
     let users = result.unwrap();
@@ -80,7 +84,7 @@ mod tests {
   async fn test_list_users_without_authentication() {
     let session_context = SessionContext::new(None);
 
-    let result = GetUsersOrchestrator::run(&main_pool, session_context).await;
+    let result = GetUsersOrchestrator::run(&databases, session_context).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -104,7 +108,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetUsersOrchestrator::run(&main_pool, session_context).await;
+    let result = GetUsersOrchestrator::run(&databases, session_context).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -124,7 +128,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetUsersOrchestrator::run(&main_pool, session_context).await;
+    let result = GetUsersOrchestrator::run(&databases, session_context).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -148,7 +152,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetUsersOrchestrator::run(&main_pool, session_context).await;
+    let result = GetUsersOrchestrator::run(&databases, session_context).await;
 
     assert!(result.is_ok());
     let users = result.unwrap();

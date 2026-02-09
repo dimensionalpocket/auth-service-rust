@@ -1,10 +1,10 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::models::role::Role;
 use crate::queries::roles::CreateRoleData;
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::{CheckUserPermissionService, CreateRoleService};
 use crate::types::RoleError;
-use sqlx::SqlitePool;
 
 pub struct AddRoleOrchestrator;
 
@@ -16,10 +16,11 @@ impl AddRoleOrchestrator {
   /// - Verifies user has "can_manage_roles" permission
   /// - Creates role with is_default set to false
   pub async fn run(
-    pool: &SqlitePool,
+    databases: &Databases,
     session_context: SessionContext,
     create_data: CreateRoleData,
   ) -> Result<Role, RoleError> {
+    let main_pool = databases.main();
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -27,7 +28,10 @@ impl AddRoleOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
-    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+    let mut conn = main_pool
+      .acquire()
+      .await
+      .map_err(RoleError::DatabaseError)?;
 
     // Authorization: Get user and check permissions
     let user = GetUserByIdQuery::run(&mut conn, user_id)
@@ -85,7 +89,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = AddRoleOrchestrator::run(&main_pool, session_context, create_data).await;
+    let result = AddRoleOrchestrator::run(&databases, session_context, create_data).await;
 
     assert!(result.is_ok());
     let role = result.unwrap();
@@ -122,7 +126,7 @@ mod tests {
       is_default: true,
     };
 
-    let result = AddRoleOrchestrator::run(&main_pool, session_context, create_data).await;
+    let result = AddRoleOrchestrator::run(&databases, session_context, create_data).await;
 
     assert!(result.is_ok());
     let role = result.unwrap();
@@ -142,7 +146,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = AddRoleOrchestrator::run(&main_pool, session_context, create_data).await;
+    let result = AddRoleOrchestrator::run(&databases, session_context, create_data).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -169,7 +173,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = AddRoleOrchestrator::run(&main_pool, session_context, create_data).await;
+    let result = AddRoleOrchestrator::run(&databases, session_context, create_data).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -201,7 +205,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = AddRoleOrchestrator::run(&main_pool, session_context, create_data).await;
+    let result = AddRoleOrchestrator::run(&databases, session_context, create_data).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -234,7 +238,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = AddRoleOrchestrator::run(&main_pool, session_context, create_data).await;
+    let result = AddRoleOrchestrator::run(&databases, session_context, create_data).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -267,7 +271,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = AddRoleOrchestrator::run(&main_pool, session_context, create_data).await;
+    let result = AddRoleOrchestrator::run(&databases, session_context, create_data).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -303,7 +307,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = AddRoleOrchestrator::run(&main_pool, session_context, create_data).await;
+    let result = AddRoleOrchestrator::run(&databases, session_context, create_data).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -341,7 +345,7 @@ mod tests {
       is_default: false,
     };
 
-    let result = AddRoleOrchestrator::run(&main_pool, session_context, create_data).await;
+    let result = AddRoleOrchestrator::run(&databases, session_context, create_data).await;
 
     assert!(result.is_ok());
     let role = result.unwrap();

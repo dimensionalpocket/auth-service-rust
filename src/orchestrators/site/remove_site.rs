@@ -1,18 +1,22 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::{CheckUserPermissionService, DeleteSiteService};
 use crate::types::SiteError;
-use sqlx::SqlitePool;
 
 pub struct RemoveSiteOrchestrator;
 
 impl RemoveSiteOrchestrator {
   pub async fn run(
-    pool: &SqlitePool,
+    databases: &Databases,
     session_context: SessionContext,
     site_id: i64,
   ) -> Result<crate::models::Site, SiteError> {
-    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
+    let main_pool = databases.main();
+    let mut conn = main_pool
+      .acquire()
+      .await
+      .map_err(SiteError::DatabaseError)?;
 
     // Authentication: Check if user is authenticated
     let user_id = session_context
@@ -77,7 +81,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     // Test site deletion
-    let result = RemoveSiteOrchestrator::run(&main_pool, session_context, site.id).await;
+    let result = RemoveSiteOrchestrator::run(&databases, session_context, site.id).await;
 
     assert!(result.is_ok());
     let deleted_site = result.unwrap();
@@ -113,7 +117,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     // Test site deletion
-    let result = RemoveSiteOrchestrator::run(&main_pool, session_context, site.id).await;
+    let result = RemoveSiteOrchestrator::run(&databases, session_context, site.id).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {

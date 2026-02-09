@@ -1,8 +1,8 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::site::GetSiteOrchestrator;
 use crate::types::SiteError;
 use async_graphql::{Context, Object, Result};
-use sqlx::SqlitePool;
 use tracing::instrument;
 
 /// GraphQL output type for complete site details (admin only)
@@ -58,10 +58,10 @@ impl SiteResolver {
   #[instrument(skip(ctx), fields(site_id = %id))]
   #[graphql(name = "site")]
   async fn site(&self, ctx: &Context<'_>, id: i64) -> Result<SiteDetailsResponse> {
-    let pool = ctx.data::<SqlitePool>()?;
+    let databases = ctx.data::<Databases>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
-    match GetSiteOrchestrator::run(pool, session_context.clone(), id).await {
+    match GetSiteOrchestrator::run(databases, session_context.clone(), id).await {
       Ok(site) => Ok(SiteDetailsResponse {
         id: site.id,
         slug: site.slug,

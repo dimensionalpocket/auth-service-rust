@@ -351,8 +351,6 @@ where
   let mut schema_builder = Schema::build(query, EmptyMutation, EmptySubscription);
 
   schema_builder = schema_builder.data(databases.clone());
-  // Temporary bridge during migration: keep main pool available via schema data.
-  schema_builder = schema_builder.data(databases.main().clone());
 
   if let Some(session) = session {
     schema_builder = schema_builder.data(session);
@@ -378,8 +376,6 @@ where
   let mut schema_builder = Schema::build(TestEmptyQuery, mutation, EmptySubscription);
 
   schema_builder = schema_builder.data(databases.clone());
-  // Temporary bridge during migration: keep main pool available via schema data.
-  schema_builder = schema_builder.data(databases.main().clone());
 
   if let Some(session) = session {
     schema_builder = schema_builder.data(session);

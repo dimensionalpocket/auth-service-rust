@@ -1,14 +1,14 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::queries::users::{GetUserByIdQuery, UpdateUserData};
 use crate::services::{CheckUserPermissionService, UpdateUserService};
 use crate::types::{user::update_user_input::UpdateUserInput, UserError};
-use sqlx::SqlitePool;
 
 pub struct UpdateUserOrchestrator;
 
 impl UpdateUserOrchestrator {
   pub async fn run(
-    pool: &SqlitePool,
+    databases: &Databases,
     session_context: SessionContext,
     input: UpdateUserInput,
   ) -> Result<crate::models::user::UserWithRole, UserError> {
@@ -18,7 +18,11 @@ impl UpdateUserOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
-    let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
+    let main_pool = databases.main();
+    let mut conn = main_pool
+      .acquire()
+      .await
+      .map_err(UserError::DatabaseError)?;
 
     let user = GetUserByIdQuery::run(&mut conn, user_id)
       .await
@@ -103,7 +107,7 @@ mod tests {
       metadata_json: Some(r#"{"updated": true}"#.to_string()),
     };
 
-    let result = UpdateUserOrchestrator::run(&main_pool, session_context, input).await;
+    let result = UpdateUserOrchestrator::run(&databases, session_context, input).await;
 
     assert!(result.is_ok());
     let user_with_role = result.unwrap();
@@ -133,7 +137,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&main_pool, session_context, input).await;
+    let result = UpdateUserOrchestrator::run(&databases, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -165,7 +169,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&main_pool, session_context, input).await;
+    let result = UpdateUserOrchestrator::run(&databases, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -199,7 +203,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&main_pool, session_context, input).await;
+    let result = UpdateUserOrchestrator::run(&databases, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -232,7 +236,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&main_pool, session_context, input).await;
+    let result = UpdateUserOrchestrator::run(&databases, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -268,7 +272,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&main_pool, session_context, input).await;
+    let result = UpdateUserOrchestrator::run(&databases, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -304,7 +308,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&main_pool, session_context, input).await;
+    let result = UpdateUserOrchestrator::run(&databases, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -342,7 +346,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&main_pool, session_context, input).await;
+    let result = UpdateUserOrchestrator::run(&databases, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -378,7 +382,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&main_pool, session_context, input).await;
+    let result = UpdateUserOrchestrator::run(&databases, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -414,7 +418,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&main_pool, session_context, input).await;
+    let result = UpdateUserOrchestrator::run(&databases, session_context, input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -450,7 +454,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&main_pool, session_context, input).await;
+    let result = UpdateUserOrchestrator::run(&databases, session_context, input).await;
 
     assert!(result.is_ok());
     let user_with_role = result.unwrap();

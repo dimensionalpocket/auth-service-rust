@@ -1,9 +1,9 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::models::role::ROLE_PERMISSIONS;
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::CheckUserPermissionService;
 use crate::types::RoleError;
-use sqlx::SqlitePool;
 
 pub struct GetRolePermissionsOrchestrator;
 
@@ -24,9 +24,10 @@ impl GetRolePermissionsOrchestrator {
   /// * `Ok(Vec<String>)` - List of available role permissions (filtered by user's admin rights)
   /// * `Err(RoleError)` - Authentication or authorization error
   pub async fn run(
-    pool: &SqlitePool,
+    databases: &Databases,
     session_context: SessionContext,
   ) -> Result<Vec<String>, RoleError> {
+    let main_pool = databases.main();
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -34,7 +35,10 @@ impl GetRolePermissionsOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
-    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+    let mut conn = main_pool
+      .acquire()
+      .await
+      .map_err(RoleError::DatabaseError)?;
 
     // Authorization: Get user and check permissions
     let user = GetUserByIdQuery::run(&mut conn, user_id)
@@ -88,7 +92,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetRolePermissionsOrchestrator::run(&main_pool, session_context).await;
+    let result = GetRolePermissionsOrchestrator::run(&databases, session_context).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -115,7 +119,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetRolePermissionsOrchestrator::run(&main_pool, session_context).await;
+    let result = GetRolePermissionsOrchestrator::run(&databases, session_context).await;
 
     assert!(result.is_ok());
     let permissions = result.unwrap();
@@ -144,7 +148,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetRolePermissionsOrchestrator::run(&main_pool, session_context).await;
+    let result = GetRolePermissionsOrchestrator::run(&databases, session_context).await;
 
     assert!(result.is_ok());
     let permissions = result.unwrap();
@@ -168,7 +172,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetRolePermissionsOrchestrator::run(&main_pool, session_context).await;
+    let result = GetRolePermissionsOrchestrator::run(&databases, session_context).await;
 
     assert!(result.is_ok());
     let permissions = result.unwrap();
@@ -181,7 +185,7 @@ mod tests {
     // Create session context without user (not authenticated)
     let session_context = SessionContext::new(None);
 
-    let result = GetRolePermissionsOrchestrator::run(&main_pool, session_context).await;
+    let result = GetRolePermissionsOrchestrator::run(&databases, session_context).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {

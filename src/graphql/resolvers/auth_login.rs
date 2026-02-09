@@ -1,9 +1,9 @@
+use crate::database::Databases;
 use crate::graphql::types::{UserRole, UserWithRoleResponse};
 use crate::orchestrators::auth::AuthLoginOrchestrator;
 use crate::types::SessionError;
 use crate::DpsAuthApiConfig;
 use async_graphql::{Context, Error, Object, Result};
-use sqlx::SqlitePool;
 use tracing::instrument;
 
 /// GraphQL output type for authentication response
@@ -32,14 +32,14 @@ impl AuthLoginResolver {
     #[graphql(name = "username")] username: String,
     #[graphql(name = "password")] password: String,
   ) -> Result<AuthLoginResponse, Error> {
-    let pool = ctx
-      .data::<SqlitePool>()
+    let databases = ctx
+      .data::<Databases>()
       .map_err(|_| async_graphql::Error::new("Internal server error"))?;
     let config = ctx
       .data::<DpsAuthApiConfig>()
       .map_err(|_| async_graphql::Error::new("Internal server error"))?;
 
-    match AuthLoginOrchestrator::run(pool, &username, &password, config).await {
+    match AuthLoginOrchestrator::run(databases, &username, &password, config).await {
       Ok((auth_result, cookie_value)) => {
         let _ = ctx.append_http_header("set-cookie", cookie_value);
 
@@ -209,7 +209,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_auth_login_maps_database_error() {
-    // Create a schema without SqlitePool schema data to trigger database error
+    // Create a schema without Databases schema data to trigger database error
     let test_config = DpsAuthApiConfig {
       port: 0,
       sqlite_main_file_path: "test.db".to_string(),
@@ -223,9 +223,8 @@ mod tests {
       sqlite_session_pool_size: 1,
       session_ttl_seconds: 3600,
     };
-    // NOTE: We intentionally do not inject `databases.main()` as `SqlitePool` here.
+    // NOTE: We intentionally do not inject `databases` here.
     let schema = Schema::build(TestEmptyQuery, AuthLoginResolver, EmptySubscription)
-      .data(databases.clone())
       .data(test_config)
       .finish();
 
@@ -251,7 +250,7 @@ mod tests {
     let error_message = &result.errors[0].message;
     assert_eq!(
       error_message, "Internal server error",
-      "Expected 'Internal server error' for missing database main_pool, but got: {error_message}"
+      "Expected 'Internal server error' for missing databases, but got: {error_message}"
     );
 
     // Verify it's not our mapped authentication error

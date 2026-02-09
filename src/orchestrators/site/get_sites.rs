@@ -1,13 +1,17 @@
+use crate::database::Databases;
 use crate::models::Site;
 use crate::services::GetAllSitesService;
 use crate::types::SiteError;
-use sqlx::SqlitePool;
 
 pub struct GetSitesOrchestrator;
 
 impl GetSitesOrchestrator {
-  pub async fn run(pool: &SqlitePool) -> Result<Vec<Site>, SiteError> {
-    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
+  pub async fn run(databases: &Databases) -> Result<Vec<Site>, SiteError> {
+    let main_pool = databases.main();
+    let mut conn = main_pool
+      .acquire()
+      .await
+      .map_err(SiteError::DatabaseError)?;
 
     GetAllSitesService::run(&mut conn).await
   }

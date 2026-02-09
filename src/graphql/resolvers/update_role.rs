@@ -1,9 +1,9 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::role::UpdateRoleOrchestrator;
 use crate::queries::roles::UpdateRoleData;
 use crate::types::RoleError;
 use async_graphql::{Context, InputObject, Object, Result};
-use sqlx::SqlitePool;
 use tracing::instrument;
 
 /// GraphQL input type for role update data
@@ -75,7 +75,7 @@ impl UpdateRoleResolver {
     name: Option<String>,
     permissions: Option<Vec<String>>,
   ) -> Result<UpdateRoleResponse> {
-    let pool = ctx.data::<SqlitePool>()?;
+    let databases = ctx.data::<Databases>()?;
 
     // Get session context
     let session_context = SessionContext::from_context(ctx)?;
@@ -87,7 +87,7 @@ impl UpdateRoleResolver {
       permissions,
     };
 
-    match UpdateRoleOrchestrator::run(pool, session_context.clone(), id, update_data).await {
+    match UpdateRoleOrchestrator::run(databases, session_context.clone(), id, update_data).await {
       Ok(role) => {
         let permissions = role.permissions;
         Ok(UpdateRoleResponse {

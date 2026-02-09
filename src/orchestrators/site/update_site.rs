@@ -1,20 +1,24 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::queries::sites::UpdateSiteData;
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::{CheckUserPermissionService, UpdateSiteService};
 use crate::types::SiteError;
-use sqlx::SqlitePool;
 
 pub struct UpdateSiteOrchestrator;
 
 impl UpdateSiteOrchestrator {
   pub async fn run(
-    pool: &SqlitePool,
+    databases: &Databases,
     session_context: SessionContext,
     site_id: i64,
     update_data: UpdateSiteData,
   ) -> Result<Option<crate::models::Site>, SiteError> {
-    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
+    let main_pool = databases.main();
+    let mut conn = main_pool
+      .acquire()
+      .await
+      .map_err(SiteError::DatabaseError)?;
 
     // Authentication: Check if user is authenticated
     let user_id = session_context
@@ -89,7 +93,7 @@ mod tests {
     };
 
     let result =
-      UpdateSiteOrchestrator::run(&main_pool, session_context, site.id, update_data).await;
+      UpdateSiteOrchestrator::run(&databases, session_context, site.id, update_data).await;
 
     assert!(result.is_ok());
     let updated_site = result.unwrap();
@@ -139,7 +143,7 @@ mod tests {
     };
 
     let result =
-      UpdateSiteOrchestrator::run(&main_pool, session_context, site.id, update_data).await;
+      UpdateSiteOrchestrator::run(&databases, session_context, site.id, update_data).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {

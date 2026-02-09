@@ -1,19 +1,23 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::queries::sites::GetSiteByIdQuery;
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::CheckUserPermissionService;
 use crate::types::SiteError;
-use sqlx::SqlitePool;
 
 pub struct GetSiteOrchestrator;
 
 impl GetSiteOrchestrator {
   pub async fn run(
-    pool: &SqlitePool,
+    databases: &Databases,
     session_context: SessionContext,
     site_id: i64,
   ) -> Result<crate::models::Site, SiteError> {
-    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
+    let main_pool = databases.main();
+    let mut conn = main_pool
+      .acquire()
+      .await
+      .map_err(SiteError::DatabaseError)?;
 
     // Authentication: Check if user is authenticated
     let user_id = session_context
@@ -82,7 +86,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     // Test site details retrieval
-    let result = GetSiteOrchestrator::run(&main_pool, session_context, site.id).await;
+    let result = GetSiteOrchestrator::run(&databases, session_context, site.id).await;
 
     assert!(result.is_ok());
     let retrieved_site = result.unwrap();
@@ -121,7 +125,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     // Test site details retrieval
-    let result = GetSiteOrchestrator::run(&main_pool, session_context, site.id).await;
+    let result = GetSiteOrchestrator::run(&databases, session_context, site.id).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -148,7 +152,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     // Test site details retrieval for non-existent site
-    let result = GetSiteOrchestrator::run(&main_pool, session_context, 999).await;
+    let result = GetSiteOrchestrator::run(&databases, session_context, 999).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {

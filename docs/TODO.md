@@ -1,4 +1,5 @@
 - multi-database support (in progress)
+- session sub to string + custom function to retrieve user
 - session management (separate database)
 - captcha on registration and login (cloudflare turnstile)
 - emails (needs planning)

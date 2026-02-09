@@ -1,9 +1,9 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::role::AddRoleOrchestrator;
 use crate::queries::roles::CreateRoleData;
 use crate::types::RoleError;
 use async_graphql::{Context, Object, Result};
-use sqlx::SqlitePool;
 use tracing::instrument;
 
 /// GraphQL input type for creating a role
@@ -74,7 +74,7 @@ impl AddRoleResolver {
     name: String,
     permissions: Vec<String>,
   ) -> Result<AddRoleResponse> {
-    let pool = ctx.data::<SqlitePool>()?;
+    let databases = ctx.data::<Databases>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
     let create_data = CreateRoleData {
@@ -83,7 +83,7 @@ impl AddRoleResolver {
       is_default: false,
     };
 
-    match AddRoleOrchestrator::run(pool, session_context.clone(), create_data).await {
+    match AddRoleOrchestrator::run(databases, session_context.clone(), create_data).await {
       Ok(role) => Ok(AddRoleResponse {
         id: role.id,
         name: role.name.clone(),

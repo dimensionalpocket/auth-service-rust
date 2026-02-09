@@ -328,7 +328,7 @@ pub async fn run(
 3. Test main pool behavior
 4. Test thread-safety with concurrent access
 
-### Phase 2: Inject Databases Everywhere (App + Tests)
+### Phase 2 (Completed): Inject Databases Everywhere (App + Tests)
 We are now using a custom DB test macro (`dps_auth_api_db_test`) that provides a `Databases` instance (and typically a convenience `main_pool` clone).
 
 Goal: keep production schema injection and test schema builders in sync while we transition resolvers from `ctx.data::<SqlitePool>()?` to `ctx.data::<Databases>()?`.
@@ -361,54 +361,36 @@ In production code, inject `Databases` into the app schema (even if most orchest
    - `sqlite_session_file_path: String`
    - `sqlite_session_pool_size: u16`
 6. In `create_app()`, initialize both databases (main + session), build a `Databases` instance, and inject it into the schema with `.data(databases)`.
-7. (Optional during transition) also inject `.data(databases.main().clone())` so any remaining `ctx.data::<SqlitePool>()?` resolvers keep working until Phase 4 completes.
-8. After Phase 4 is complete (all resolvers use `Databases`), remove the temporary `SqlitePool` injection from both app schema injection and test helpers.
+7. (Optional during transition) also inject `.data(databases.main().clone())` so any remaining `ctx.data::<SqlitePool>()?` resolvers keep working until Phase 3 completes.
+8. After Phase 3 is complete (all resolvers use `Databases`), remove the temporary `SqlitePool` injection from both app schema injection and test helpers.
 
 **Testing**:
 1. Update the existing schema helper tests in `src/test_utils/mod.rs`
 2. Update a small set of resolver tests first (smoke) to validate the new injection pattern
 3. Add/update an app-level smoke test that `create_app()` builds a schema containing `Databases`
 
-### Phase 3: Update Orchestrators to Use Databases
+### Phase 3: Update Orchestrators + Resolvers to Use Databases (Merged)
+Goal: avoid a long-lived transition state where some resolvers/orchestrators still use `SqlitePool` while others use `Databases`.
+
 **Files to Modify**:
 - `src/orchestrators/**` - Update orchestrator signatures and pool selection
+- `src/graphql/resolvers/*.rs` - Update resolver context retrieval + orchestrator calls
+- `src/dps_auth_api.rs` - (If still present) remove temporary `.data(databases.main().clone())` injection
+- `src/test_utils/mod.rs` - (If still present) remove temporary `SqlitePool` injection from schema helpers
 
 **Implementation Details**:
-1. Change orchestrator `run(...)` signatures from `pool: &SqlitePool` to `databases: &Databases`
-2. Inside each orchestrator, extract the required pool(s) from `databases` (`main()`, `session()`)
-3. Acquire one connection per required pool and pass `&mut SqliteConnection` down into services/queries as today
-4. Keep resolvers thin: no pool selection or connection acquisition in resolvers
+1. Change orchestrator `run(...)` signatures from `pool: &SqlitePool` to `databases: &Databases`.
+2. Update resolvers to retrieve `Databases` via `ctx.data::<Databases>()?` and pass it into orchestrators.
+3. Inside each orchestrator, select the correct pool(s) via `databases.main()` / `databases.session()`.
+4. When binding the main pool, name the variable `main_pool` (to avoid confusion once other pools are involved), then acquire connections as needed and pass `&mut SqliteConnection` down into services/queries as today.
+5. Delete any temporary compatibility wiring introduced during Phase 2 (extra `SqlitePool` injections in app schema + test schema builders) once all call sites are migrated.
+6. For speed: if the changes are mostly mechanical (e.g., signature changes and `ctx.data::<SqlitePool>()?` replacements), use Bun scripting from `scripts/` to apply repo-wide updates safely.
+   - Start by scripting only the obvious patterns (resolver context extraction + orchestrator invocation sites).
+   - Keep the rest manual if patterns diverge.
 
 **Testing**:
-1. Update unit tests (if any) that call orchestrators directly
-2. Run full test suite
-
-### Phase 4: Update Resolvers to Pass Databases
-**Files to Modify**:
-- `src/graphql/resolvers/*.rs`
-
-**Implementation Details**:
-1. Replace `ctx.data::<SqlitePool>()?` with `ctx.data::<Databases>()?`
-2. Pass `&Databases` into orchestrator `run(...)`
-3. Leave all database selection to orchestrators
-
-**Testing**:
-1. Run resolver tests (unit/integration) to ensure schema has `Databases` injected
-
-### Phase 5: Incremental Multi-DB Adoption (Optional)
-**Note**: This phase is optional and can be done incrementally
-
-**Files to Modify**:
-- `src/orchestrators/**` (only workflows that should use multiple databases)
-
-**Implementation Details**:
-1. Start with all orchestrators using `databases.main()` only
-2. For workflows that need additional databases, use `databases.session()` pool accessor
-3. Keep the rest of the stack unchanged: services/queries still operate on a connection
-
-**Testing**:
-1. Add tests for any new cross-database workflows
-2. Run full test suite after each batch
+1. Run full test suite.
+2. Run the linter (`cargo clippy --allow-dirty --fix && cargo fmt`) after tests are green.
 
 ## Effort Estimation
 
@@ -422,27 +404,17 @@ In production code, inject `Databases` into the app schema (even if most orchest
 - **Testing**: 1-2 hours
 - **Total**: 3-5 hours
 
-### Phase 2: Inject Databases Everywhere (App + Tests)
+### Phase 2 (Completed): Inject Databases Everywhere (App + Tests)
 - **Development**: 2-4 hours
 - **Testing**: 1-3 hours
 - **Total**: 3-7 hours
 
-### Phase 3: Update Orchestrators to Use Databases
-- **Development**: 2-4 hours
-- **Testing**: 1-2 hours
-- **Total**: 3-6 hours
+### Phase 3: Update Orchestrators + Resolvers to Use Databases (Merged)
+- **Development**: 3-6 hours
+- **Testing**: 2-4 hours
+- **Total**: 5-10 hours
 
-### Phase 4: Update Resolvers to Pass Databases
-- **Development**: 1-2 hours
-- **Testing**: 1-2 hours
-- **Total**: 2-4 hours
-
-### Phase 5: Incremental Multi-DB Adoption (Optional)
-- **Development**: Varies by workflow count/complexity
-- **Testing**: Add/extend tests per workflow
-
-**Total Effort** (excluding optional Phase 6): **15-29 hours**
-**Total Effort** (including optional Phase 6): **TBD**
+**Total Effort**: **16-27 hours**
 
 ## Advantages of This Approach
 
@@ -504,4 +476,4 @@ Key benefits:
 - Clear responsibility split (resolver: pass inputs; orchestrator: choose DB/pool; service/query: use connections)
 - Flexible for future database additions
 
-The effort estimate of 10-16 hours (excluding optional migration) represents a reasonable investment for the flexibility gained.
+The effort estimate of 16-27 hours represents a reasonable investment for the flexibility gained.

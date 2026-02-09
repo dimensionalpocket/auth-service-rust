@@ -1,14 +1,14 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::{CheckUserPermissionService, DeleteUserService};
 use crate::types::UserError;
-use sqlx::SqlitePool;
 
 pub struct DeleteUserOrchestrator;
 
 impl DeleteUserOrchestrator {
   pub async fn run(
-    pool: &SqlitePool,
+    databases: &Databases,
     session_context: SessionContext,
     target_user_id: i64,
   ) -> Result<(), UserError> {
@@ -18,7 +18,11 @@ impl DeleteUserOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
-    let mut conn = pool.acquire().await.map_err(UserError::DatabaseError)?;
+    let main_pool = databases.main();
+    let mut conn = main_pool
+      .acquire()
+      .await
+      .map_err(UserError::DatabaseError)?;
 
     let user = GetUserByIdQuery::run(&mut conn, user_id)
       .await
@@ -72,7 +76,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = DeleteUserOrchestrator::run(&main_pool, session_context, target_user.id).await;
+    let result = DeleteUserOrchestrator::run(&databases, session_context, target_user.id).await;
 
     assert!(result.is_ok());
 
@@ -89,7 +93,7 @@ mod tests {
   async fn test_delete_user_without_authentication() {
     let session_context = SessionContext::new(None);
 
-    let result = DeleteUserOrchestrator::run(&main_pool, session_context, 123).await;
+    let result = DeleteUserOrchestrator::run(&databases, session_context, 123).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -115,7 +119,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = DeleteUserOrchestrator::run(&main_pool, session_context, target_user.id).await;
+    let result = DeleteUserOrchestrator::run(&databases, session_context, target_user.id).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -139,7 +143,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = DeleteUserOrchestrator::run(&main_pool, session_context, admin_user.id).await;
+    let result = DeleteUserOrchestrator::run(&databases, session_context, admin_user.id).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -169,7 +173,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = DeleteUserOrchestrator::run(&main_pool, session_context, 999).await;
+    let result = DeleteUserOrchestrator::run(&databases, session_context, 999).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -193,7 +197,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = DeleteUserOrchestrator::run(&main_pool, session_context, target_user.id).await;
+    let result = DeleteUserOrchestrator::run(&databases, session_context, target_user.id).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {

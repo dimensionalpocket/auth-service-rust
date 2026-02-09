@@ -1,19 +1,23 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::queries::sites::CreateSiteData;
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::{CheckUserPermissionService, CreateSiteService};
 use crate::types::SiteError;
-use sqlx::SqlitePool;
 
 pub struct AddSiteOrchestrator;
 
 impl AddSiteOrchestrator {
   pub async fn run(
-    pool: &SqlitePool,
+    databases: &Databases,
     session_context: SessionContext,
     create_data: CreateSiteData,
   ) -> Result<crate::models::Site, SiteError> {
-    let mut conn = pool.acquire().await.map_err(SiteError::DatabaseError)?;
+    let main_pool = databases.main();
+    let mut conn = main_pool
+      .acquire()
+      .await
+      .map_err(SiteError::DatabaseError)?;
 
     // Authentication: Check if user is authenticated
     let user_id = session_context
@@ -73,7 +77,7 @@ mod tests {
       metadata_json: Some("{\"description\": \"Test site\"}".to_string()),
     };
 
-    let result = AddSiteOrchestrator::run(&main_pool, session_context, create_data).await;
+    let result = AddSiteOrchestrator::run(&databases, session_context, create_data).await;
 
     assert!(result.is_ok());
     let site = result.unwrap();
@@ -96,7 +100,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = AddSiteOrchestrator::run(&main_pool, session_context, create_data).await;
+    let result = AddSiteOrchestrator::run(&databases, session_context, create_data).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -125,7 +129,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = AddSiteOrchestrator::run(&main_pool, session_context, create_data).await;
+    let result = AddSiteOrchestrator::run(&databases, session_context, create_data).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -158,7 +162,7 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = AddSiteOrchestrator::run(&main_pool, session_context, create_data).await;
+    let result = AddSiteOrchestrator::run(&databases, session_context, create_data).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {

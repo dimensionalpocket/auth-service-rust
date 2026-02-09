@@ -1,9 +1,9 @@
+use crate::database::Databases;
 use crate::graphql::types::UserRole;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::user::GetUsersOrchestrator;
 use crate::types::UserError;
 use async_graphql::{Context, Object, Result};
-use sqlx::SqlitePool;
 use tracing::instrument;
 
 /// GraphQL output type for user listing
@@ -46,10 +46,10 @@ impl UsersResolver {
   #[instrument(skip(self, ctx))]
   #[graphql(name = "users")]
   async fn users(&self, ctx: &Context<'_>) -> Result<Vec<UserListing>> {
-    let pool = ctx.data::<SqlitePool>()?;
+    let databases = ctx.data::<Databases>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
-    match GetUsersOrchestrator::run(pool, session_context.clone()).await {
+    match GetUsersOrchestrator::run(databases, session_context.clone()).await {
       Ok(users) => Ok(
         users
           .into_iter()

@@ -1,15 +1,15 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::models::User;
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::UpdateUserPasswordService;
 use crate::types::UserError;
-use sqlx::SqlitePool;
 
 pub struct AuthChangePasswordOrchestrator;
 
 impl AuthChangePasswordOrchestrator {
   pub async fn run(
-    pool: &SqlitePool,
+    databases: &Databases,
     session_context: SessionContext,
     current_password: &str,
     new_password: &str,
@@ -23,7 +23,8 @@ impl AuthChangePasswordOrchestrator {
 
     let user_id = session_payload.sub;
 
-    let mut conn = pool.acquire().await?;
+    let main_pool = databases.main();
+    let mut conn = main_pool.acquire().await?;
 
     let _user = GetUserByIdQuery::run(&mut conn, user_id)
       .await?
@@ -62,7 +63,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let result = AuthChangePasswordOrchestrator::run(
-      &main_pool,
+      &databases,
       session_context,
       "password123",
       "newpassword456",
@@ -82,7 +83,7 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let result = AuthChangePasswordOrchestrator::run(
-      &main_pool,
+      &databases,
       session_context,
       "password123",
       "newpassword456",
@@ -109,7 +110,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let result = AuthChangePasswordOrchestrator::run(
-      &main_pool,
+      &databases,
       session_context,
       "password123",
       "newpassword456",
@@ -139,7 +140,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let result = AuthChangePasswordOrchestrator::run(
-      &main_pool,
+      &databases,
       session_context,
       "wrongpassword",
       "newpassword456",
@@ -169,7 +170,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let result = AuthChangePasswordOrchestrator::run(
-      &main_pool,
+      &databases,
       session_context,
       "password123",
       "newpassword456",
@@ -199,7 +200,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let result =
-      AuthChangePasswordOrchestrator::run(&main_pool, session_context, "password123", "123", "123")
+      AuthChangePasswordOrchestrator::run(&databases, session_context, "password123", "123", "123")
         .await;
 
     assert!(result.is_err());

@@ -1,8 +1,8 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::role::RemoveRoleOrchestrator;
 use crate::types::RoleError;
 use async_graphql::{Context, Object, Result};
-use sqlx::SqlitePool;
 use tracing::instrument;
 
 /// GraphQL output type for role removal response
@@ -47,10 +47,10 @@ impl RemoveRoleResolver {
   #[instrument(skip(ctx), fields(id = %id))]
   #[graphql(name = "removeRole")]
   async fn remove_role(&self, ctx: &Context<'_>, id: i64) -> Result<RemoveRoleResponse> {
-    let pool = ctx.data::<SqlitePool>()?;
+    let databases = ctx.data::<Databases>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
-    match RemoveRoleOrchestrator::run(pool, session_context.clone(), id).await {
+    match RemoveRoleOrchestrator::run(databases, session_context.clone(), id).await {
       Ok(role) => Ok(RemoveRoleResponse {
         success: true,
         id: role.id,

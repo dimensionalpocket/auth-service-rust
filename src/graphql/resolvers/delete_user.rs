@@ -1,8 +1,8 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::user::DeleteUserOrchestrator;
 use crate::types::UserError;
 use async_graphql::{Context, Object, Result};
-use sqlx::SqlitePool;
 use tracing::instrument;
 
 /// User deletion mutation resolver
@@ -36,10 +36,10 @@ impl DeleteUserResolver {
   #[instrument(skip(ctx), fields(user_id = %id))]
   #[graphql(name = "deleteUser")]
   async fn delete_user(&self, ctx: &Context<'_>, id: i64) -> Result<bool> {
-    let pool = ctx.data::<SqlitePool>()?;
+    let databases = ctx.data::<Databases>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
-    match DeleteUserOrchestrator::run(pool, session_context.clone(), id).await {
+    match DeleteUserOrchestrator::run(databases, session_context.clone(), id).await {
       Ok(_) => Ok(true),
       Err(UserError::AuthenticationError(msg)) => Err(async_graphql::Error::new(msg)),
       Err(UserError::AuthorizationError(msg)) => Err(async_graphql::Error::new(msg)),

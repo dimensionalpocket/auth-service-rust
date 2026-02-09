@@ -1,18 +1,19 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::services::AuthGetCurrentUserService;
 use crate::types::SessionError;
-use sqlx::SqlitePool;
 
 pub struct AuthMeOrchestrator;
 
 impl AuthMeOrchestrator {
   pub async fn run(
-    pool: &SqlitePool,
+    databases: &Databases,
     session_context: SessionContext,
   ) -> Result<Option<crate::services::AuthMeResult>, SessionError> {
+    let main_pool = databases.main();
     match &session_context.payload {
       Some(_payload) => {
-        let mut conn = pool
+        let mut conn = main_pool
           .acquire()
           .await
           .map_err(|e| SessionError::DatabaseError(e.to_string()))?;
@@ -48,7 +49,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = AuthMeOrchestrator::run(&main_pool, session_context).await;
+    let result = AuthMeOrchestrator::run(&databases, session_context).await;
 
     assert!(result.is_ok());
     let auth_me_result = result.unwrap();
@@ -64,7 +65,7 @@ mod tests {
   async fn test_get_authenticated_user_unauthenticated() {
     let session_context = SessionContext::new(None);
 
-    let result = AuthMeOrchestrator::run(&main_pool, session_context).await;
+    let result = AuthMeOrchestrator::run(&databases, session_context).await;
 
     assert!(result.is_ok());
     assert!(result.unwrap().is_none());

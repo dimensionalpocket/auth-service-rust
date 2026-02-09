@@ -1,3 +1,4 @@
+use crate::database::Databases;
 use crate::graphql::types::{UserRole, UserWithRoleResponse};
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::auth::AuthMeOrchestrator;
@@ -99,7 +100,7 @@ impl AuthMeResolver {
   #[instrument(skip(self, ctx))]
   #[graphql(name = "authMe")]
   async fn auth_me(&self, ctx: &Context<'_>) -> Result<Option<AuthMeResponse>> {
-    let pool = ctx.data::<sqlx::SqlitePool>()?;
+    let databases = ctx.data::<Databases>()?;
 
     // Try to get session context, but don't fail if it's missing
     let session_context = match SessionContext::from_context(ctx) {
@@ -107,7 +108,7 @@ impl AuthMeResolver {
       Err(_) => return Ok(None),
     };
 
-    match AuthMeOrchestrator::run(pool, session_context.clone()).await {
+    match AuthMeOrchestrator::run(databases, session_context.clone()).await {
       Ok(Some(auth_me_result)) => Ok(Some(AuthMeResponse {
         user: UserWithRoleResponse {
           id: auth_me_result.user_id,

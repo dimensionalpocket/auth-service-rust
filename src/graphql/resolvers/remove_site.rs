@@ -1,8 +1,8 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::site::RemoveSiteOrchestrator;
 use crate::types::SiteError;
 use async_graphql::{Context, Object, Result};
-use sqlx::SqlitePool;
 use tracing::instrument;
 
 /// GraphQL output type for site removal response
@@ -62,10 +62,10 @@ impl RemoveSiteResolver {
     ctx: &Context<'_>,
     #[graphql(name = "siteId")] site_id: i64,
   ) -> Result<RemoveSiteResponse> {
-    let pool = ctx.data::<SqlitePool>()?;
+    let databases = ctx.data::<Databases>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
-    match RemoveSiteOrchestrator::run(pool, session_context.clone(), site_id).await {
+    match RemoveSiteOrchestrator::run(databases, session_context.clone(), site_id).await {
       Ok(site) => Ok(RemoveSiteResponse {
         id: site.id,
         slug: site.slug,

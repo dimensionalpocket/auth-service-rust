@@ -1,9 +1,9 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::site::UpdateSiteOrchestrator;
 use crate::queries::sites::UpdateSiteData;
 use crate::types::SiteError;
 use async_graphql::{Context, Object, Result};
-use sqlx::SqlitePool;
 use tracing::instrument;
 
 /// GraphQL output type for site update response
@@ -79,7 +79,7 @@ impl UpdateSiteResolver {
     protocol: Option<String>,
     #[graphql(name = "metadataJson")] metadata_json: Option<String>,
   ) -> Result<UpdateSiteResponse> {
-    let pool = ctx.data::<SqlitePool>()?;
+    let databases = ctx.data::<Databases>()?;
 
     // Get session context
     let session_context = SessionContext::from_context(ctx)?;
@@ -94,7 +94,7 @@ impl UpdateSiteResolver {
       metadata_json: metadata_json.map(Some),
     };
 
-    match UpdateSiteOrchestrator::run(pool, session_context.clone(), id, update_data).await {
+    match UpdateSiteOrchestrator::run(databases, session_context.clone(), id, update_data).await {
       Ok(Some(site)) => Ok(UpdateSiteResponse {
         id: site.id,
         slug: site.slug,

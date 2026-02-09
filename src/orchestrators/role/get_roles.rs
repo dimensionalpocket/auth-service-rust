@@ -1,9 +1,9 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::models::role::Role;
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::{CheckUserPermissionService, GetAllRolesService};
 use crate::types::RoleError;
-use sqlx::SqlitePool;
 
 pub struct GetRolesOrchestrator;
 
@@ -13,9 +13,10 @@ impl GetRolesOrchestrator {
   /// Validates that the user has either `can_manage_roles` OR `can_edit_user_role` permission
   /// before returning all roles.
   pub async fn run(
-    pool: &SqlitePool,
+    databases: &Databases,
     session_context: SessionContext,
   ) -> Result<Vec<Role>, RoleError> {
+    let main_pool = databases.main();
     // Authentication: Check if user is authenticated
     let user_id = session_context
       .user_id()
@@ -23,7 +24,10 @@ impl GetRolesOrchestrator {
         "Authentication required".to_string(),
       ))?;
 
-    let mut conn = pool.acquire().await.map_err(RoleError::DatabaseError)?;
+    let mut conn = main_pool
+      .acquire()
+      .await
+      .map_err(RoleError::DatabaseError)?;
 
     // Authorization: Get user and check permissions
     let user = GetUserByIdQuery::run(&mut conn, user_id)
@@ -72,7 +76,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetRolesOrchestrator::run(&main_pool, session_context).await;
+    let result = GetRolesOrchestrator::run(&databases, session_context).await;
 
     assert!(result.is_ok());
     let roles = result.unwrap();
@@ -102,7 +106,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetRolesOrchestrator::run(&main_pool, session_context).await;
+    let result = GetRolesOrchestrator::run(&databases, session_context).await;
 
     assert!(result.is_ok());
     let roles = result.unwrap();
@@ -117,7 +121,7 @@ mod tests {
     // Create session context without user (not authenticated)
     let session_context = SessionContext::new(None);
 
-    let result = GetRolesOrchestrator::run(&main_pool, session_context).await;
+    let result = GetRolesOrchestrator::run(&databases, session_context).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -138,7 +142,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetRolesOrchestrator::run(&main_pool, session_context).await;
+    let result = GetRolesOrchestrator::run(&databases, session_context).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -164,7 +168,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetRolesOrchestrator::run(&main_pool, session_context).await;
+    let result = GetRolesOrchestrator::run(&databases, session_context).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -190,7 +194,7 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetRolesOrchestrator::run(&main_pool, session_context).await;
+    let result = GetRolesOrchestrator::run(&databases, session_context).await;
 
     assert!(result.is_ok());
     let roles = result.unwrap();

@@ -155,8 +155,6 @@ impl DpsAuthApi {
     let databases = Databases::new(main_db.pool, session_db.pool);
     let schema = crate::graphql::schema::build_schema()
       .data(databases.clone())
-      // Temporary bridge during migration: keep main pool available via schema data.
-      .data(databases.main().clone())
       .data(self.config.as_ref().clone()) // Inject config directly into schema data
       .extension(async_graphql::extensions::Tracing) // Built-in tracing for GraphQL operations
       .finish();

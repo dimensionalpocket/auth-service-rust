@@ -1,3 +1,4 @@
+use crate::database::Databases;
 use crate::graphql::types::UserRole;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::user::GetUserOrchestrator;
@@ -49,10 +50,10 @@ impl UserResolver {
   #[instrument(skip(ctx), fields(user_id = %id))]
   #[graphql(name = "user")]
   async fn user(&self, ctx: &Context<'_>, id: i64) -> Result<UserDetailsResponse, Error> {
-    let pool = ctx.data::<sqlx::SqlitePool>()?;
+    let databases = ctx.data::<Databases>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
-    match GetUserOrchestrator::run(pool, session_context.clone(), id).await {
+    match GetUserOrchestrator::run(databases, session_context.clone(), id).await {
       Ok(user) => Ok(UserDetailsResponse {
         id: user.user.id,
         uuid: user.user.uuid,

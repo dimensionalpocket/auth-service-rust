@@ -1,9 +1,9 @@
+use crate::database::Databases;
 use crate::graphql::types::UserRole;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::user::UpdateUserOrchestrator;
 use crate::types::{user::update_user_input::UpdateUserInput, UserError};
 use async_graphql::{Context, Object, Result};
-use sqlx::SqlitePool;
 use tracing::instrument;
 
 #[derive(async_graphql::SimpleObject)]
@@ -38,7 +38,7 @@ impl UpdateUserResolver {
     #[graphql(name = "passwordConfirmation")] password_confirmation: Option<String>,
     #[graphql(name = "metadataJson")] metadata_json: Option<String>,
   ) -> Result<UpdateUserResponse> {
-    let pool = ctx.data::<SqlitePool>()?;
+    let databases = ctx.data::<Databases>()?;
 
     let session_context = SessionContext::from_context(ctx)?;
 
@@ -51,7 +51,7 @@ impl UpdateUserResolver {
       metadata_json,
     };
 
-    match UpdateUserOrchestrator::run(pool, session_context.clone(), input).await {
+    match UpdateUserOrchestrator::run(databases, session_context.clone(), input).await {
       Ok(user_with_role) => Ok(UpdateUserResponse {
         id: user_with_role.user.id,
         uuid: user_with_role.user.uuid,

@@ -1,8 +1,8 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::role::GetRoleOrchestrator;
 use crate::types::RoleError;
 use async_graphql::{Context, Object, Result};
-use sqlx::SqlitePool;
 use tracing::instrument;
 
 /// GraphQL output type for role details
@@ -53,10 +53,10 @@ impl RoleResolver {
   #[instrument(skip(ctx), fields(role_id = %id))]
   #[graphql(name = "role")]
   async fn role(&self, ctx: &Context<'_>, id: i64) -> Result<RoleResponse> {
-    let pool = ctx.data::<SqlitePool>()?;
+    let databases = ctx.data::<Databases>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
-    match GetRoleOrchestrator::run(pool, session_context.clone(), id).await {
+    match GetRoleOrchestrator::run(databases, session_context.clone(), id).await {
       Ok(role) => {
         let permissions = role.permissions;
         Ok(RoleResponse {

@@ -1,8 +1,8 @@
+use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::auth::AuthChangePasswordOrchestrator;
 use crate::types::UserError;
 use async_graphql::{Context, Object, Result, SimpleObject};
-use sqlx::SqlitePool;
 use tracing::instrument;
 
 /// GraphQL output type for password change response
@@ -53,11 +53,11 @@ impl AuthChangePasswordResolver {
     #[graphql(name = "newPassword")] new_password: String,
     #[graphql(name = "newPasswordConfirmation")] new_password_confirmation: String,
   ) -> Result<AuthChangePasswordResponse> {
-    let pool = ctx.data::<SqlitePool>()?;
+    let databases = ctx.data::<Databases>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
     match AuthChangePasswordOrchestrator::run(
-      pool,
+      databases,
       session_context.clone(),
       &current_password,
       &new_password,

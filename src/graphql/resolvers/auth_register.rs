@@ -1,9 +1,9 @@
+use crate::database::Databases;
 use crate::graphql::types::{UserRole, UserWithRoleResponse};
 use crate::orchestrators::auth::AuthRegisterOrchestrator;
 use crate::types::SessionError;
 use crate::DpsAuthApiConfig;
 use async_graphql::{Context, Object, Result};
-use sqlx::SqlitePool;
 use tracing::instrument;
 
 /// GraphQL output type for user registration response
@@ -54,11 +54,17 @@ impl AuthRegisterResolver {
     #[graphql(name = "password")] password: String,
     #[graphql(name = "passwordConfirmation")] password_confirmation: String,
   ) -> Result<AuthRegisterResponse> {
-    let pool = ctx.data::<SqlitePool>()?;
+    let databases = ctx.data::<Databases>()?;
     let config = ctx.data::<DpsAuthApiConfig>()?;
 
-    match AuthRegisterOrchestrator::run(pool, &username, &password, &password_confirmation, config)
-      .await
+    match AuthRegisterOrchestrator::run(
+      databases,
+      &username,
+      &password,
+      &password_confirmation,
+      config,
+    )
+    .await
     {
       Ok((register_result, cookie_value)) => {
         // Use append to allow multiple cookies; ignore the return value
