@@ -1,7 +1,7 @@
 use crate::database::Databases;
 use crate::services::{AuthRegisterService, GenerateSessionCookieService, RegisterResult};
+use crate::types::DpsAuthApiConfig;
 use crate::types::SessionError;
-use crate::DpsAuthApiConfig;
 
 pub struct AuthRegisterOrchestrator;
 

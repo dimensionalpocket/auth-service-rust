@@ -1,7 +1,7 @@
 use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::role::GetRolePermissionsOrchestrator;
-use crate::types::RoleError;
+use crate::types::{DpsAuthApiConfig, RoleError};
 use async_graphql::{Context, Object, Result};
 use tracing::instrument;
 
@@ -17,8 +17,9 @@ impl RolePermissionsResolver {
   async fn role_permissions(&self, ctx: &Context<'_>) -> Result<Vec<String>> {
     let databases = ctx.data::<Databases>()?;
     let session_context = ctx.data::<SessionContext>()?;
+    let config = ctx.data::<DpsAuthApiConfig>()?;
 
-    match GetRolePermissionsOrchestrator::run(databases, session_context.clone()).await {
+    match GetRolePermissionsOrchestrator::run(databases, session_context.clone(), config).await {
       Ok(permissions) => Ok(permissions),
       Err(RoleError::AuthenticationError(msg)) => Err(async_graphql::Error::new(msg)),
       Err(RoleError::AuthorizationError(msg)) => Err(async_graphql::Error::new(msg)),
@@ -40,7 +41,8 @@ mod tests {
   use crate::middleware::session::SessionContext;
   use crate::models::role::ROLE_PERMISSIONS;
   use crate::test_utils::{
-    create_test_query_schema, create_test_role_with_databases, create_test_user_with_databases,
+    create_test_config, create_test_query_schema, create_test_role_with_databases,
+    create_test_user_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
@@ -53,14 +55,19 @@ mod tests {
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
-      sub: regular_user.id,
+      sub: regular_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = RolePermissionsResolver;
-    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let result = schema.execute("{ rolePermissions }").await;
 
@@ -80,14 +87,19 @@ mod tests {
 
     // Create session context for role manager
     let session_payload = DpsAuthSessionPayload {
-      sub: role_manager_user.id,
+      sub: role_manager_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = RolePermissionsResolver;
-    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let result = schema.execute("{ rolePermissions }").await;
 
@@ -121,14 +133,19 @@ mod tests {
 
     // Create session context for admin manager
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_manager_user.id,
+      sub: admin_manager_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = RolePermissionsResolver;
-    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let result = schema.execute("{ rolePermissions }").await;
 
@@ -156,14 +173,19 @@ mod tests {
 
     // Create session context for admin
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = RolePermissionsResolver;
-    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let result = schema.execute("{ rolePermissions }").await;
 
@@ -188,11 +210,16 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let query = RolePermissionsResolver;
-    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let result = schema.execute("{ rolePermissions }").await;
 
     assert!(!result.errors.is_empty());
-    assert!(result.errors[0].message.contains("Authentication required"));
+    assert!(result.errors[0].message.contains("No valid session"));
   }
 }

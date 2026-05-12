@@ -707,8 +707,8 @@ dependencies = [
 
 [[package]]
 name = "dps-auth-session"
-version = "0.2.0"
-source = "git+https://github.com/dimensionalpocket/dps-auth-session-rs?tag=0.2.0#22cea9bddee2e0e7b7d086ea269c7cf9bf8f7737"
+version = "0.3.0"
+source = "git+https://github.com/dimensionalpocket/dps-auth-session?tag=0.3.0#ae9c22b8a834892a8b82c5d305b92f4f2f29bab6"
 dependencies = [
  "aes-gcm",
  "base64",

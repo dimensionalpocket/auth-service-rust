@@ -2,7 +2,7 @@ use crate::database::Databases;
 use crate::graphql::types::{UserRole, UserWithRoleResponse};
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::auth::AuthMeOrchestrator;
-use crate::types::SessionError;
+use crate::types::{DpsAuthApiConfig, SessionError};
 use async_graphql::{Context, Object, Result};
 use tracing::instrument;
 
@@ -101,6 +101,7 @@ impl AuthMeResolver {
   #[graphql(name = "authMe")]
   async fn auth_me(&self, ctx: &Context<'_>) -> Result<Option<AuthMeResponse>> {
     let databases = ctx.data::<Databases>()?;
+    let config = ctx.data::<DpsAuthApiConfig>()?;
 
     // Try to get session context, but don't fail if it's missing
     let session_context = match SessionContext::from_context(ctx) {
@@ -108,7 +109,7 @@ impl AuthMeResolver {
       Err(_) => return Ok(None),
     };
 
-    match AuthMeOrchestrator::run(databases, session_context.clone()).await {
+    match AuthMeOrchestrator::run(databases, session_context.clone(), config).await {
       Ok(Some(auth_me_result)) => Ok(Some(AuthMeResponse {
         user: UserWithRoleResponse {
           id: auth_me_result.user_id,
@@ -146,7 +147,9 @@ mod tests {
 
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{create_test_query_schema, create_test_user_full_with_databases};
+  use crate::test_utils::{
+    create_test_config, create_test_query_schema, create_test_user_full_with_databases,
+  };
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
   #[dps_auth_db_test]
@@ -164,13 +167,18 @@ mod tests {
 
     let query = AuthMeResolver;
     let payload = ServiceSessionPayload {
-      sub: user_id,
+      sub: user_id.to_string(),
       iat: 1706356800,
       exp: 1706616000,
     };
     let session_context = SessionContext::new(Some(payload.clone()));
 
-    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let result = schema
       .execute(
@@ -192,7 +200,12 @@ mod tests {
     let query = AuthMeResolver;
     let session_context = SessionContext::new(None);
 
-    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let result = schema.execute("{ authMe { user { id uuid name } } }").await;
 
@@ -206,7 +219,8 @@ mod tests {
   async fn test_auth_me_missing_context() {
     let query = AuthMeResolver;
 
-    let schema = create_test_query_schema(query, databases.clone(), None, None);
+    let schema =
+      create_test_query_schema(query, databases.clone(), None, Some(create_test_config()));
     let result = schema.execute("{ authMe { user { id uuid name } } }").await;
 
     // Should succeed with null response when no session context

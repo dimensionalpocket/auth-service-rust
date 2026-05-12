@@ -3,7 +3,8 @@ use crate::middleware::session::SessionContext;
 use crate::models::role::Role;
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::{CheckUserPermissionService, DeleteRoleService};
-use crate::types::RoleError;
+use crate::types::{DpsAuthApiConfig, RoleError};
+use crate::utils::session_context_sub_to_user_id;
 
 pub struct RemoveRoleOrchestrator;
 
@@ -17,15 +18,13 @@ impl RemoveRoleOrchestrator {
   pub async fn run(
     databases: &Databases,
     session_context: SessionContext,
+    config: &DpsAuthApiConfig,
     role_id: i64,
   ) -> Result<Role, RoleError> {
     let main_pool = databases.main();
     // Authentication: Check if user is authenticated
-    let user_id = session_context
-      .user_id()
-      .ok_or(RoleError::AuthenticationError(
-        "Authentication required".to_string(),
-      ))?;
+    let user_id = session_context_sub_to_user_id(&session_context, config)
+      .map_err(RoleError::AuthenticationError)?;
 
     let mut main_conn = main_pool
       .acquire()
@@ -58,7 +57,9 @@ mod tests {
   use crate::middleware::session::SessionContext;
   use crate::queries::users::GetUserByIdQuery;
   use crate::services::GetRoleByIdService;
-  use crate::test_utils::{create_test_role_with_databases, create_test_user_with_databases};
+  use crate::test_utils::{
+    create_test_config, create_test_role_with_databases, create_test_user_with_databases,
+  };
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[dps_auth_db_test]
@@ -74,13 +75,19 @@ mod tests {
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = RemoveRoleOrchestrator::run(&databases, session_context, test_role_id).await;
+    let result = RemoveRoleOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_config(),
+      test_role_id,
+    )
+    .await;
 
     assert!(result.is_ok());
     let deleted_role = result.unwrap();
@@ -103,12 +110,18 @@ mod tests {
     // Create session context without user (not authenticated)
     let session_context = SessionContext::new(None);
 
-    let result = RemoveRoleOrchestrator::run(&databases, session_context, test_role_id).await;
+    let result = RemoveRoleOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_config(),
+      test_role_id,
+    )
+    .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::AuthenticationError(msg) => {
-        assert!(msg.contains("Authentication required"));
+        assert!(msg.contains("No valid session"));
       }
       _ => panic!("Expected AuthenticationError"),
     }
@@ -122,13 +135,19 @@ mod tests {
 
     // Create session context for non-existent user
     let session_payload = DpsAuthSessionPayload {
-      sub: 999,
+      sub: "999".to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = RemoveRoleOrchestrator::run(&databases, session_context, test_role_id).await;
+    let result = RemoveRoleOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_config(),
+      test_role_id,
+    )
+    .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -152,13 +171,19 @@ mod tests {
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
-      sub: regular_user.id,
+      sub: regular_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = RemoveRoleOrchestrator::run(&databases, session_context, test_role_id).await;
+    let result = RemoveRoleOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_config(),
+      test_role_id,
+    )
+    .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -178,13 +203,14 @@ mod tests {
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = RemoveRoleOrchestrator::run(&databases, session_context, 999).await;
+    let result =
+      RemoveRoleOrchestrator::run(&databases, session_context, &create_test_config(), 999).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -212,13 +238,19 @@ mod tests {
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = RemoveRoleOrchestrator::run(&databases, session_context, test_role_id).await;
+    let result = RemoveRoleOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_config(),
+      test_role_id,
+    )
+    .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -269,13 +301,19 @@ mod tests {
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = RemoveRoleOrchestrator::run(&databases, session_context, test_role_id).await;
+    let result = RemoveRoleOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_config(),
+      test_role_id,
+    )
+    .await;
 
     assert!(result.is_ok());
     let deleted_role = result.unwrap();

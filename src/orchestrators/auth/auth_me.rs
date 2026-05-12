@@ -1,7 +1,7 @@
 use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::services::AuthGetCurrentUserService;
-use crate::types::SessionError;
+use crate::types::{DpsAuthApiConfig, SessionError};
 
 pub struct AuthMeOrchestrator;
 
@@ -9,6 +9,7 @@ impl AuthMeOrchestrator {
   pub async fn run(
     databases: &Databases,
     session_context: SessionContext,
+    config: &DpsAuthApiConfig,
   ) -> Result<Option<crate::services::AuthMeResult>, SessionError> {
     let main_pool = databases.main();
     match &session_context.payload {
@@ -17,7 +18,7 @@ impl AuthMeOrchestrator {
           .acquire()
           .await
           .map_err(|e| SessionError::DatabaseError(e.to_string()))?;
-        AuthGetCurrentUserService::run(&mut main_conn, &session_context)
+        AuthGetCurrentUserService::run(&mut main_conn, &session_context, config)
           .await
           .map(Some)
       }
@@ -32,7 +33,9 @@ mod tests {
 
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{create_test_role_with_databases, create_test_user_full_with_databases};
+  use crate::test_utils::{
+    create_test_config, create_test_role_with_databases, create_test_user_full_with_databases,
+  };
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[dps_auth_db_test]
@@ -43,13 +46,13 @@ mod tests {
         .await;
 
     let session_payload = DpsAuthSessionPayload {
-      sub: user.id,
+      sub: user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = AuthMeOrchestrator::run(&databases, session_context).await;
+    let result = AuthMeOrchestrator::run(&databases, session_context, &create_test_config()).await;
 
     assert!(result.is_ok());
     let auth_me_result = result.unwrap();
@@ -65,7 +68,7 @@ mod tests {
   async fn test_get_authenticated_user_unauthenticated() {
     let session_context = SessionContext::new(None);
 
-    let result = AuthMeOrchestrator::run(&databases, session_context).await;
+    let result = AuthMeOrchestrator::run(&databases, session_context, &create_test_config()).await;
 
     assert!(result.is_ok());
     assert!(result.unwrap().is_none());

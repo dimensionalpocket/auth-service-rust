@@ -1,7 +1,7 @@
 use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::auth::AuthChangePasswordOrchestrator;
-use crate::types::UserError;
+use crate::types::{DpsAuthApiConfig, UserError};
 use async_graphql::{Context, Object, Result, SimpleObject};
 use tracing::instrument;
 
@@ -54,11 +54,13 @@ impl AuthChangePasswordResolver {
     #[graphql(name = "newPasswordConfirmation")] new_password_confirmation: String,
   ) -> Result<AuthChangePasswordResponse> {
     let databases = ctx.data::<Databases>()?;
+    let config = ctx.data::<DpsAuthApiConfig>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
     match AuthChangePasswordOrchestrator::run(
       databases,
       session_context.clone(),
+      config,
       &current_password,
       &new_password,
       &new_password_confirmation,
@@ -92,7 +94,9 @@ mod tests {
   use super::*;
   use crate::middleware::session::{SessionContext, SessionPayload};
   use crate::services::{AuthLoginService, CreateUserService};
-  use crate::test_utils::{create_test_mutation_schema, create_test_role_model_with_conn};
+  use crate::test_utils::{
+    create_test_config, create_test_mutation_schema, create_test_role_model_with_conn,
+  };
   use sqlx::SqliteConnection;
 
   // Test secret - 32 bytes for AES-256
@@ -118,7 +122,7 @@ mod tests {
 
     // Create session payload (simplified for testing)
     let session_payload = SessionPayload {
-      sub: user.id,
+      sub: user.id.to_string(),
       iat: chrono::Utc::now().timestamp(),
       exp: chrono::Utc::now().timestamp() + 3600,
     };
@@ -140,8 +144,12 @@ mod tests {
 
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
-    let schema =
-      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     // Test: Change password
     let query = r#"
@@ -189,8 +197,12 @@ mod tests {
 
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
-    let schema =
-      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     // Test: Try to change with wrong current password
     let query = r#"
@@ -228,8 +240,12 @@ mod tests {
 
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
-    let schema =
-      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     // Test: Try to change with mismatched confirmation
     let query = r#"
@@ -259,8 +275,12 @@ mod tests {
 
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
-    let schema =
-      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     // Test: Try to change password without authentication
     let query = r#"
@@ -280,7 +300,7 @@ mod tests {
 
     // Verify: Should return authentication error
     assert!(!result.errors.is_empty());
-    assert!(result.errors[0].message.contains("Authentication required"));
+    assert!(result.errors[0].message.contains("No valid session"));
   }
 
   #[dps_auth_db_test]
@@ -296,8 +316,12 @@ mod tests {
 
     // Create GraphQL schema
     let mutation = AuthChangePasswordResolver;
-    let schema =
-      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     // Test: Try to change with invalid new password (too short)
     let query = r#"

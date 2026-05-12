@@ -1,6 +1,7 @@
 use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::role::GetRolesOrchestrator;
+use crate::types::DpsAuthApiConfig;
 use async_graphql::{Context, Object, Result, SimpleObject};
 use tracing::instrument;
 
@@ -52,8 +53,9 @@ impl RolesResolver {
   async fn roles(&self, ctx: &Context<'_>) -> Result<Vec<RoleListing>> {
     let databases = ctx.data::<Databases>()?;
     let session_context = ctx.data::<SessionContext>()?;
+    let config = ctx.data::<DpsAuthApiConfig>()?;
 
-    let roles = GetRolesOrchestrator::run(databases, session_context.clone())
+    let roles = GetRolesOrchestrator::run(databases, session_context.clone(), config)
       .await
       .map_err(|e| async_graphql::Error::new(e.to_string()))?;
 
@@ -83,7 +85,8 @@ mod tests {
   use crate::graphql::resolvers::RolesResolver;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_query_schema, create_test_role_with_databases, create_test_user_with_databases,
+    create_test_config, create_test_query_schema, create_test_role_with_databases,
+    create_test_user_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
@@ -100,14 +103,19 @@ mod tests {
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = RolesResolver;
-    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let result = schema
       .execute("{ roles { id name permissions isDefault createdTs updatedTs } }")
@@ -143,14 +151,19 @@ mod tests {
 
     // Create session context for role editor user
     let session_payload = DpsAuthSessionPayload {
-      sub: role_editor_user.id,
+      sub: role_editor_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = RolesResolver;
-    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let result = schema
       .execute("{ roles { id name permissions isDefault createdTs updatedTs } }")
@@ -178,14 +191,19 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let query = RolesResolver;
-    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let result = schema
       .execute("{ roles { id name permissions isDefault createdTs updatedTs } }")
       .await;
 
     assert!(!result.errors.is_empty());
-    assert!(result.errors[0].message.contains("Authentication error"));
+    assert!(result.errors[0].message.contains("No valid session"));
   }
 
   #[dps_auth_db_test]
@@ -197,14 +215,19 @@ mod tests {
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
-      sub: regular_user.id,
+      sub: regular_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = RolesResolver;
-    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let result = schema
       .execute("{ roles { id name permissions isDefault createdTs updatedTs } }")
@@ -223,14 +246,19 @@ mod tests {
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = RolesResolver;
-    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let result = schema
       .execute("{ roles { id name permissions isDefault createdTs updatedTs } }")

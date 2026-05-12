@@ -2,7 +2,7 @@ use crate::database::Databases;
 use crate::graphql::types::UserRole;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::user::GetUsersOrchestrator;
-use crate::types::UserError;
+use crate::types::{DpsAuthApiConfig, UserError};
 use async_graphql::{Context, Object, Result};
 use tracing::instrument;
 
@@ -47,9 +47,10 @@ impl UsersResolver {
   #[graphql(name = "users")]
   async fn users(&self, ctx: &Context<'_>) -> Result<Vec<UserListing>> {
     let databases = ctx.data::<Databases>()?;
+    let config = ctx.data::<DpsAuthApiConfig>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
-    match GetUsersOrchestrator::run(databases, session_context.clone()).await {
+    match GetUsersOrchestrator::run(databases, session_context.clone(), config).await {
       Ok(users) => Ok(
         users
           .into_iter()
@@ -84,7 +85,8 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_query_schema, create_test_role_with_databases, create_test_user_with_databases,
+    create_test_config, create_test_query_schema, create_test_role_with_databases,
+    create_test_user_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
@@ -102,14 +104,19 @@ mod tests {
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = UsersResolver;
-    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let result = schema
       .execute("{ users { id uuid name role { id name permissions } createdTs updatedTs } }")
@@ -146,12 +153,17 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let query = UsersResolver;
-    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let result = schema.execute("{ users { id name } }").await;
 
     assert!(!result.errors.is_empty());
-    assert!(result.errors[0].message.contains("Authentication required"));
+    assert!(result.errors[0].message.contains("No valid session"));
   }
 
   #[dps_auth_db_test]
@@ -164,14 +176,19 @@ mod tests {
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
-      sub: regular_user.id,
+      sub: regular_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = UsersResolver;
-    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let result = schema.execute("{ users { id name } }").await;
 
@@ -188,14 +205,19 @@ mod tests {
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = UsersResolver;
-    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let result = schema.execute("{ users { id name role { name } } }").await;
 
@@ -211,14 +233,19 @@ mod tests {
   async fn test_users_nonexistent_user() {
     // Create session context for non-existent user
     let session_payload = DpsAuthSessionPayload {
-      sub: 999,
+      sub: "999".to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let query = UsersResolver;
-    let schema = create_test_query_schema(query, databases.clone(), Some(session_context), None);
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let result = schema.execute("{ users { id name } }").await;
 

@@ -4,7 +4,8 @@ use crate::models::role::Role;
 use crate::queries::roles::UpdateRoleData;
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::{CheckUserPermissionService, UpdateRoleService};
-use crate::types::RoleError;
+use crate::types::{DpsAuthApiConfig, RoleError};
+use crate::utils::session_context_sub_to_user_id;
 
 pub struct UpdateRoleOrchestrator;
 
@@ -18,16 +19,14 @@ impl UpdateRoleOrchestrator {
   pub async fn run(
     databases: &Databases,
     session_context: SessionContext,
+    config: &DpsAuthApiConfig,
     role_id: i64,
     update_data: UpdateRoleData,
   ) -> Result<Role, RoleError> {
     let main_pool = databases.main();
     // Authentication: Check if user is authenticated
-    let user_id = session_context
-      .user_id()
-      .ok_or(RoleError::AuthenticationError(
-        "Authentication required".to_string(),
-      ))?;
+    let user_id = session_context_sub_to_user_id(&session_context, config)
+      .map_err(RoleError::AuthenticationError)?;
 
     let mut main_conn = main_pool
       .acquire()
@@ -58,7 +57,9 @@ mod tests {
 
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{create_test_role_with_databases, create_test_user_with_databases};
+  use crate::test_utils::{
+    create_test_config, create_test_role_with_databases, create_test_user_with_databases,
+  };
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[dps_auth_db_test]
@@ -74,7 +75,7 @@ mod tests {
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -90,8 +91,14 @@ mod tests {
       ]),
     };
 
-    let result =
-      UpdateRoleOrchestrator::run(&databases, session_context, test_role_id, update_data).await;
+    let result = UpdateRoleOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_config(),
+      test_role_id,
+      update_data,
+    )
+    .await;
 
     assert!(result.is_ok());
     let updated_role = result.unwrap();
@@ -120,7 +127,7 @@ mod tests {
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -133,8 +140,14 @@ mod tests {
       permissions: None,
     };
 
-    let result =
-      UpdateRoleOrchestrator::run(&databases, session_context, test_role_id, update_data).await;
+    let result = UpdateRoleOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_config(),
+      test_role_id,
+      update_data,
+    )
+    .await;
 
     assert!(result.is_ok());
     let updated_role = result.unwrap();
@@ -161,13 +174,19 @@ mod tests {
       permissions: None,
     };
 
-    let result =
-      UpdateRoleOrchestrator::run(&databases, session_context, test_role_id, update_data).await;
+    let result = UpdateRoleOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_config(),
+      test_role_id,
+      update_data,
+    )
+    .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
       RoleError::AuthenticationError(msg) => {
-        assert!(msg.contains("Authentication required"));
+        assert!(msg.contains("No valid session"));
       }
       _ => panic!("Expected AuthenticationError"),
     }
@@ -181,7 +200,7 @@ mod tests {
 
     // Create session context for non-existent user
     let session_payload = DpsAuthSessionPayload {
-      sub: 999,
+      sub: "999".to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -193,8 +212,14 @@ mod tests {
       permissions: None,
     };
 
-    let result =
-      UpdateRoleOrchestrator::run(&databases, session_context, test_role_id, update_data).await;
+    let result = UpdateRoleOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_config(),
+      test_role_id,
+      update_data,
+    )
+    .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -218,7 +243,7 @@ mod tests {
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
-      sub: regular_user.id,
+      sub: regular_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -230,8 +255,14 @@ mod tests {
       permissions: None,
     };
 
-    let result =
-      UpdateRoleOrchestrator::run(&databases, session_context, test_role_id, update_data).await;
+    let result = UpdateRoleOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_config(),
+      test_role_id,
+      update_data,
+    )
+    .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -251,7 +282,7 @@ mod tests {
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -263,7 +294,14 @@ mod tests {
       permissions: None,
     };
 
-    let result = UpdateRoleOrchestrator::run(&databases, session_context, 999, update_data).await;
+    let result = UpdateRoleOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_config(),
+      999,
+      update_data,
+    )
+    .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -287,7 +325,7 @@ mod tests {
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -300,8 +338,14 @@ mod tests {
       permissions: Some(vec!["invalid_permission".to_string()]),
     };
 
-    let result =
-      UpdateRoleOrchestrator::run(&databases, session_context, test_role_id, update_data).await;
+    let result = UpdateRoleOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_config(),
+      test_role_id,
+      update_data,
+    )
+    .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -325,7 +369,7 @@ mod tests {
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -338,8 +382,14 @@ mod tests {
       permissions: Some(vec![]), // Set to empty array
     };
 
-    let result =
-      UpdateRoleOrchestrator::run(&databases, session_context, test_role_id, update_data).await;
+    let result = UpdateRoleOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_config(),
+      test_role_id,
+      update_data,
+    )
+    .await;
 
     assert!(result.is_ok());
     let updated_role = result.unwrap();

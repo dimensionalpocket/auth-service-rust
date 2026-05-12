@@ -20,10 +20,6 @@ impl SessionContext {
     self.payload.is_some()
   }
 
-  pub fn user_id(&self) -> Option<i64> {
-    self.payload.as_ref().map(|p| p.sub)
-  }
-
   /// Get session context from GraphQL context
   ///
   /// This method should always succeed since the session middleware always sets the context.

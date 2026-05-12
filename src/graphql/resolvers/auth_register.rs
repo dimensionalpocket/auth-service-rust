@@ -1,8 +1,8 @@
 use crate::database::Databases;
 use crate::graphql::types::{UserRole, UserWithRoleResponse};
 use crate::orchestrators::auth::AuthRegisterOrchestrator;
+use crate::types::DpsAuthApiConfig;
 use crate::types::SessionError;
-use crate::DpsAuthApiConfig;
 use async_graphql::{Context, Object, Result};
 use tracing::instrument;
 

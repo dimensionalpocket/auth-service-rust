@@ -110,7 +110,7 @@ mod tests {
       .unwrap();
 
     let payload = DpsAuthSession::decode_token(&token, TEST_SECRET).unwrap();
-    assert_eq!(payload.sub, user.id);
+    assert_eq!(payload.sub, user.id.to_string());
   }
 
   #[dps_auth_db_test]
@@ -184,6 +184,6 @@ mod tests {
       .unwrap();
 
     let payload = DpsAuthSession::decode_token(&token, TEST_SECRET).unwrap();
-    assert_eq!(payload.sub, user.id);
+    assert_eq!(payload.sub, user.id.to_string());
   }
 }

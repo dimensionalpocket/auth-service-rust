@@ -1,7 +1,7 @@
 use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::site::GetSiteOrchestrator;
-use crate::types::SiteError;
+use crate::types::{DpsAuthApiConfig, SiteError};
 use async_graphql::{Context, Object, Result};
 use tracing::instrument;
 
@@ -59,9 +59,10 @@ impl SiteResolver {
   #[graphql(name = "site")]
   async fn site(&self, ctx: &Context<'_>, id: i64) -> Result<SiteDetailsResponse> {
     let databases = ctx.data::<Databases>()?;
+    let config = ctx.data::<DpsAuthApiConfig>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
-    match GetSiteOrchestrator::run(databases, session_context.clone(), id).await {
+    match GetSiteOrchestrator::run(databases, session_context.clone(), config, id).await {
       Ok(site) => Ok(SiteDetailsResponse {
         id: site.id,
         slug: site.slug,
@@ -93,7 +94,8 @@ mod tests {
   use crate::middleware::session::SessionContext;
   use crate::queries::sites::{CreateSiteData, CreateSiteQuery};
   use crate::test_utils::{
-    create_test_query_schema, create_test_role_with_databases, create_test_user_with_databases,
+    create_test_config, create_test_query_schema, create_test_role_with_databases,
+    create_test_user_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
@@ -125,7 +127,7 @@ mod tests {
 
     // Create session context for admin user
     let session_payload = ServiceSessionPayload {
-      sub: admin_user_id,
+      sub: admin_user_id.to_string(),
       iat: 1706356800,
       exp: 1706616000,
     };
@@ -136,7 +138,7 @@ mod tests {
       query_resolver,
       databases.clone(),
       Some(session_context),
-      None,
+      Some(create_test_config()),
     );
 
     let query = format!(
@@ -188,7 +190,7 @@ mod tests {
 
     // Create session context for regular user
     let session_payload = ServiceSessionPayload {
-      sub: user_id,
+      sub: user_id.to_string(),
       iat: 1706356800,
       exp: 1706616000,
     };
@@ -199,7 +201,7 @@ mod tests {
       query_resolver,
       databases.clone(),
       Some(session_context),
-      None,
+      Some(create_test_config()),
     );
 
     let query = r#"
@@ -226,7 +228,7 @@ mod tests {
       query_resolver,
       databases.clone(),
       Some(session_context),
-      None,
+      Some(create_test_config()),
     );
 
     let query = r#"
@@ -240,7 +242,7 @@ mod tests {
 
     let result = schema.execute(query).await;
     assert!(!result.errors.is_empty());
-    assert!(result.errors[0].message.contains("Authentication required"));
+    assert!(result.errors[0].message.contains("No valid session"));
   }
 
   #[dps_auth_db_test]
@@ -256,7 +258,7 @@ mod tests {
 
     // Create session context for admin user
     let session_payload = ServiceSessionPayload {
-      sub: admin_user_id,
+      sub: admin_user_id.to_string(),
       iat: 1706356800,
       exp: 1706616000,
     };
@@ -267,7 +269,7 @@ mod tests {
       query_resolver,
       databases.clone(),
       Some(session_context),
-      None,
+      Some(create_test_config()),
     );
 
     let query = r#"

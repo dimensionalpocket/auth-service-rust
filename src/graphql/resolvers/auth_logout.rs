@@ -1,5 +1,5 @@
 use crate::services::GenerateLogoutCookieService;
-use crate::DpsAuthApiConfig;
+use crate::types::DpsAuthApiConfig;
 use async_graphql::{Context, Object, Result, SimpleObject};
 use tracing::instrument;
 

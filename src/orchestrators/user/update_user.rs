@@ -2,7 +2,8 @@ use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::queries::users::{GetUserByIdQuery, UpdateUserData};
 use crate::services::{CheckUserPermissionService, UpdateUserService};
-use crate::types::{user::update_user_input::UpdateUserInput, UserError};
+use crate::types::{user::update_user_input::UpdateUserInput, DpsAuthApiConfig, UserError};
+use crate::utils::session_context_sub_to_user_id;
 
 pub struct UpdateUserOrchestrator;
 
@@ -10,13 +11,11 @@ impl UpdateUserOrchestrator {
   pub async fn run(
     databases: &Databases,
     session_context: SessionContext,
+    config: &DpsAuthApiConfig,
     input: UpdateUserInput,
   ) -> Result<crate::models::user::UserWithRole, UserError> {
-    let user_id = session_context
-      .user_id()
-      .ok_or(UserError::AuthenticationError(
-        "Authentication required".to_string(),
-      ))?;
+    let user_id = session_context_sub_to_user_id(&session_context, config)
+      .map_err(UserError::AuthenticationError)?;
 
     let main_pool = databases.main();
     let mut main_conn = main_pool
@@ -78,7 +77,9 @@ mod tests {
 
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{create_test_role_with_databases, create_test_user_with_databases};
+  use crate::test_utils::{
+    create_test_config, create_test_role_with_databases, create_test_user_with_databases,
+  };
   use crate::types::user::update_user_input::UpdateUserInput;
   use dps_auth_session::DpsAuthSessionPayload;
 
@@ -92,7 +93,7 @@ mod tests {
       create_test_user_with_databases(&databases, "targetuser", admin_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -107,7 +108,8 @@ mod tests {
       metadata_json: Some(r#"{"updated": true}"#.to_string()),
     };
 
-    let result = UpdateUserOrchestrator::run(&databases, session_context, input).await;
+    let result =
+      UpdateUserOrchestrator::run(&databases, session_context, &create_test_config(), input).await;
 
     assert!(result.is_ok());
     let user_with_role = result.unwrap();
@@ -137,12 +139,13 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&databases, session_context, input).await;
+    let result =
+      UpdateUserOrchestrator::run(&databases, session_context, &create_test_config(), input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::AuthenticationError(msg) => {
-        assert_eq!(msg, "Authentication required");
+        assert_eq!(msg, "No valid session");
       }
       _ => panic!("Expected AuthenticationError"),
     }
@@ -154,7 +157,7 @@ mod tests {
     let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
-      sub: 999,
+      sub: "999".to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -169,7 +172,8 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&databases, session_context, input).await;
+    let result =
+      UpdateUserOrchestrator::run(&databases, session_context, &create_test_config(), input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -188,7 +192,7 @@ mod tests {
     let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
-      sub: regular_user.id,
+      sub: regular_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -203,7 +207,8 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&databases, session_context, input).await;
+    let result =
+      UpdateUserOrchestrator::run(&databases, session_context, &create_test_config(), input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -221,7 +226,7 @@ mod tests {
     let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -236,7 +241,8 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&databases, session_context, input).await;
+    let result =
+      UpdateUserOrchestrator::run(&databases, session_context, &create_test_config(), input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -257,7 +263,7 @@ mod tests {
     let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -272,7 +278,8 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&databases, session_context, input).await;
+    let result =
+      UpdateUserOrchestrator::run(&databases, session_context, &create_test_config(), input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -293,7 +300,7 @@ mod tests {
     let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -308,7 +315,8 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&databases, session_context, input).await;
+    let result =
+      UpdateUserOrchestrator::run(&databases, session_context, &create_test_config(), input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -331,7 +339,7 @@ mod tests {
       create_test_user_with_databases(&databases, "existinguser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -346,7 +354,8 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&databases, session_context, input).await;
+    let result =
+      UpdateUserOrchestrator::run(&databases, session_context, &create_test_config(), input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -367,7 +376,7 @@ mod tests {
     let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -382,7 +391,8 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&databases, session_context, input).await;
+    let result =
+      UpdateUserOrchestrator::run(&databases, session_context, &create_test_config(), input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -403,7 +413,7 @@ mod tests {
     let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -418,7 +428,8 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&databases, session_context, input).await;
+    let result =
+      UpdateUserOrchestrator::run(&databases, session_context, &create_test_config(), input).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -439,7 +450,7 @@ mod tests {
     let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -454,7 +465,8 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = UpdateUserOrchestrator::run(&databases, session_context, input).await;
+    let result =
+      UpdateUserOrchestrator::run(&databases, session_context, &create_test_config(), input).await;
 
     assert!(result.is_ok());
     let user_with_role = result.unwrap();

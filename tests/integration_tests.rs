@@ -611,7 +611,7 @@ async fn test_session_expired_token_handling() {
 
   let current_time = chrono::Utc::now().timestamp();
   let expired_payload = DpsAuthSessionPayload {
-    sub: 999,                 // Use a fake user ID
+    sub: "999".to_string(),   // Use a fake user ID
     iat: current_time - 3600, // 1 hour ago
     exp: current_time - 1800, // 30 minutes ago (expired)
   };
@@ -646,22 +646,44 @@ async fn test_session_expired_token_handling() {
 #[test]
 fn test_session_context_utility_methods() {
   use dps_auth_api::middleware::session::SessionContext;
+  use dps_auth_api::types::DpsAuthApiConfig;
+  use dps_auth_api::utils::session_context_sub_to_user_id;
   use dps_auth_session::DpsAuthSessionPayload;
+
+  fn create_test_config() -> DpsAuthApiConfig {
+    DpsAuthApiConfig {
+      port: 3000,
+      sqlite_main_file_path: ":memory:".to_string(),
+      sqlite_session_file_path: ":memory:".to_string(),
+      session_secret: vec![0u8; 32],
+      cookie_domain: ".test.com".to_string(),
+      api_path: "/api".to_string(),
+      insecure_cookie: true,
+      development_mode: true,
+      sqlite_main_pool_size: 1,
+      sqlite_session_pool_size: 1,
+      session_ttl_seconds: 3600,
+    }
+  }
+
+  let config = create_test_config();
 
   // Test empty context
   let empty_context = SessionContext::new(None);
   assert!(!empty_context.authenticated());
-  assert_eq!(empty_context.user_id(), None);
+  let result = session_context_sub_to_user_id(&empty_context, &config);
+  assert!(result.is_err());
 
   // Test authenticated context
   let payload = DpsAuthSessionPayload {
-    sub: 123,
+    sub: "123".to_string(),
     iat: 1000,
     exp: 2000,
   };
   let auth_context = SessionContext::new(Some(payload));
   assert!(auth_context.authenticated());
-  assert_eq!(auth_context.user_id(), Some(123));
+  let result = session_context_sub_to_user_id(&auth_context, &config);
+  assert_eq!(result, Ok(123));
 }
 
 #[test]

@@ -3,7 +3,8 @@ use crate::middleware::session::SessionContext;
 use crate::models::User;
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::UpdateUserPasswordService;
-use crate::types::UserError;
+use crate::types::{DpsAuthApiConfig, UserError};
+use crate::utils::session_context_sub_to_user_id;
 
 pub struct AuthChangePasswordOrchestrator;
 
@@ -11,17 +12,13 @@ impl AuthChangePasswordOrchestrator {
   pub async fn run(
     databases: &Databases,
     session_context: SessionContext,
+    config: &DpsAuthApiConfig,
     current_password: &str,
     new_password: &str,
     new_password_confirmation: &str,
   ) -> Result<User, UserError> {
-    let session_payload = session_context
-      .payload
-      .ok_or(UserError::AuthenticationError(
-        "Authentication required".to_string(),
-      ))?;
-
-    let user_id = session_payload.sub;
+    let user_id = session_context_sub_to_user_id(&session_context, config)
+      .map_err(UserError::AuthenticationError)?;
 
     let main_pool = databases.main();
     let mut main_conn = main_pool.acquire().await?;
@@ -47,7 +44,9 @@ mod tests {
 
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{create_test_role_with_databases, create_test_user_with_databases};
+  use crate::test_utils::{
+    create_test_config, create_test_role_with_databases, create_test_user_with_databases,
+  };
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[dps_auth_db_test]
@@ -56,7 +55,7 @@ mod tests {
     let user = create_test_user_with_databases(&databases, "testuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
-      sub: user.id,
+      sub: user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -65,6 +64,7 @@ mod tests {
     let result = AuthChangePasswordOrchestrator::run(
       &databases,
       session_context,
+      &create_test_config(),
       "password123",
       "newpassword456",
       "newpassword456",
@@ -85,6 +85,7 @@ mod tests {
     let result = AuthChangePasswordOrchestrator::run(
       &databases,
       session_context,
+      &create_test_config(),
       "password123",
       "newpassword456",
       "newpassword456",
@@ -94,7 +95,7 @@ mod tests {
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::AuthenticationError(msg) => {
-        assert!(msg.contains("Authentication required"));
+        assert!(msg.contains("No valid session"));
       }
       _ => panic!("Expected AuthenticationError"),
     }
@@ -103,7 +104,7 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_change_authenticated_user_password_nonexistent_user() {
     let session_payload = DpsAuthSessionPayload {
-      sub: 999,
+      sub: "999".to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -112,6 +113,7 @@ mod tests {
     let result = AuthChangePasswordOrchestrator::run(
       &databases,
       session_context,
+      &create_test_config(),
       "password123",
       "newpassword456",
       "newpassword456",
@@ -133,7 +135,7 @@ mod tests {
     let user = create_test_user_with_databases(&databases, "testuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
-      sub: user.id,
+      sub: user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -142,6 +144,7 @@ mod tests {
     let result = AuthChangePasswordOrchestrator::run(
       &databases,
       session_context,
+      &create_test_config(),
       "wrongpassword",
       "newpassword456",
       "newpassword456",
@@ -163,7 +166,7 @@ mod tests {
     let user = create_test_user_with_databases(&databases, "testuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
-      sub: user.id,
+      sub: user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -172,6 +175,7 @@ mod tests {
     let result = AuthChangePasswordOrchestrator::run(
       &databases,
       session_context,
+      &create_test_config(),
       "password123",
       "newpassword456",
       "differentpassword",
@@ -193,15 +197,21 @@ mod tests {
     let user = create_test_user_with_databases(&databases, "testuser", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
-      sub: user.id,
+      sub: user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result =
-      AuthChangePasswordOrchestrator::run(&databases, session_context, "password123", "123", "123")
-        .await;
+    let result = AuthChangePasswordOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_config(),
+      "password123",
+      "123",
+      "123",
+    )
+    .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {

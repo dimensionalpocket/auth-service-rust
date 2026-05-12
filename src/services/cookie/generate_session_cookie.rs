@@ -1,4 +1,4 @@
-use crate::dps_auth_api::DpsAuthApiConfig;
+use crate::types::DpsAuthApiConfig;
 
 pub struct GenerateSessionCookieService;
 

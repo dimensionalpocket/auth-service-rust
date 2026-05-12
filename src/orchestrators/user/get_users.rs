@@ -3,7 +3,8 @@ use crate::middleware::session::SessionContext;
 use crate::models::user::UserWithRole;
 use crate::queries::users::{GetAllUsersWithRolesQuery, GetUserByIdQuery};
 use crate::services::CheckUserPermissionService;
-use crate::types::UserError;
+use crate::types::{DpsAuthApiConfig, UserError};
+use crate::utils::session_context_sub_to_user_id;
 
 pub struct GetUsersOrchestrator;
 
@@ -11,12 +12,10 @@ impl GetUsersOrchestrator {
   pub async fn run(
     databases: &Databases,
     session_context: SessionContext,
+    config: &DpsAuthApiConfig,
   ) -> Result<Vec<UserWithRole>, UserError> {
-    let user_id = session_context
-      .user_id()
-      .ok_or(UserError::AuthenticationError(
-        "Authentication required".to_string(),
-      ))?;
+    let user_id = session_context_sub_to_user_id(&session_context, config)
+      .map_err(UserError::AuthenticationError)?;
 
     let main_pool = databases.main();
     let mut main_conn = main_pool
@@ -47,7 +46,9 @@ mod tests {
 
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{create_test_role_with_databases, create_test_user_with_databases};
+  use crate::test_utils::{
+    create_test_config, create_test_role_with_databases, create_test_user_with_databases,
+  };
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[dps_auth_db_test]
@@ -61,13 +62,14 @@ mod tests {
     let _another_user = create_test_user_with_databases(&databases, "user2", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetUsersOrchestrator::run(&databases, session_context).await;
+    let result =
+      GetUsersOrchestrator::run(&databases, session_context, &create_test_config()).await;
 
     assert!(result.is_ok());
     let users = result.unwrap();
@@ -84,12 +86,13 @@ mod tests {
   async fn test_list_users_without_authentication() {
     let session_context = SessionContext::new(None);
 
-    let result = GetUsersOrchestrator::run(&databases, session_context).await;
+    let result =
+      GetUsersOrchestrator::run(&databases, session_context, &create_test_config()).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
       UserError::AuthenticationError(msg) => {
-        assert!(msg.contains("Authentication required"));
+        assert!(msg.contains("No valid session"));
       }
       _ => panic!("Expected AuthenticationError"),
     }
@@ -102,13 +105,14 @@ mod tests {
     let regular_user = create_test_user_with_databases(&databases, "user1", user_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
-      sub: regular_user.id,
+      sub: regular_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetUsersOrchestrator::run(&databases, session_context).await;
+    let result =
+      GetUsersOrchestrator::run(&databases, session_context, &create_test_config()).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -122,13 +126,14 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_list_users_nonexistent_user() {
     let session_payload = DpsAuthSessionPayload {
-      sub: 999,
+      sub: "999".to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetUsersOrchestrator::run(&databases, session_context).await;
+    let result =
+      GetUsersOrchestrator::run(&databases, session_context, &create_test_config()).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -146,13 +151,14 @@ mod tests {
     let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
 
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = GetUsersOrchestrator::run(&databases, session_context).await;
+    let result =
+      GetUsersOrchestrator::run(&databases, session_context, &create_test_config()).await;
 
     assert!(result.is_ok());
     let users = result.unwrap();

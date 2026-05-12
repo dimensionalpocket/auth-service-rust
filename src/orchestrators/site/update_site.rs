@@ -3,7 +3,8 @@ use crate::middleware::session::SessionContext;
 use crate::queries::sites::UpdateSiteData;
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::{CheckUserPermissionService, UpdateSiteService};
-use crate::types::SiteError;
+use crate::types::{DpsAuthApiConfig, SiteError};
+use crate::utils::session_context_sub_to_user_id;
 
 pub struct UpdateSiteOrchestrator;
 
@@ -11,6 +12,7 @@ impl UpdateSiteOrchestrator {
   pub async fn run(
     databases: &Databases,
     session_context: SessionContext,
+    config: &DpsAuthApiConfig,
     site_id: i64,
     update_data: UpdateSiteData,
   ) -> Result<Option<crate::models::Site>, SiteError> {
@@ -21,11 +23,8 @@ impl UpdateSiteOrchestrator {
       .map_err(SiteError::DatabaseError)?;
 
     // Authentication: Check if user is authenticated
-    let user_id = session_context
-      .user_id()
-      .ok_or(SiteError::AuthenticationError(
-        "Authentication required".to_string(),
-      ))?;
+    let user_id = session_context_sub_to_user_id(&session_context, config)
+      .map_err(SiteError::AuthenticationError)?;
 
     // Authorization: Get user and check permissions
     let user = GetUserByIdQuery::run(&mut main_conn, user_id)
@@ -51,7 +50,9 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::queries::sites::{CreateSiteData, CreateSiteQuery, UpdateSiteData};
-  use crate::test_utils::{create_test_role_with_databases, create_test_user_with_databases};
+  use crate::test_utils::{
+    create_test_config, create_test_role_with_databases, create_test_user_with_databases,
+  };
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[dps_auth_db_test]
@@ -78,7 +79,7 @@ mod tests {
 
     // Create session context for admin user
     let session_payload = DpsAuthSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -94,8 +95,14 @@ mod tests {
       metadata_json: Some(Some("{\"updated\": true}".to_string())),
     };
 
-    let result =
-      UpdateSiteOrchestrator::run(&databases, session_context, site.id, update_data).await;
+    let result = UpdateSiteOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_config(),
+      site.id,
+      update_data,
+    )
+    .await;
 
     assert!(result.is_ok());
     let updated_site = result.unwrap();
@@ -130,7 +137,7 @@ mod tests {
 
     // Create session context for regular user
     let session_payload = DpsAuthSessionPayload {
-      sub: regular_user.id,
+      sub: regular_user.id.to_string(),
       iat: 1000,
       exp: 2000,
     };
@@ -146,8 +153,14 @@ mod tests {
       metadata_json: None,
     };
 
-    let result =
-      UpdateSiteOrchestrator::run(&databases, session_context, site.id, update_data).await;
+    let result = UpdateSiteOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_config(),
+      site.id,
+      update_data,
+    )
+    .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {

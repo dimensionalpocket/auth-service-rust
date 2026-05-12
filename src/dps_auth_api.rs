@@ -1,6 +1,7 @@
 use crate::database::{Databases, MainDatabase, SessionDatabase};
 use crate::graphql::schema::AppSchema;
 use crate::services::{LogShutdownStartService, WaitForShutdownSignalService};
+use crate::types::DpsAuthApiConfig;
 use axum::{middleware::from_fn, routing::get, Router};
 use std::sync::Arc;
 use tokio::net::TcpListener;
@@ -14,21 +15,6 @@ use tracing::Level;
 #[derive(Debug)]
 pub struct DpsAuthApi {
   pub(crate) config: Arc<DpsAuthApiConfig>,
-}
-
-#[derive(Debug, Clone)]
-pub struct DpsAuthApiConfig {
-  pub port: u16,
-  pub sqlite_main_file_path: String,
-  pub sqlite_session_file_path: String,
-  pub session_secret: Vec<u8>,
-  pub cookie_domain: String,
-  pub api_path: String,
-  pub insecure_cookie: bool,
-  pub development_mode: bool,
-  pub sqlite_main_pool_size: u16,
-  pub sqlite_session_pool_size: u16,
-  pub session_ttl_seconds: u32,
 }
 
 #[derive(Debug, Clone, PartialEq)]

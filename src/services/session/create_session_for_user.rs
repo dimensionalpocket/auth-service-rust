@@ -6,7 +6,7 @@ pub struct CreateSessionForUserService;
 
 impl CreateSessionForUserService {
   pub fn run(user: &User, secret: &[u8]) -> Result<String, SessionError> {
-    let payload = DpsAuthSession::create_payload(user.id, None);
+    let payload = DpsAuthSession::create_payload(user.id.to_string(), None);
     let token = DpsAuthSession::encode_token(&payload, secret)?;
 
     Ok(token)
@@ -44,7 +44,7 @@ mod tests {
     assert!(!token.is_empty());
 
     let payload = DpsAuthSession::decode_token(&token, TEST_SECRET).unwrap();
-    assert_eq!(payload.sub, user.id);
+    assert_eq!(payload.sub, user.id.to_string());
   }
 
   #[dps_auth_db_test]
@@ -67,7 +67,7 @@ mod tests {
     let payload1 = DpsAuthSession::decode_token(&token1, TEST_SECRET).unwrap();
     let payload2 = DpsAuthSession::decode_token(&token2, TEST_SECRET).unwrap();
 
-    assert_eq!(payload1.sub, user1.id);
-    assert_eq!(payload2.sub, user2.id);
+    assert_eq!(payload1.sub, user1.id.to_string());
+    assert_eq!(payload2.sub, user2.id.to_string());
   }
 }

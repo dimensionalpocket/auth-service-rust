@@ -2,7 +2,7 @@ use crate::database::Databases;
 use crate::graphql::types::UserRole;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::user::UpdateUserOrchestrator;
-use crate::types::{user::update_user_input::UpdateUserInput, UserError};
+use crate::types::{user::update_user_input::UpdateUserInput, DpsAuthApiConfig, UserError};
 use async_graphql::{Context, Object, Result};
 use tracing::instrument;
 
@@ -39,6 +39,7 @@ impl UpdateUserResolver {
     #[graphql(name = "metadataJson")] metadata_json: Option<String>,
   ) -> Result<UpdateUserResponse> {
     let databases = ctx.data::<Databases>()?;
+    let config = ctx.data::<DpsAuthApiConfig>()?;
 
     let session_context = SessionContext::from_context(ctx)?;
 
@@ -51,7 +52,7 @@ impl UpdateUserResolver {
       metadata_json,
     };
 
-    match UpdateUserOrchestrator::run(databases, session_context.clone(), input).await {
+    match UpdateUserOrchestrator::run(databases, session_context.clone(), config, input).await {
       Ok(user_with_role) => Ok(UpdateUserResponse {
         id: user_with_role.user.id,
         uuid: user_with_role.user.uuid,
@@ -87,7 +88,8 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_mutation_schema, create_test_role_with_databases, create_test_user_with_databases,
+    create_test_config, create_test_mutation_schema, create_test_role_with_databases,
+    create_test_user_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
@@ -101,15 +103,19 @@ mod tests {
     let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = ServiceSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1706356800,
       exp: 1706616000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateUserResolver;
-    let schema =
-      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let query = r#"
       mutation {
@@ -165,15 +171,19 @@ mod tests {
     let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = ServiceSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1706356800,
       exp: 1706616000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateUserResolver;
-    let schema =
-      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let query = r#"
       mutation {
@@ -206,15 +216,19 @@ mod tests {
     let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = ServiceSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1706356800,
       exp: 1706616000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateUserResolver;
-    let schema =
-      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let query = r#"
       mutation {
@@ -254,15 +268,19 @@ mod tests {
     let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = ServiceSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1706356800,
       exp: 1706616000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateUserResolver;
-    let schema =
-      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let query = r#"
       mutation {
@@ -298,15 +316,19 @@ mod tests {
     let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = ServiceSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1706356800,
       exp: 1706616000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateUserResolver;
-    let schema =
-      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let query = r#"
       mutation {
@@ -336,8 +358,12 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let mutation = UpdateUserResolver;
-    let schema =
-      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let query = r#"
       mutation {
@@ -350,7 +376,7 @@ mod tests {
 
     let result = schema.execute(query).await;
     assert!(!result.errors.is_empty());
-    assert!(result.errors[0].message.contains("Authentication required"));
+    assert!(result.errors[0].message.contains("No valid session"));
   }
 
   #[dps_auth_db_test]
@@ -359,15 +385,19 @@ mod tests {
     let regular_user = create_test_user_with_databases(&databases, "regular", user_role_id).await;
 
     let session_payload = ServiceSessionPayload {
-      sub: regular_user.id,
+      sub: regular_user.id.to_string(),
       iat: 1706356800,
       exp: 1706616000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateUserResolver;
-    let schema =
-      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let query = r#"
       mutation {
@@ -390,15 +420,19 @@ mod tests {
     let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
 
     let session_payload = ServiceSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1706356800,
       exp: 1706616000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateUserResolver;
-    let schema =
-      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let query = r#"
       mutation {
@@ -424,15 +458,19 @@ mod tests {
     let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = ServiceSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1706356800,
       exp: 1706616000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateUserResolver;
-    let schema =
-      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let query = r#"
       mutation {
@@ -459,15 +497,19 @@ mod tests {
     let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = ServiceSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1706356800,
       exp: 1706616000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateUserResolver;
-    let schema =
-      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let query = r#"
       mutation {
@@ -500,15 +542,19 @@ mod tests {
       create_test_user_with_databases(&databases, "existinguser", user_role_id).await;
 
     let session_payload = ServiceSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1706356800,
       exp: 1706616000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateUserResolver;
-    let schema =
-      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let query = r#"
       mutation {
@@ -535,15 +581,19 @@ mod tests {
     let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = ServiceSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1706356800,
       exp: 1706616000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateUserResolver;
-    let schema =
-      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let query = r#"
       mutation {
@@ -570,15 +620,19 @@ mod tests {
     let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = ServiceSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1706356800,
       exp: 1706616000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateUserResolver;
-    let schema =
-      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let query = r#"
       mutation {
@@ -605,15 +659,19 @@ mod tests {
     let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = ServiceSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1706356800,
       exp: 1706616000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateUserResolver;
-    let schema =
-      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let query = r#"
       mutation {
@@ -644,15 +702,19 @@ mod tests {
     let target_user = create_test_user_with_databases(&databases, "targetuser", user_role_id).await;
 
     let session_payload = ServiceSessionPayload {
-      sub: admin_user.id,
+      sub: admin_user.id.to_string(),
       iat: 1706356800,
       exp: 1706616000,
     };
     let session_context = SessionContext::new(Some(session_payload));
 
     let mutation = UpdateUserResolver;
-    let schema =
-      create_test_mutation_schema(mutation, databases.clone(), Some(session_context), None);
+    let schema = create_test_mutation_schema(
+      mutation,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_config()),
+    );
 
     let query = r#"
       mutation {

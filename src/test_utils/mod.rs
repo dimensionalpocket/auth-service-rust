@@ -19,11 +19,28 @@ use uuid::Uuid;
 
 // GraphQL test utilities
 use crate::middleware::session::SessionContext;
-use crate::DpsAuthApiConfig;
+use crate::types::DpsAuthApiConfig;
 use async_graphql::{Object, ObjectType, Schema};
 
 // Re-export GraphQL test utilities for consistent usage
 pub use async_graphql::{EmptyMutation, EmptySubscription};
+
+/// Create a test DpsAuthApiConfig for use in orchestrator and service tests
+pub fn create_test_config() -> DpsAuthApiConfig {
+  DpsAuthApiConfig {
+    port: 3000,
+    sqlite_main_file_path: ":memory:".to_string(),
+    sqlite_session_file_path: ":memory:".to_string(),
+    session_secret: vec![0u8; 32],
+    cookie_domain: ".test.com".to_string(),
+    api_path: "/api".to_string(),
+    insecure_cookie: true,
+    development_mode: true,
+    sqlite_main_pool_size: 1,
+    sqlite_session_pool_size: 1,
+    session_ttl_seconds: 3600,
+  }
+}
 
 // Centralized TestEmptyQuery to replace all duplicates
 #[derive(Default)]

@@ -1,6 +1,7 @@
 use crate::middleware::session::SessionContext;
 use crate::queries::users::get_user_by_id_with_role::GetUserByIdWithRoleQuery;
-use crate::types::SessionError;
+use crate::types::{DpsAuthApiConfig, SessionError};
+use crate::utils::session_context_sub_to_user_id;
 use sqlx::SqliteConnection;
 use tracing::instrument;
 
@@ -13,17 +14,21 @@ impl AuthGetCurrentUserService {
   pub async fn run(
     main_conn: &mut SqliteConnection,
     session_context: &SessionContext,
+    config: &DpsAuthApiConfig,
   ) -> Result<AuthMeResult, SessionError> {
+    let user_id = session_context_sub_to_user_id(session_context, config)
+      .map_err(SessionError::AuthenticationError)?;
+
+    // Get user details from database with role information
+    let user_with_role = GetUserByIdWithRoleQuery::run(main_conn, user_id)
+      .await
+      .map_err(|e| SessionError::DatabaseError(e.to_string()))?
+      .ok_or_else(|| SessionError::AuthenticationError("User not found".to_string()))?;
+
     let session_payload = session_context
       .payload
       .as_ref()
       .ok_or_else(|| SessionError::AuthenticationError("No valid session".to_string()))?;
-
-    // Get user details from database with role information
-    let user_with_role = GetUserByIdWithRoleQuery::run(main_conn, session_payload.sub)
-      .await
-      .map_err(|e| SessionError::DatabaseError(e.to_string()))?
-      .ok_or_else(|| SessionError::AuthenticationError("User not found".to_string()))?;
 
     Ok(AuthMeResult {
       user_id: user_with_role.user.id,
@@ -44,7 +49,9 @@ mod tests {
 
   use super::*;
   use crate::middleware::session::SessionContext;
-  use crate::test_utils::{create_test_role_model_with_conn, create_test_user_full_with_conn};
+  use crate::test_utils::{
+    create_test_config, create_test_role_model_with_conn, create_test_user_full_with_conn,
+  };
   use dps_auth_session::DpsAuthSessionPayload;
 
   #[dps_auth_db_test]
@@ -66,13 +73,14 @@ mod tests {
     let user_id = user.id;
 
     let payload = DpsAuthSessionPayload {
-      sub: user_id,
+      sub: user_id.to_string(),
       iat: 1706356800,
       exp: 1706616000,
     };
     let session_context = SessionContext::new(Some(payload));
 
-    let result = AuthGetCurrentUserService::run(&mut main_conn, &session_context).await;
+    let result =
+      AuthGetCurrentUserService::run(&mut main_conn, &session_context, &create_test_config()).await;
 
     assert!(result.is_ok());
     let auth_me_result = result.unwrap();
