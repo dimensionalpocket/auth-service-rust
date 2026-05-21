@@ -4,8 +4,9 @@ use crate::models::role::Role;
 use crate::queries::roles::CreateRoleData;
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::{CheckUserPermissionService, CreateRoleService};
-use crate::types::{DpsAuthApiConfig, RoleError};
+use crate::types::RoleError;
 use crate::utils::session_context_sub_to_user_id;
+use dps_config::DpsConfig;
 
 pub struct AddRoleOrchestrator;
 
@@ -19,7 +20,7 @@ impl AddRoleOrchestrator {
   pub async fn run(
     databases: &Databases,
     session_context: SessionContext,
-    config: &DpsAuthApiConfig,
+    config: &DpsConfig,
     create_data: CreateRoleData,
   ) -> Result<Role, RoleError> {
     let main_pool = databases.main();
@@ -61,7 +62,7 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_config, create_test_role_with_databases, create_test_user_with_databases,
+    create_test_dps_config, create_test_role_with_databases, create_test_user_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
@@ -93,7 +94,7 @@ mod tests {
     let result = AddRoleOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       create_data,
     )
     .await;
@@ -136,7 +137,7 @@ mod tests {
     let result = AddRoleOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       create_data,
     )
     .await;
@@ -162,7 +163,7 @@ mod tests {
     let result = AddRoleOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       create_data,
     )
     .await;
@@ -195,7 +196,7 @@ mod tests {
     let result = AddRoleOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       create_data,
     )
     .await;
@@ -233,7 +234,7 @@ mod tests {
     let result = AddRoleOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       create_data,
     )
     .await;
@@ -272,7 +273,7 @@ mod tests {
     let result = AddRoleOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       create_data,
     )
     .await;
@@ -311,7 +312,7 @@ mod tests {
     let result = AddRoleOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       create_data,
     )
     .await;
@@ -353,7 +354,7 @@ mod tests {
     let result = AddRoleOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       create_data,
     )
     .await;
@@ -397,7 +398,7 @@ mod tests {
     let result = AddRoleOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       create_data,
     )
     .await;

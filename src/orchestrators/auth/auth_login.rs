@@ -1,7 +1,7 @@
 use crate::database::Databases;
 use crate::services::{AuthLoginService, AuthResult, GenerateSessionCookieService};
-use crate::types::DpsAuthApiConfig;
 use crate::types::SessionError;
+use dps_config::DpsConfig;
 
 pub struct AuthLoginOrchestrator;
 
@@ -10,7 +10,7 @@ impl AuthLoginOrchestrator {
     databases: &Databases,
     username: &str,
     password: &str,
-    config: &DpsAuthApiConfig,
+    config: &DpsConfig,
   ) -> Result<(AuthResult, String), SessionError> {
     let main_pool = databases.main();
     let mut main_conn = main_pool
@@ -18,8 +18,13 @@ impl AuthLoginOrchestrator {
       .await
       .map_err(|e| SessionError::DatabaseError(e.to_string()))?;
 
-    let auth_result =
-      AuthLoginService::run(&mut main_conn, username, password, &config.session_secret).await?;
+    let auth_result = AuthLoginService::run(
+      &mut main_conn,
+      username,
+      password,
+      &config.get_auth_api_session_secret_bytes().unwrap(),
+    )
+    .await?;
 
     let cookie_value = GenerateSessionCookieService::run(config, &auth_result.session_token);
 

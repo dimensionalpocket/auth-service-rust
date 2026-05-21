@@ -1,7 +1,7 @@
 use crate::database::Databases;
 use crate::services::{AuthRegisterService, GenerateSessionCookieService, RegisterResult};
-use crate::types::DpsAuthApiConfig;
 use crate::types::SessionError;
+use dps_config::DpsConfig;
 
 pub struct AuthRegisterOrchestrator;
 
@@ -11,7 +11,7 @@ impl AuthRegisterOrchestrator {
     username: &str,
     password: &str,
     password_confirmation: &str,
-    config: &DpsAuthApiConfig,
+    config: &DpsConfig,
   ) -> Result<(RegisterResult, String), SessionError> {
     let main_pool = databases.main();
     let mut main_conn = main_pool
@@ -24,7 +24,7 @@ impl AuthRegisterOrchestrator {
       username,
       password,
       password_confirmation,
-      &config.session_secret,
+      &config.get_auth_api_session_secret_bytes().unwrap(),
     )
     .await
     .map_err(|e| SessionError::AuthenticationError(e.to_string()))?;

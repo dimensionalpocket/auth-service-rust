@@ -1,5 +1,5 @@
 use crate::middleware::session::SessionContext;
-use crate::types::DpsAuthApiConfig;
+use dps_config::DpsConfig;
 
 /// Extracts the user ID from a session context by parsing the string `sub` field.
 ///
@@ -12,7 +12,7 @@ use crate::types::DpsAuthApiConfig;
 /// * `Err(String)` - Error message if session is missing or sub cannot be parsed
 pub fn session_context_sub_to_user_id(
   session_context: &SessionContext,
-  _config: &DpsAuthApiConfig,
+  _config: &DpsConfig,
 ) -> Result<i64, String> {
   let payload = session_context
     .payload
@@ -29,22 +29,7 @@ pub fn session_context_sub_to_user_id(
 mod tests {
   use super::*;
   use crate::middleware::session::SessionPayload;
-
-  fn create_test_config() -> DpsAuthApiConfig {
-    DpsAuthApiConfig {
-      port: 3000,
-      sqlite_main_file_path: ":memory:".to_string(),
-      sqlite_session_file_path: ":memory:".to_string(),
-      session_secret: vec![0u8; 32],
-      cookie_domain: ".test.com".to_string(),
-      api_path: "/api".to_string(),
-      insecure_cookie: true,
-      development_mode: true,
-      sqlite_main_pool_size: 1,
-      sqlite_session_pool_size: 1,
-      session_ttl_seconds: 3600,
-    }
-  }
+  use crate::test_utils::create_test_dps_config;
 
   #[test]
   fn test_valid_session_returns_user_id() {
@@ -54,7 +39,7 @@ mod tests {
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(payload));
-    let config = create_test_config();
+    let config = create_test_dps_config();
 
     let result = session_context_sub_to_user_id(&session_context, &config);
     assert_eq!(result, Ok(123));
@@ -63,7 +48,7 @@ mod tests {
   #[test]
   fn test_no_session_returns_error() {
     let session_context = SessionContext::new(None);
-    let config = create_test_config();
+    let config = create_test_dps_config();
 
     let result = session_context_sub_to_user_id(&session_context, &config);
     assert!(result.is_err());
@@ -78,7 +63,7 @@ mod tests {
       exp: 2000,
     };
     let session_context = SessionContext::new(Some(payload));
-    let config = create_test_config();
+    let config = create_test_dps_config();
 
     let result = session_context_sub_to_user_id(&session_context, &config);
     assert!(result.is_err());

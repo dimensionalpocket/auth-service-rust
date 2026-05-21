@@ -1,8 +1,9 @@
 use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::role::GetRolesOrchestrator;
-use crate::types::DpsAuthApiConfig;
 use async_graphql::{Context, Object, Result, SimpleObject};
+use dps_config::DpsConfig;
+use std::sync::Arc;
 use tracing::instrument;
 
 /// GraphQL output type for role listing
@@ -53,7 +54,7 @@ impl RolesResolver {
   async fn roles(&self, ctx: &Context<'_>) -> Result<Vec<RoleListing>> {
     let databases = ctx.data::<Databases>()?;
     let session_context = ctx.data::<SessionContext>()?;
-    let config = ctx.data::<DpsAuthApiConfig>()?;
+    let config = ctx.data::<Arc<DpsConfig>>()?;
 
     let roles = GetRolesOrchestrator::run(databases, session_context.clone(), config)
       .await
@@ -85,7 +86,7 @@ mod tests {
   use crate::graphql::resolvers::RolesResolver;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_config, create_test_query_schema, create_test_role_with_databases,
+    create_test_dps_config, create_test_query_schema, create_test_role_with_databases,
     create_test_user_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload;
@@ -114,7 +115,7 @@ mod tests {
       query,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let result = schema
@@ -162,7 +163,7 @@ mod tests {
       query,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let result = schema
@@ -195,7 +196,7 @@ mod tests {
       query,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let result = schema
@@ -226,7 +227,7 @@ mod tests {
       query,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let result = schema
@@ -257,7 +258,7 @@ mod tests {
       query,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let result = schema

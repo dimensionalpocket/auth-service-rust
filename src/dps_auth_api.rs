@@ -1,7 +1,6 @@
 use crate::database::{Databases, MainDatabase, SessionDatabase};
 use crate::graphql::schema::AppSchema;
 use crate::services::{LogShutdownStartService, WaitForShutdownSignalService};
-use crate::types::DpsAuthApiConfig;
 use axum::{middleware::from_fn, routing::get, Router};
 use std::sync::Arc;
 use tokio::net::TcpListener;
@@ -12,9 +11,8 @@ use tower_http::{
 };
 use tracing::Level;
 
-#[derive(Debug)]
 pub struct DpsAuthApi {
-  pub(crate) config: Arc<DpsAuthApiConfig>,
+  pub(crate) config: Arc<dps_config::DpsConfig>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -87,26 +85,8 @@ impl DpsAuthApi {
       });
     }
 
-    // Build resolved config with defaults from DpsConfig
-    let sqlite_main_file_path = dps_config.get_auth_api_sqlite_main_file_path();
-    let sqlite_session_file_path = dps_config.get_auth_api_sqlite_session_file_path();
-
-    let config = DpsAuthApiConfig {
-      port: dps_config.get_auth_api_port().unwrap_or(3000),
-      sqlite_main_file_path,
-      sqlite_session_file_path,
-      session_secret,
-      cookie_domain: format!(".{}", dps_config.get_domain()),
-      api_path: format!("/{}", dps_config.get_api_path()),
-      insecure_cookie: dps_config.get_auth_api_insecure_cookie(),
-      development_mode: dps_config.get_development_mode(),
-      sqlite_main_pool_size: dps_config.get_auth_api_sqlite_main_pool_size(),
-      sqlite_session_pool_size: dps_config.get_auth_api_sqlite_session_pool_size(),
-      session_ttl_seconds: dps_config.get_auth_api_session_ttl_seconds(),
-    };
-
     Ok(DpsAuthApi {
-      config: Arc::new(config),
+      config: Arc::new(dps_config),
     })
   }
 
@@ -116,7 +96,10 @@ impl DpsAuthApi {
 
     // Phase 3C - Network binding and shutdown
     let listener = self.bind_listener().await?;
-    println!("Server running on http://0.0.0.0:{}", self.config.port);
+    println!(
+      "Server running on http://0.0.0.0:{}",
+      self.config.get_auth_api_port().unwrap_or(3000)
+    );
 
     let server = axum::serve(listener, app).with_graceful_shutdown(self.create_shutdown_handler());
     server
@@ -132,8 +115,8 @@ impl DpsAuthApi {
   pub async fn create_app(&self) -> Result<Router, DpsAuthApiError> {
     let main_db = self.initialize_database().await?;
     let session_db = SessionDatabase::new_with_pool_size(
-      &self.config.sqlite_session_file_path,
-      Some(self.config.sqlite_session_pool_size as u32),
+      &self.config.get_auth_api_sqlite_session_file_path(),
+      Some(self.config.get_auth_api_sqlite_session_pool_size() as u32),
     )
     .await
     .map_err(|e| DpsAuthApiError::DatabaseError(e.to_string()))?;
@@ -141,7 +124,7 @@ impl DpsAuthApi {
     let databases = Databases::new(main_db.pool, session_db.pool);
     let schema = crate::graphql::schema::build_schema()
       .data(databases.clone())
-      .data(self.config.as_ref().clone()) // Inject config directly into schema data
+      .data(self.config.clone()) // Inject Arc<DpsConfig> directly into schema data
       .extension(async_graphql::extensions::Tracing) // Built-in tracing for GraphQL operations
       .finish();
     Ok(self.build_router(schema))
@@ -153,8 +136,8 @@ impl DpsAuthApi {
     &self,
   ) -> Result<crate::database::MainDatabase, DpsAuthApiError> {
     MainDatabase::new_with_pool_size(
-      &self.config.sqlite_main_file_path,
-      Some(self.config.sqlite_main_pool_size as u32),
+      &self.config.get_auth_api_sqlite_main_file_path(),
+      Some(self.config.get_auth_api_sqlite_main_pool_size() as u32),
     )
     .await
     .map_err(|e| DpsAuthApiError::DatabaseError(e.to_string()))
@@ -179,7 +162,10 @@ impl DpsAuthApi {
   }
 
   async fn bind_listener(&self) -> Result<TcpListener, DpsAuthApiError> {
-    let bind_address = format!("0.0.0.0:{}", self.config.port);
+    let bind_address = format!(
+      "0.0.0.0:{}",
+      self.config.get_auth_api_port().unwrap_or(3000)
+    );
     TcpListener::bind(&bind_address)
       .await
       .map_err(|e| DpsAuthApiError::NetworkError(e.to_string()))
@@ -193,23 +179,24 @@ impl DpsAuthApi {
   }
 
   pub fn build_router(&self, schema: AppSchema) -> Router {
+    let api_path = format!("/{}", self.config.get_api_path());
     Router::new()
       .route("/", get(crate::handlers::rest::root_handler))
       .route("/health", get(crate::handlers::rest::health_handler))
       .route(
-        &format!("{}/playground", self.config.api_path),
+        &format!("{api_path}/playground"),
         get({
-          let development_mode = self.config.development_mode;
+          let development_mode = self.config.get_development_mode();
           move || crate::handlers::graphql::playground_handler(development_mode)
         }),
       )
       .route(
-        &format!("{}/graphql", self.config.api_path),
+        &format!("{api_path}/graphql"),
         get(crate::handlers::graphql::graphql_handler)
           .post(crate::handlers::graphql::graphql_handler)
           .layer(from_fn(
             crate::middleware::session::create_session_middleware(
-              self.config.session_secret.clone(),
+              self.config.get_auth_api_session_secret_bytes().unwrap(),
             ),
           )),
       )
@@ -288,7 +275,7 @@ mod tests {
     let server = create_test_server(db_path);
 
     // Should use the configured path, not the default
-    assert_eq!(server.config.sqlite_main_file_path, db_path);
+    assert_eq!(server.config.get_auth_api_sqlite_main_file_path(), db_path);
 
     let result = server.initialize_database().await;
     assert!(result.is_ok());
@@ -421,7 +408,7 @@ mod tests {
       .oneshot(
         Request::builder()
           .method("POST")
-          .uri(format!("{}/graphql", server.config.api_path))
+          .uri(format!("/{}/graphql", server.config.get_api_path()))
           .header("content-type", "application/json")
           .body(Body::from(query))
           .unwrap(),
@@ -656,7 +643,7 @@ mod tests {
       .oneshot(
         Request::builder()
           .method("OPTIONS")
-          .uri(format!("{}/graphql", server.config.api_path))
+          .uri(format!("/{}/graphql", server.config.get_api_path()))
           .header("origin", "https://example.com")
           .header("access-control-request-method", "POST")
           .header(

@@ -1,7 +1,8 @@
 use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::services::AuthGetCurrentUserService;
-use crate::types::{DpsAuthApiConfig, SessionError};
+use crate::types::SessionError;
+use dps_config::DpsConfig;
 
 pub struct AuthMeOrchestrator;
 
@@ -9,7 +10,7 @@ impl AuthMeOrchestrator {
   pub async fn run(
     databases: &Databases,
     session_context: SessionContext,
-    config: &DpsAuthApiConfig,
+    config: &DpsConfig,
   ) -> Result<Option<crate::services::AuthMeResult>, SessionError> {
     let main_pool = databases.main();
     match &session_context.payload {
@@ -34,7 +35,7 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_config, create_test_role_with_databases, create_test_user_full_with_databases,
+    create_test_dps_config, create_test_role_with_databases, create_test_user_full_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
@@ -52,7 +53,8 @@ mod tests {
     };
     let session_context = SessionContext::new(Some(session_payload));
 
-    let result = AuthMeOrchestrator::run(&databases, session_context, &create_test_config()).await;
+    let result =
+      AuthMeOrchestrator::run(&databases, session_context, &create_test_dps_config()).await;
 
     assert!(result.is_ok());
     let auth_me_result = result.unwrap();
@@ -68,7 +70,8 @@ mod tests {
   async fn test_get_authenticated_user_unauthenticated() {
     let session_context = SessionContext::new(None);
 
-    let result = AuthMeOrchestrator::run(&databases, session_context, &create_test_config()).await;
+    let result =
+      AuthMeOrchestrator::run(&databases, session_context, &create_test_dps_config()).await;
 
     assert!(result.is_ok());
     assert!(result.unwrap().is_none());

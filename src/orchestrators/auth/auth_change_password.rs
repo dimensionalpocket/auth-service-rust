@@ -3,8 +3,9 @@ use crate::middleware::session::SessionContext;
 use crate::models::User;
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::UpdateUserPasswordService;
-use crate::types::{DpsAuthApiConfig, UserError};
+use crate::types::UserError;
 use crate::utils::session_context_sub_to_user_id;
+use dps_config::DpsConfig;
 
 pub struct AuthChangePasswordOrchestrator;
 
@@ -12,7 +13,7 @@ impl AuthChangePasswordOrchestrator {
   pub async fn run(
     databases: &Databases,
     session_context: SessionContext,
-    config: &DpsAuthApiConfig,
+    config: &DpsConfig,
     current_password: &str,
     new_password: &str,
     new_password_confirmation: &str,
@@ -45,7 +46,7 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_config, create_test_role_with_databases, create_test_user_with_databases,
+    create_test_dps_config, create_test_role_with_databases, create_test_user_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
@@ -64,7 +65,7 @@ mod tests {
     let result = AuthChangePasswordOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       "password123",
       "newpassword456",
       "newpassword456",
@@ -85,7 +86,7 @@ mod tests {
     let result = AuthChangePasswordOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       "password123",
       "newpassword456",
       "newpassword456",
@@ -113,7 +114,7 @@ mod tests {
     let result = AuthChangePasswordOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       "password123",
       "newpassword456",
       "newpassword456",
@@ -144,7 +145,7 @@ mod tests {
     let result = AuthChangePasswordOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       "wrongpassword",
       "newpassword456",
       "newpassword456",
@@ -175,7 +176,7 @@ mod tests {
     let result = AuthChangePasswordOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       "password123",
       "newpassword456",
       "differentpassword",
@@ -206,7 +207,7 @@ mod tests {
     let result = AuthChangePasswordOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       "password123",
       "123",
       "123",

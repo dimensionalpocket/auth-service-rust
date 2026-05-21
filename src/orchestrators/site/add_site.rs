@@ -3,8 +3,9 @@ use crate::middleware::session::SessionContext;
 use crate::queries::sites::CreateSiteData;
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::{CheckUserPermissionService, CreateSiteService};
-use crate::types::{DpsAuthApiConfig, SiteError};
+use crate::types::SiteError;
 use crate::utils::session_context_sub_to_user_id;
+use dps_config::DpsConfig;
 
 pub struct AddSiteOrchestrator;
 
@@ -12,7 +13,7 @@ impl AddSiteOrchestrator {
   pub async fn run(
     databases: &Databases,
     session_context: SessionContext,
-    config: &DpsAuthApiConfig,
+    config: &DpsConfig,
     create_data: CreateSiteData,
   ) -> Result<crate::models::Site, SiteError> {
     let main_pool = databases.main();
@@ -50,7 +51,7 @@ mod tests {
   use crate::middleware::session::SessionContext;
 
   use crate::test_utils::{
-    create_test_config, create_test_role_with_databases, create_test_user_with_databases,
+    create_test_dps_config, create_test_role_with_databases, create_test_user_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
@@ -81,7 +82,7 @@ mod tests {
     let result = AddSiteOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       create_data,
     )
     .await;
@@ -110,7 +111,7 @@ mod tests {
     let result = AddSiteOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       create_data,
     )
     .await;
@@ -145,7 +146,7 @@ mod tests {
     let result = AddSiteOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       create_data,
     )
     .await;
@@ -184,7 +185,7 @@ mod tests {
     let result = AddSiteOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       create_data,
     )
     .await;

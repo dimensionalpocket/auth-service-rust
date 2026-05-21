@@ -1,8 +1,10 @@
 use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::role::GetRoleOrchestrator;
-use crate::types::{DpsAuthApiConfig, RoleError};
+use crate::types::RoleError;
 use async_graphql::{Context, Object, Result};
+use dps_config::DpsConfig;
+use std::sync::Arc;
 use tracing::instrument;
 
 /// GraphQL output type for role details
@@ -54,7 +56,7 @@ impl RoleResolver {
   #[graphql(name = "role")]
   async fn role(&self, ctx: &Context<'_>, id: i64) -> Result<RoleResponse> {
     let databases = ctx.data::<Databases>()?;
-    let config = ctx.data::<DpsAuthApiConfig>()?;
+    let config = ctx.data::<Arc<DpsConfig>>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
     match GetRoleOrchestrator::run(databases, session_context.clone(), config, id).await {
@@ -89,7 +91,7 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_config, create_test_query_schema, create_test_role_model_with_databases,
+    create_test_dps_config, create_test_query_schema, create_test_role_model_with_databases,
     create_test_role_with_databases, create_test_user_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
@@ -127,7 +129,7 @@ mod tests {
       query_resolver,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let query = format!(
@@ -193,7 +195,7 @@ mod tests {
       query_resolver,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let query = r#"
@@ -220,7 +222,7 @@ mod tests {
       query_resolver,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let query = r#"
@@ -260,7 +262,7 @@ mod tests {
       query_resolver,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let query = r#"

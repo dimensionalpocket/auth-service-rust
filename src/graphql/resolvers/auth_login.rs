@@ -1,9 +1,10 @@
 use crate::database::Databases;
 use crate::graphql::types::{UserRole, UserWithRoleResponse};
 use crate::orchestrators::auth::AuthLoginOrchestrator;
-use crate::types::DpsAuthApiConfig;
 use crate::types::SessionError;
 use async_graphql::{Context, Error, Object, Result};
+use dps_config::DpsConfig;
+use std::sync::Arc;
 use tracing::instrument;
 
 /// GraphQL output type for authentication response
@@ -36,7 +37,7 @@ impl AuthLoginResolver {
       .data::<Databases>()
       .map_err(|_| async_graphql::Error::new("Internal server error"))?;
     let config = ctx
-      .data::<DpsAuthApiConfig>()
+      .data::<Arc<DpsConfig>>()
       .map_err(|_| async_graphql::Error::new("Internal server error"))?;
 
     match AuthLoginOrchestrator::run(databases, &username, &password, config).await {
@@ -81,15 +82,10 @@ mod tests {
   use super::*;
   use crate::services::CreateUserService;
   use crate::test_utils::{
-    create_test_mutation_schema, create_test_role_model_with_conn, TestEmptyQuery,
+    create_test_dps_config, create_test_mutation_schema, create_test_role_model_with_conn,
+    TestEmptyQuery,
   };
   use async_graphql::{EmptySubscription, Schema};
-
-  // Test secret - 32 bytes for AES-256 (base64-decoded from QvQlwpMujK+qzdRbUCikjc131OKt1KHE38Yq37V0Tbg=)
-  const TEST_SECRET: &[u8] = &[
-    0x42, 0xf4, 0x25, 0xc2, 0x93, 0x2e, 0x8c, 0xaf, 0xaa, 0xcd, 0xd4, 0x5b, 0x50, 0x28, 0xa4, 0x8d,
-    0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74, 0x4d, 0xb8,
-  ];
 
   #[dps_auth_db_test]
   async fn test_auth_login_calls_service_with_correct_parameters() {
@@ -103,19 +99,7 @@ mod tests {
     }
 
     // Create GraphQL schema with just the mutation
-    let test_config = DpsAuthApiConfig {
-      port: 0,
-      sqlite_main_file_path: "test.db".to_string(),
-      sqlite_session_file_path: "test.db.session".to_string(),
-      session_secret: TEST_SECRET.to_vec(),
-      cookie_domain: ".dps.localhost".to_string(),
-      api_path: "/api".to_string(),
-      insecure_cookie: false,
-      development_mode: true,
-      sqlite_main_pool_size: 1,
-      sqlite_session_pool_size: 1,
-      session_ttl_seconds: 3600,
-    };
+    let test_config = create_test_dps_config();
     let schema = create_test_mutation_schema(
       AuthLoginResolver,
       databases.clone(),
@@ -166,19 +150,7 @@ mod tests {
 
   #[dps_auth_db_test]
   async fn test_auth_login_maps_authentication_error() {
-    let test_config = DpsAuthApiConfig {
-      port: 0,
-      sqlite_main_file_path: "test.db".to_string(),
-      sqlite_session_file_path: "test.db.session".to_string(),
-      session_secret: TEST_SECRET.to_vec(),
-      cookie_domain: ".dps.localhost".to_string(),
-      api_path: "/api".to_string(),
-      insecure_cookie: false,
-      development_mode: true,
-      sqlite_main_pool_size: 1,
-      sqlite_session_pool_size: 1,
-      session_ttl_seconds: 3600,
-    };
+    let test_config = create_test_dps_config();
     let schema = create_test_mutation_schema(
       AuthLoginResolver,
       databases.clone(),
@@ -210,19 +182,7 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_auth_login_maps_database_error() {
     // Create a schema without Databases schema data to trigger database error
-    let test_config = DpsAuthApiConfig {
-      port: 0,
-      sqlite_main_file_path: "test.db".to_string(),
-      sqlite_session_file_path: "test.db.session".to_string(),
-      session_secret: TEST_SECRET.to_vec(),
-      cookie_domain: ".dps.localhost".to_string(),
-      api_path: "/api".to_string(),
-      insecure_cookie: false,
-      development_mode: true,
-      sqlite_main_pool_size: 1,
-      sqlite_session_pool_size: 1,
-      session_ttl_seconds: 3600,
-    };
+    let test_config = create_test_dps_config();
     // NOTE: We intentionally do not inject `databases` here.
     let schema = Schema::build(TestEmptyQuery, AuthLoginResolver, EmptySubscription)
       .data(test_config)

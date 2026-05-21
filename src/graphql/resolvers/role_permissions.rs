@@ -1,8 +1,10 @@
 use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::role::GetRolePermissionsOrchestrator;
-use crate::types::{DpsAuthApiConfig, RoleError};
+use crate::types::RoleError;
 use async_graphql::{Context, Object, Result};
+use dps_config::DpsConfig;
+use std::sync::Arc;
 use tracing::instrument;
 
 #[derive(Default, Debug)]
@@ -17,7 +19,7 @@ impl RolePermissionsResolver {
   async fn role_permissions(&self, ctx: &Context<'_>) -> Result<Vec<String>> {
     let databases = ctx.data::<Databases>()?;
     let session_context = ctx.data::<SessionContext>()?;
-    let config = ctx.data::<DpsAuthApiConfig>()?;
+    let config = ctx.data::<Arc<DpsConfig>>()?;
 
     match GetRolePermissionsOrchestrator::run(databases, session_context.clone(), config).await {
       Ok(permissions) => Ok(permissions),
@@ -41,7 +43,7 @@ mod tests {
   use crate::middleware::session::SessionContext;
   use crate::models::role::ROLE_PERMISSIONS;
   use crate::test_utils::{
-    create_test_config, create_test_query_schema, create_test_role_with_databases,
+    create_test_dps_config, create_test_query_schema, create_test_role_with_databases,
     create_test_user_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload;
@@ -66,7 +68,7 @@ mod tests {
       query,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let result = schema.execute("{ rolePermissions }").await;
@@ -98,7 +100,7 @@ mod tests {
       query,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let result = schema.execute("{ rolePermissions }").await;
@@ -144,7 +146,7 @@ mod tests {
       query,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let result = schema.execute("{ rolePermissions }").await;
@@ -184,7 +186,7 @@ mod tests {
       query,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let result = schema.execute("{ rolePermissions }").await;
@@ -214,7 +216,7 @@ mod tests {
       query,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let result = schema.execute("{ rolePermissions }").await;

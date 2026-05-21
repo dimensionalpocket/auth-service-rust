@@ -1,21 +1,23 @@
-use crate::types::DpsAuthApiConfig;
+use dps_config::DpsConfig;
 
 pub struct GenerateSessionCookieService;
 
 impl GenerateSessionCookieService {
-  pub fn run(config: &DpsAuthApiConfig, session_token: &str) -> String {
+  pub fn run(config: &DpsConfig, session_token: &str) -> String {
+    let cookie_domain = format!(".{}", config.get_domain());
+    let api_path = format!("/{}", config.get_api_path());
     format!(
       "{}={}; Domain={}; Path={}; HttpOnly; SameSite=Lax{}; Max-Age={}",
       crate::middleware::session::SESSION_COOKIE_NAME,
       session_token,
-      config.cookie_domain,
-      config.api_path,
-      if config.insecure_cookie {
+      cookie_domain,
+      api_path,
+      if config.get_auth_api_insecure_cookie() {
         ""
       } else {
         "; Secure"
       },
-      config.session_ttl_seconds
+      config.get_auth_api_session_ttl_seconds()
     )
   }
 }
@@ -23,26 +25,13 @@ impl GenerateSessionCookieService {
 #[cfg(test)]
 mod tests {
   use super::*;
-
-  fn create_test_config() -> DpsAuthApiConfig {
-    DpsAuthApiConfig {
-      port: 8080,
-      sqlite_main_file_path: "test.db".to_string(),
-      sqlite_session_file_path: "test.db.session".to_string(),
-      session_secret: vec![0u8; 32],
-      cookie_domain: ".example.com".to_string(),
-      api_path: "/api".to_string(),
-      insecure_cookie: false,
-      development_mode: false,
-      sqlite_main_pool_size: 1,
-      sqlite_session_pool_size: 1,
-      session_ttl_seconds: 3600,
-    }
-  }
+  use crate::test_utils::create_test_dps_config;
 
   #[test]
   fn test_generate_session_cookie_secure() {
-    let config = create_test_config();
+    let mut config = create_test_dps_config();
+    config.set_domain("example.com");
+    config.set_auth_api_insecure_cookie(false);
     let cookie = GenerateSessionCookieService::run(&config, "test-token");
 
     assert!(cookie.starts_with("DpsAuthSession=test-token;"));
@@ -56,8 +45,9 @@ mod tests {
 
   #[test]
   fn test_generate_session_cookie_insecure() {
-    let mut config = create_test_config();
-    config.insecure_cookie = true;
+    let mut config = create_test_dps_config();
+    config.set_domain("example.com");
+    config.set_auth_api_insecure_cookie(true);
 
     let cookie = GenerateSessionCookieService::run(&config, "test-token");
 

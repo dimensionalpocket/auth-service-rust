@@ -1,8 +1,10 @@
 use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::role::RemoveRoleOrchestrator;
-use crate::types::{DpsAuthApiConfig, RoleError};
+use crate::types::RoleError;
 use async_graphql::{Context, Object, Result};
+use dps_config::DpsConfig;
+use std::sync::Arc;
 use tracing::instrument;
 
 /// GraphQL output type for role removal response
@@ -48,7 +50,7 @@ impl RemoveRoleResolver {
   #[graphql(name = "removeRole")]
   async fn remove_role(&self, ctx: &Context<'_>, id: i64) -> Result<RemoveRoleResponse> {
     let databases = ctx.data::<Databases>()?;
-    let config = ctx.data::<DpsAuthApiConfig>()?;
+    let config = ctx.data::<Arc<DpsConfig>>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
     match RemoveRoleOrchestrator::run(databases, session_context.clone(), config, id).await {
@@ -80,7 +82,7 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_config, create_test_mutation_schema, create_test_role_with_databases,
+    create_test_dps_config, create_test_mutation_schema, create_test_role_with_databases,
     create_test_user_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
@@ -112,7 +114,7 @@ mod tests {
       mutation,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let query = r#"
@@ -163,7 +165,7 @@ mod tests {
       mutation,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let query = r#"
@@ -191,7 +193,7 @@ mod tests {
       mutation,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let query = r#"
@@ -232,7 +234,7 @@ mod tests {
       mutation,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let query = r#"
@@ -280,7 +282,7 @@ mod tests {
       mutation,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let query = r#"
@@ -315,7 +317,7 @@ mod tests {
       mutation,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let query = r#"

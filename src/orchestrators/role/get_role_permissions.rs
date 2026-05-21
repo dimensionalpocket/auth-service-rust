@@ -3,8 +3,9 @@ use crate::middleware::session::SessionContext;
 use crate::models::role::ROLE_PERMISSIONS;
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::CheckUserPermissionService;
-use crate::types::{DpsAuthApiConfig, RoleError};
+use crate::types::RoleError;
 use crate::utils::session_context_sub_to_user_id;
+use dps_config::DpsConfig;
 
 pub struct GetRolePermissionsOrchestrator;
 
@@ -27,7 +28,7 @@ impl GetRolePermissionsOrchestrator {
   pub async fn run(
     databases: &Databases,
     session_context: SessionContext,
-    config: &DpsAuthApiConfig,
+    config: &DpsConfig,
   ) -> Result<Vec<String>, RoleError> {
     let main_pool = databases.main();
     // Authentication: Check if user is authenticated
@@ -76,7 +77,7 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_config, create_test_role_with_databases, create_test_user_with_databases,
+    create_test_dps_config, create_test_role_with_databases, create_test_user_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
@@ -96,7 +97,8 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let result =
-      GetRolePermissionsOrchestrator::run(&databases, session_context, &create_test_config()).await;
+      GetRolePermissionsOrchestrator::run(&databases, session_context, &create_test_dps_config())
+        .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -124,7 +126,8 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let result =
-      GetRolePermissionsOrchestrator::run(&databases, session_context, &create_test_config()).await;
+      GetRolePermissionsOrchestrator::run(&databases, session_context, &create_test_dps_config())
+        .await;
 
     assert!(result.is_ok());
     let permissions = result.unwrap();
@@ -154,7 +157,8 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let result =
-      GetRolePermissionsOrchestrator::run(&databases, session_context, &create_test_config()).await;
+      GetRolePermissionsOrchestrator::run(&databases, session_context, &create_test_dps_config())
+        .await;
 
     assert!(result.is_ok());
     let permissions = result.unwrap();
@@ -179,7 +183,8 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let result =
-      GetRolePermissionsOrchestrator::run(&databases, session_context, &create_test_config()).await;
+      GetRolePermissionsOrchestrator::run(&databases, session_context, &create_test_dps_config())
+        .await;
 
     assert!(result.is_ok());
     let permissions = result.unwrap();
@@ -193,7 +198,8 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let result =
-      GetRolePermissionsOrchestrator::run(&databases, session_context, &create_test_config()).await;
+      GetRolePermissionsOrchestrator::run(&databases, session_context, &create_test_dps_config())
+        .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {

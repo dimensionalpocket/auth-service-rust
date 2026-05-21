@@ -1,8 +1,10 @@
 use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::auth::AuthChangePasswordOrchestrator;
-use crate::types::{DpsAuthApiConfig, UserError};
+use crate::types::UserError;
 use async_graphql::{Context, Object, Result, SimpleObject};
+use dps_config::DpsConfig;
+use std::sync::Arc;
 use tracing::instrument;
 
 /// GraphQL output type for password change response
@@ -54,7 +56,7 @@ impl AuthChangePasswordResolver {
     #[graphql(name = "newPasswordConfirmation")] new_password_confirmation: String,
   ) -> Result<AuthChangePasswordResponse> {
     let databases = ctx.data::<Databases>()?;
-    let config = ctx.data::<DpsAuthApiConfig>()?;
+    let config = ctx.data::<Arc<DpsConfig>>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
     match AuthChangePasswordOrchestrator::run(
@@ -95,7 +97,7 @@ mod tests {
   use crate::middleware::session::{SessionContext, SessionPayload};
   use crate::services::{AuthLoginService, CreateUserService};
   use crate::test_utils::{
-    create_test_config, create_test_mutation_schema, create_test_role_model_with_conn,
+    create_test_dps_config, create_test_mutation_schema, create_test_role_model_with_conn,
   };
   use sqlx::SqliteConnection;
 
@@ -148,7 +150,7 @@ mod tests {
       mutation,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     // Test: Change password
@@ -201,7 +203,7 @@ mod tests {
       mutation,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     // Test: Try to change with wrong current password
@@ -244,7 +246,7 @@ mod tests {
       mutation,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     // Test: Try to change with mismatched confirmation
@@ -279,7 +281,7 @@ mod tests {
       mutation,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     // Test: Try to change password without authentication
@@ -320,7 +322,7 @@ mod tests {
       mutation,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     // Test: Try to change with invalid new password (too short)

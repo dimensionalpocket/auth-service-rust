@@ -646,27 +646,11 @@ async fn test_session_expired_token_handling() {
 #[test]
 fn test_session_context_utility_methods() {
   use dps_auth_api::middleware::session::SessionContext;
-  use dps_auth_api::types::DpsAuthApiConfig;
+  use dps_auth_api::test_utils::create_test_dps_config;
   use dps_auth_api::utils::session_context_sub_to_user_id;
   use dps_auth_session::DpsAuthSessionPayload;
 
-  fn create_test_config() -> DpsAuthApiConfig {
-    DpsAuthApiConfig {
-      port: 3000,
-      sqlite_main_file_path: ":memory:".to_string(),
-      sqlite_session_file_path: ":memory:".to_string(),
-      session_secret: vec![0u8; 32],
-      cookie_domain: ".test.com".to_string(),
-      api_path: "/api".to_string(),
-      insecure_cookie: true,
-      development_mode: true,
-      sqlite_main_pool_size: 1,
-      sqlite_session_pool_size: 1,
-      session_ttl_seconds: 3600,
-    }
-  }
-
-  let config = create_test_config();
+  let config = create_test_dps_config();
 
   // Test empty context
   let empty_context = SessionContext::new(None);

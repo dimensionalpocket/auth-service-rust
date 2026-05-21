@@ -1,6 +1,7 @@
 use crate::services::GenerateLogoutCookieService;
-use crate::types::DpsAuthApiConfig;
 use async_graphql::{Context, Object, Result, SimpleObject};
+use dps_config::DpsConfig;
+use std::sync::Arc;
 use tracing::instrument;
 
 /// GraphQL output type for logout response
@@ -20,7 +21,7 @@ impl AuthLogoutResolver {
   #[instrument(skip(self, ctx))]
   #[graphql(name = "authLogout")]
   async fn auth_logout(&self, ctx: &Context<'_>) -> Result<AuthLogoutResponse> {
-    let config = ctx.data::<DpsAuthApiConfig>()?;
+    let config = ctx.data::<Arc<DpsConfig>>()?;
 
     // Set cookie to expire in the past to effectively delete it
     let cookie_value = GenerateLogoutCookieService::run(config);
@@ -39,24 +40,12 @@ mod tests {
   use dps_auth_test_macros::dps_auth_db_test;
 
   use super::*;
-  use crate::test_utils::create_test_mutation_schema;
+  use crate::test_utils::{create_test_dps_config, create_test_mutation_schema};
 
   #[dps_auth_db_test]
   async fn test_auth_logout_success() {
     // Test config
-    let test_config = DpsAuthApiConfig {
-      port: 0,
-      sqlite_main_file_path: "test.db".to_string(),
-      sqlite_session_file_path: "test.db.session".to_string(),
-      session_secret: vec![0x42; 32],
-      cookie_domain: ".dps.localhost".to_string(),
-      api_path: "/api".to_string(),
-      insecure_cookie: false,
-      development_mode: true,
-      sqlite_main_pool_size: 1,
-      sqlite_session_pool_size: 1,
-      session_ttl_seconds: 3600,
-    };
+    let test_config = create_test_dps_config();
 
     let mutation = AuthLogoutResolver;
     let schema = create_test_mutation_schema(mutation, databases.clone(), None, Some(test_config));
@@ -90,19 +79,10 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_auth_logout_sets_cookie_header() {
     // Test config with secure cookie
-    let test_config = DpsAuthApiConfig {
-      port: 0,
-      sqlite_main_file_path: "test.db".to_string(),
-      sqlite_session_file_path: "test.db.session".to_string(),
-      session_secret: vec![0x42; 32],
-      cookie_domain: ".example.com".to_string(),
-      api_path: "/graphql".to_string(),
-      insecure_cookie: false,
-      development_mode: true,
-      sqlite_main_pool_size: 1,
-      sqlite_session_pool_size: 1,
-      session_ttl_seconds: 3600,
-    };
+    let mut test_config = create_test_dps_config();
+    test_config.set_auth_api_insecure_cookie(false);
+    test_config.set_domain("example.com");
+    test_config.set_api_path("graphql");
 
     let mutation = AuthLogoutResolver;
     let schema = create_test_mutation_schema(mutation, databases.clone(), None, Some(test_config));
@@ -166,19 +146,10 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_auth_logout_insecure_cookie() {
     // Test config with insecure cookie
-    let test_config = DpsAuthApiConfig {
-      port: 0,
-      sqlite_main_file_path: "test.db".to_string(),
-      sqlite_session_file_path: "test.db.session".to_string(),
-      session_secret: vec![0x42; 32],
-      cookie_domain: ".localhost".to_string(),
-      api_path: "/api".to_string(),
-      insecure_cookie: true,
-      development_mode: true,
-      sqlite_main_pool_size: 1,
-      sqlite_session_pool_size: 1,
-      session_ttl_seconds: 3600,
-    };
+    let mut test_config = create_test_dps_config();
+    test_config.set_auth_api_insecure_cookie(true);
+    test_config.set_domain("localhost");
+    test_config.set_api_path("api");
 
     let mutation = AuthLogoutResolver;
     let schema = create_test_mutation_schema(mutation, databases.clone(), None, Some(test_config));

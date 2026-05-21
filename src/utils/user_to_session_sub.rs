@@ -1,5 +1,5 @@
 use crate::models::User;
-use crate::types::DpsAuthApiConfig;
+use dps_config::DpsConfig;
 
 /// Converts a user to the string `sub` value used in session payloads.
 ///
@@ -9,7 +9,7 @@ use crate::types::DpsAuthApiConfig;
 ///
 /// # Returns
 /// The string representation of the user ID for use as the session `sub`
-pub fn user_to_session_sub(user: &User, _config: &DpsAuthApiConfig) -> String {
+pub fn user_to_session_sub(user: &User, _config: &DpsConfig) -> String {
   user.id.to_string()
 }
 
@@ -17,22 +17,7 @@ pub fn user_to_session_sub(user: &User, _config: &DpsAuthApiConfig) -> String {
 mod tests {
   use super::*;
   use crate::models::User;
-
-  fn create_test_config() -> DpsAuthApiConfig {
-    DpsAuthApiConfig {
-      port: 3000,
-      sqlite_main_file_path: ":memory:".to_string(),
-      sqlite_session_file_path: ":memory:".to_string(),
-      session_secret: vec![0u8; 32],
-      cookie_domain: ".test.com".to_string(),
-      api_path: "/api".to_string(),
-      insecure_cookie: true,
-      development_mode: true,
-      sqlite_main_pool_size: 1,
-      sqlite_session_pool_size: 1,
-      session_ttl_seconds: 3600,
-    }
-  }
+  use crate::test_utils::create_test_dps_config;
 
   fn create_test_user(id: i64) -> User {
     User {
@@ -50,7 +35,7 @@ mod tests {
   #[test]
   fn test_user_to_session_sub_returns_id_as_string() {
     let user = create_test_user(42);
-    let config = create_test_config();
+    let config = create_test_dps_config();
 
     let result = user_to_session_sub(&user, &config);
     assert_eq!(result, "42");
@@ -59,7 +44,7 @@ mod tests {
   #[test]
   fn test_user_to_session_sub_zero_id() {
     let user = create_test_user(0);
-    let config = create_test_config();
+    let config = create_test_dps_config();
 
     let result = user_to_session_sub(&user, &config);
     assert_eq!(result, "0");
@@ -68,7 +53,7 @@ mod tests {
   #[test]
   fn test_user_to_session_sub_large_id() {
     let user = create_test_user(i64::MAX);
-    let config = create_test_config();
+    let config = create_test_dps_config();
 
     let result = user_to_session_sub(&user, &config);
     assert_eq!(result, i64::MAX.to_string());

@@ -1,7 +1,8 @@
 use crate::middleware::session::SessionContext;
 use crate::queries::users::get_user_by_id_with_role::GetUserByIdWithRoleQuery;
-use crate::types::{DpsAuthApiConfig, SessionError};
+use crate::types::SessionError;
 use crate::utils::session_context_sub_to_user_id;
+use dps_config::DpsConfig;
 use sqlx::SqliteConnection;
 use tracing::instrument;
 
@@ -10,11 +11,11 @@ use super::types::AuthMeResult;
 pub struct AuthGetCurrentUserService;
 
 impl AuthGetCurrentUserService {
-  #[instrument(skip(main_conn))]
+  #[instrument(skip(main_conn, config))]
   pub async fn run(
     main_conn: &mut SqliteConnection,
     session_context: &SessionContext,
-    config: &DpsAuthApiConfig,
+    config: &DpsConfig,
   ) -> Result<AuthMeResult, SessionError> {
     let user_id = session_context_sub_to_user_id(session_context, config)
       .map_err(SessionError::AuthenticationError)?;
@@ -50,7 +51,7 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_config, create_test_role_model_with_conn, create_test_user_full_with_conn,
+    create_test_dps_config, create_test_role_model_with_conn, create_test_user_full_with_conn,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
@@ -80,7 +81,8 @@ mod tests {
     let session_context = SessionContext::new(Some(payload));
 
     let result =
-      AuthGetCurrentUserService::run(&mut main_conn, &session_context, &create_test_config()).await;
+      AuthGetCurrentUserService::run(&mut main_conn, &session_context, &create_test_dps_config())
+        .await;
 
     assert!(result.is_ok());
     let auth_me_result = result.unwrap();

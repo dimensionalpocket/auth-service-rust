@@ -2,8 +2,9 @@ use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::{CheckUserPermissionService, DeleteUserService};
-use crate::types::{DpsAuthApiConfig, UserError};
+use crate::types::UserError;
 use crate::utils::session_context_sub_to_user_id;
+use dps_config::DpsConfig;
 
 pub struct DeleteUserOrchestrator;
 
@@ -11,7 +12,7 @@ impl DeleteUserOrchestrator {
   pub async fn run(
     databases: &Databases,
     session_context: SessionContext,
-    config: &DpsAuthApiConfig,
+    config: &DpsConfig,
     target_user_id: i64,
   ) -> Result<(), UserError> {
     let user_id = session_context_sub_to_user_id(&session_context, config)
@@ -56,7 +57,7 @@ mod tests {
   use crate::middleware::session::SessionContext;
   use crate::queries::users::GetUserByIdQuery;
   use crate::test_utils::{
-    create_test_config, create_test_role_with_databases, create_test_user_with_databases,
+    create_test_dps_config, create_test_role_with_databases, create_test_user_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
@@ -80,7 +81,7 @@ mod tests {
     let result = DeleteUserOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       target_user.id,
     )
     .await;
@@ -101,7 +102,8 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let result =
-      DeleteUserOrchestrator::run(&databases, session_context, &create_test_config(), 123).await;
+      DeleteUserOrchestrator::run(&databases, session_context, &create_test_dps_config(), 123)
+        .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -130,7 +132,7 @@ mod tests {
     let result = DeleteUserOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       target_user.id,
     )
     .await;
@@ -160,7 +162,7 @@ mod tests {
     let result = DeleteUserOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       admin_user.id,
     )
     .await;
@@ -194,7 +196,8 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let result =
-      DeleteUserOrchestrator::run(&databases, session_context, &create_test_config(), 999).await;
+      DeleteUserOrchestrator::run(&databases, session_context, &create_test_dps_config(), 999)
+        .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -221,7 +224,7 @@ mod tests {
     let result = DeleteUserOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       target_user.id,
     )
     .await;

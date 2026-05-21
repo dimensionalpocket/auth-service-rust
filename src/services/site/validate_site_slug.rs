@@ -23,14 +23,24 @@ impl ValidateSiteSlugService {
     }
 
     // Must start with a letter
-    if !slug.chars().next().unwrap().is_ascii_alphabetic() {
+    if !slug
+      .chars()
+      .next()
+      .expect("slug length >= 3")
+      .is_ascii_alphabetic()
+    {
       return Err(SiteError::ValidationError(
         "Slug must start with a letter".to_string(),
       ));
     }
 
     // Must end with a letter or number
-    if !slug.chars().last().unwrap().is_ascii_alphanumeric() {
+    if !slug
+      .chars()
+      .last()
+      .expect("slug length >= 3")
+      .is_ascii_alphanumeric()
+    {
       return Err(SiteError::ValidationError(
         "Slug must end with a letter or number".to_string(),
       ));

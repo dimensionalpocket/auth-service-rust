@@ -3,8 +3,9 @@ use crate::middleware::session::SessionContext;
 use crate::models::user::UserWithRole;
 use crate::queries::users::{GetAllUsersWithRolesQuery, GetUserByIdQuery};
 use crate::services::CheckUserPermissionService;
-use crate::types::{DpsAuthApiConfig, UserError};
+use crate::types::UserError;
 use crate::utils::session_context_sub_to_user_id;
+use dps_config::DpsConfig;
 
 pub struct GetUsersOrchestrator;
 
@@ -12,7 +13,7 @@ impl GetUsersOrchestrator {
   pub async fn run(
     databases: &Databases,
     session_context: SessionContext,
-    config: &DpsAuthApiConfig,
+    config: &DpsConfig,
   ) -> Result<Vec<UserWithRole>, UserError> {
     let user_id = session_context_sub_to_user_id(&session_context, config)
       .map_err(UserError::AuthenticationError)?;
@@ -47,7 +48,7 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_config, create_test_role_with_databases, create_test_user_with_databases,
+    create_test_dps_config, create_test_role_with_databases, create_test_user_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
@@ -69,7 +70,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let result =
-      GetUsersOrchestrator::run(&databases, session_context, &create_test_config()).await;
+      GetUsersOrchestrator::run(&databases, session_context, &create_test_dps_config()).await;
 
     assert!(result.is_ok());
     let users = result.unwrap();
@@ -87,7 +88,7 @@ mod tests {
     let session_context = SessionContext::new(None);
 
     let result =
-      GetUsersOrchestrator::run(&databases, session_context, &create_test_config()).await;
+      GetUsersOrchestrator::run(&databases, session_context, &create_test_dps_config()).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -112,7 +113,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let result =
-      GetUsersOrchestrator::run(&databases, session_context, &create_test_config()).await;
+      GetUsersOrchestrator::run(&databases, session_context, &create_test_dps_config()).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -133,7 +134,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let result =
-      GetUsersOrchestrator::run(&databases, session_context, &create_test_config()).await;
+      GetUsersOrchestrator::run(&databases, session_context, &create_test_dps_config()).await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -158,7 +159,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let result =
-      GetUsersOrchestrator::run(&databases, session_context, &create_test_config()).await;
+      GetUsersOrchestrator::run(&databases, session_context, &create_test_dps_config()).await;
 
     assert!(result.is_ok());
     let users = result.unwrap();

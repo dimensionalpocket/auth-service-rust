@@ -1,9 +1,10 @@
 use crate::database::Databases;
 use crate::graphql::types::{UserRole, UserWithRoleResponse};
 use crate::orchestrators::auth::AuthRegisterOrchestrator;
-use crate::types::DpsAuthApiConfig;
 use crate::types::SessionError;
 use async_graphql::{Context, Object, Result};
+use dps_config::DpsConfig;
+use std::sync::Arc;
 use tracing::instrument;
 
 /// GraphQL output type for user registration response
@@ -55,7 +56,7 @@ impl AuthRegisterResolver {
     #[graphql(name = "passwordConfirmation")] password_confirmation: String,
   ) -> Result<AuthRegisterResponse> {
     let databases = ctx.data::<Databases>()?;
-    let config = ctx.data::<DpsAuthApiConfig>()?;
+    let config = ctx.data::<Arc<DpsConfig>>()?;
 
     match AuthRegisterOrchestrator::run(
       databases,
@@ -96,7 +97,9 @@ mod tests {
   use dps_auth_test_macros::dps_auth_db_test;
 
   use super::*;
-  use crate::test_utils::{create_test_mutation_schema, create_test_role_model_with_conn};
+  use crate::test_utils::{
+    create_test_dps_config, create_test_mutation_schema, create_test_role_model_with_conn,
+  };
 
   #[dps_auth_db_test]
   async fn test_auth_register_calls_service_with_correct_parameters() {
@@ -107,25 +110,7 @@ mod tests {
     }
 
     // Test secret - 32 bytes for AES-256
-    let test_secret = vec![
-      0x42, 0xf4, 0x25, 0xc2, 0x93, 0x2e, 0x8c, 0xaf, 0xaa, 0xcd, 0xd4, 0x5b, 0x50, 0x28, 0xa4,
-      0x8d, 0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74,
-      0x4d, 0xb8,
-    ];
-
-    let test_config = DpsAuthApiConfig {
-      port: 0,
-      sqlite_main_file_path: "test.db".to_string(),
-      sqlite_session_file_path: "test.db.session".to_string(),
-      session_secret: test_secret,
-      cookie_domain: ".dps.localhost".to_string(),
-      api_path: "/api".to_string(),
-      insecure_cookie: false,
-      development_mode: true,
-      sqlite_main_pool_size: 1,
-      sqlite_session_pool_size: 1,
-      session_ttl_seconds: 3600,
-    };
+    let test_config = create_test_dps_config();
 
     let mutation = AuthRegisterResolver;
     let schema = create_test_mutation_schema(mutation, databases.clone(), None, Some(test_config));
@@ -178,25 +163,7 @@ mod tests {
     }
 
     // Test secret - 32 bytes for AES-256
-    let test_secret = vec![
-      0x42, 0xf4, 0x25, 0xc2, 0x93, 0x2e, 0x8c, 0xaf, 0xaa, 0xcd, 0xd4, 0x5b, 0x50, 0x28, 0xa4,
-      0x8d, 0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74,
-      0x4d, 0xb8,
-    ];
-
-    let test_config = DpsAuthApiConfig {
-      port: 0,
-      sqlite_main_file_path: "test.db".to_string(),
-      sqlite_session_file_path: "test.db.session".to_string(),
-      session_secret: test_secret,
-      cookie_domain: ".dps.localhost".to_string(),
-      api_path: "/api".to_string(),
-      insecure_cookie: false,
-      development_mode: true,
-      sqlite_main_pool_size: 1,
-      sqlite_session_pool_size: 1,
-      session_ttl_seconds: 3600,
-    };
+    let test_config = create_test_dps_config();
 
     let mutation = AuthRegisterResolver;
     let schema = create_test_mutation_schema(mutation, databases.clone(), None, Some(test_config));
@@ -225,25 +192,7 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_auth_register_validates_input() {
     // Test secret - 32 bytes for AES-256
-    let test_secret = vec![
-      0x42, 0xf4, 0x25, 0xc2, 0x93, 0x2e, 0x8c, 0xaf, 0xaa, 0xcd, 0xd4, 0x5b, 0x50, 0x28, 0xa4,
-      0x8d, 0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74,
-      0x4d, 0xb8,
-    ];
-
-    let test_config = DpsAuthApiConfig {
-      port: 0,
-      sqlite_main_file_path: "test.db".to_string(),
-      sqlite_session_file_path: "test.db.session".to_string(),
-      session_secret: test_secret,
-      cookie_domain: ".dps.localhost".to_string(),
-      api_path: "/api".to_string(),
-      insecure_cookie: false,
-      development_mode: true,
-      sqlite_main_pool_size: 1,
-      sqlite_session_pool_size: 1,
-      session_ttl_seconds: 3600,
-    };
+    let test_config = create_test_dps_config();
 
     let mutation = AuthRegisterResolver;
     let schema = create_test_mutation_schema(mutation, databases.clone(), None, Some(test_config));
@@ -265,25 +214,7 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_auth_register_password_confirmation_mismatch() {
     // Test secret - 32 bytes for AES-256
-    let test_secret = vec![
-      0x42, 0xf4, 0x25, 0xc2, 0x93, 0x2e, 0x8c, 0xaf, 0xaa, 0xcd, 0xd4, 0x5b, 0x50, 0x28, 0xa4,
-      0x8d, 0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74,
-      0x4d, 0xb8,
-    ];
-
-    let test_config = DpsAuthApiConfig {
-      port: 0,
-      sqlite_main_file_path: "test.db".to_string(),
-      sqlite_session_file_path: "test.db.session".to_string(),
-      session_secret: test_secret,
-      cookie_domain: ".dps.localhost".to_string(),
-      api_path: "/api".to_string(),
-      insecure_cookie: false,
-      development_mode: true,
-      sqlite_main_pool_size: 1,
-      sqlite_session_pool_size: 1,
-      session_ttl_seconds: 3600,
-    };
+    let test_config = create_test_dps_config();
 
     let mutation = AuthRegisterResolver;
     let schema = create_test_mutation_schema(mutation, databases.clone(), None, Some(test_config));
@@ -314,25 +245,8 @@ mod tests {
     }
 
     // Test secret - 32 bytes for AES-256
-    let test_secret = vec![
-      0x42, 0xf4, 0x25, 0xc2, 0x93, 0x2e, 0x8c, 0xaf, 0xaa, 0xcd, 0xd4, 0x5b, 0x50, 0x28, 0xa4,
-      0x8d, 0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74,
-      0x4d, 0xb8,
-    ];
-
-    let test_config = DpsAuthApiConfig {
-      port: 0,
-      sqlite_main_file_path: "test.db".to_string(),
-      sqlite_session_file_path: "test.db.session".to_string(),
-      session_secret: test_secret,
-      cookie_domain: ".dps.localhost".to_string(),
-      api_path: "/api".to_string(),
-      insecure_cookie: false,
-      development_mode: true,
-      sqlite_main_pool_size: 1,
-      sqlite_session_pool_size: 1,
-      session_ttl_seconds: 3600,
-    };
+    let mut test_config = create_test_dps_config();
+    test_config.set_auth_api_insecure_cookie(false);
 
     let mutation = AuthRegisterResolver;
     let schema = create_test_mutation_schema(mutation, databases.clone(), None, Some(test_config));
@@ -368,7 +282,7 @@ mod tests {
       "Cookie header should contain session token"
     );
     assert!(
-      cookie_header.contains("Domain=.dps.localhost"),
+      cookie_header.contains("Domain=.test.com"),
       "Cookie header should contain domain"
     );
     assert!(

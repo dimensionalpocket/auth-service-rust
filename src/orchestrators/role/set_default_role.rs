@@ -3,8 +3,9 @@ use crate::middleware::session::SessionContext;
 use crate::models::role::Role;
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::{CheckUserPermissionService, SetDefaultRoleService};
-use crate::types::{DpsAuthApiConfig, RoleError};
+use crate::types::RoleError;
 use crate::utils::session_context_sub_to_user_id;
+use dps_config::DpsConfig;
 
 pub struct SetDefaultRoleOrchestrator;
 
@@ -18,7 +19,7 @@ impl SetDefaultRoleOrchestrator {
   pub async fn run(
     databases: &Databases,
     session_context: SessionContext,
-    config: &DpsAuthApiConfig,
+    config: &DpsConfig,
     role_id: i64,
   ) -> Result<Role, RoleError> {
     let main_pool = databases.main();
@@ -57,7 +58,7 @@ mod tests {
   use crate::middleware::session::SessionContext;
   use crate::services::{GetAllRolesService, GetRoleByIdService};
   use crate::test_utils::{
-    create_test_config, create_test_role_with_databases, create_test_user_with_databases,
+    create_test_dps_config, create_test_role_with_databases, create_test_user_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
@@ -83,7 +84,7 @@ mod tests {
     let result = SetDefaultRoleOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       test_role_id,
     )
     .await;
@@ -108,7 +109,7 @@ mod tests {
     let result = SetDefaultRoleOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       test_role_id,
     )
     .await;
@@ -139,7 +140,7 @@ mod tests {
     let result = SetDefaultRoleOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       test_role_id,
     )
     .await;
@@ -175,7 +176,7 @@ mod tests {
     let result = SetDefaultRoleOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       test_role_id,
     )
     .await;
@@ -205,7 +206,7 @@ mod tests {
     let session_context = SessionContext::new(Some(session_payload));
 
     let result =
-      SetDefaultRoleOrchestrator::run(&databases, session_context, &create_test_config(), 999)
+      SetDefaultRoleOrchestrator::run(&databases, session_context, &create_test_dps_config(), 999)
         .await;
 
     assert!(result.is_err());
@@ -243,7 +244,7 @@ mod tests {
     let result1 = SetDefaultRoleOrchestrator::run(
       &databases,
       session_context.clone(),
-      &create_test_config(),
+      &create_test_dps_config(),
       role1_id,
     )
     .await;
@@ -267,7 +268,7 @@ mod tests {
     let result2 = SetDefaultRoleOrchestrator::run(
       &databases,
       session_context.clone(),
-      &create_test_config(),
+      &create_test_dps_config(),
       role2_id,
     )
     .await;
@@ -298,9 +299,13 @@ mod tests {
     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
     // Set role3 as default (should unset role2)
-    let result3 =
-      SetDefaultRoleOrchestrator::run(&databases, session_context, &create_test_config(), role3_id)
-        .await;
+    let result3 = SetDefaultRoleOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_dps_config(),
+      role3_id,
+    )
+    .await;
     assert!(result3.is_ok());
     let updated_role3 = result3.unwrap();
     assert!(updated_role3.is_default);
@@ -360,7 +365,7 @@ mod tests {
     let result = SetDefaultRoleOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       test_role_id,
     )
     .await;

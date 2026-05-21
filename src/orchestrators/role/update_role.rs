@@ -4,8 +4,9 @@ use crate::models::role::Role;
 use crate::queries::roles::UpdateRoleData;
 use crate::queries::users::GetUserByIdQuery;
 use crate::services::{CheckUserPermissionService, UpdateRoleService};
-use crate::types::{DpsAuthApiConfig, RoleError};
+use crate::types::RoleError;
 use crate::utils::session_context_sub_to_user_id;
+use dps_config::DpsConfig;
 
 pub struct UpdateRoleOrchestrator;
 
@@ -19,7 +20,7 @@ impl UpdateRoleOrchestrator {
   pub async fn run(
     databases: &Databases,
     session_context: SessionContext,
-    config: &DpsAuthApiConfig,
+    config: &DpsConfig,
     role_id: i64,
     update_data: UpdateRoleData,
   ) -> Result<Role, RoleError> {
@@ -58,7 +59,7 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_config, create_test_role_with_databases, create_test_user_with_databases,
+    create_test_dps_config, create_test_role_with_databases, create_test_user_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload;
 
@@ -94,7 +95,7 @@ mod tests {
     let result = UpdateRoleOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       test_role_id,
       update_data,
     )
@@ -143,7 +144,7 @@ mod tests {
     let result = UpdateRoleOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       test_role_id,
       update_data,
     )
@@ -177,7 +178,7 @@ mod tests {
     let result = UpdateRoleOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       test_role_id,
       update_data,
     )
@@ -215,7 +216,7 @@ mod tests {
     let result = UpdateRoleOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       test_role_id,
       update_data,
     )
@@ -258,7 +259,7 @@ mod tests {
     let result = UpdateRoleOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       test_role_id,
       update_data,
     )
@@ -297,7 +298,7 @@ mod tests {
     let result = UpdateRoleOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       999,
       update_data,
     )
@@ -341,7 +342,7 @@ mod tests {
     let result = UpdateRoleOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       test_role_id,
       update_data,
     )
@@ -385,7 +386,7 @@ mod tests {
     let result = UpdateRoleOrchestrator::run(
       &databases,
       session_context,
-      &create_test_config(),
+      &create_test_dps_config(),
       test_role_id,
       update_data,
     )

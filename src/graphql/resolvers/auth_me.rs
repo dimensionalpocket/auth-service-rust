@@ -2,8 +2,10 @@ use crate::database::Databases;
 use crate::graphql::types::{UserRole, UserWithRoleResponse};
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::auth::AuthMeOrchestrator;
-use crate::types::{DpsAuthApiConfig, SessionError};
+use crate::types::SessionError;
 use async_graphql::{Context, Object, Result};
+use dps_config::DpsConfig;
+use std::sync::Arc;
 use tracing::instrument;
 
 /// GraphQL output type for current authenticated user information
@@ -101,7 +103,7 @@ impl AuthMeResolver {
   #[graphql(name = "authMe")]
   async fn auth_me(&self, ctx: &Context<'_>) -> Result<Option<AuthMeResponse>> {
     let databases = ctx.data::<Databases>()?;
-    let config = ctx.data::<DpsAuthApiConfig>()?;
+    let config = ctx.data::<Arc<DpsConfig>>()?;
 
     // Try to get session context, but don't fail if it's missing
     let session_context = match SessionContext::from_context(ctx) {
@@ -148,7 +150,7 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_config, create_test_query_schema, create_test_user_full_with_databases,
+    create_test_dps_config, create_test_query_schema, create_test_user_full_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
 
@@ -177,7 +179,7 @@ mod tests {
       query,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let result = schema
@@ -204,7 +206,7 @@ mod tests {
       query,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let result = schema.execute("{ authMe { user { id uuid name } } }").await;
@@ -219,8 +221,12 @@ mod tests {
   async fn test_auth_me_missing_context() {
     let query = AuthMeResolver;
 
-    let schema =
-      create_test_query_schema(query, databases.clone(), None, Some(create_test_config()));
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      None,
+      Some(create_test_dps_config()),
+    );
     let result = schema.execute("{ authMe { user { id uuid name } } }").await;
 
     // Should succeed with null response when no session context

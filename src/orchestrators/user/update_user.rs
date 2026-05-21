@@ -2,8 +2,9 @@ use crate::database::Databases;
 use crate::middleware::session::SessionContext;
 use crate::queries::users::{GetUserByIdQuery, UpdateUserData};
 use crate::services::{CheckUserPermissionService, UpdateUserService};
-use crate::types::{user::update_user_input::UpdateUserInput, DpsAuthApiConfig, UserError};
+use crate::types::{user::update_user_input::UpdateUserInput, UserError};
 use crate::utils::session_context_sub_to_user_id;
+use dps_config::DpsConfig;
 
 pub struct UpdateUserOrchestrator;
 
@@ -11,7 +12,7 @@ impl UpdateUserOrchestrator {
   pub async fn run(
     databases: &Databases,
     session_context: SessionContext,
-    config: &DpsAuthApiConfig,
+    config: &DpsConfig,
     input: UpdateUserInput,
   ) -> Result<crate::models::user::UserWithRole, UserError> {
     let user_id = session_context_sub_to_user_id(&session_context, config)
@@ -78,7 +79,7 @@ mod tests {
   use super::*;
   use crate::middleware::session::SessionContext;
   use crate::test_utils::{
-    create_test_config, create_test_role_with_databases, create_test_user_with_databases,
+    create_test_dps_config, create_test_role_with_databases, create_test_user_with_databases,
   };
   use crate::types::user::update_user_input::UpdateUserInput;
   use dps_auth_session::DpsAuthSessionPayload;
@@ -108,8 +109,13 @@ mod tests {
       metadata_json: Some(r#"{"updated": true}"#.to_string()),
     };
 
-    let result =
-      UpdateUserOrchestrator::run(&databases, session_context, &create_test_config(), input).await;
+    let result = UpdateUserOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_dps_config(),
+      input,
+    )
+    .await;
 
     assert!(result.is_ok());
     let user_with_role = result.unwrap();
@@ -139,8 +145,13 @@ mod tests {
       metadata_json: None,
     };
 
-    let result =
-      UpdateUserOrchestrator::run(&databases, session_context, &create_test_config(), input).await;
+    let result = UpdateUserOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_dps_config(),
+      input,
+    )
+    .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -172,8 +183,13 @@ mod tests {
       metadata_json: None,
     };
 
-    let result =
-      UpdateUserOrchestrator::run(&databases, session_context, &create_test_config(), input).await;
+    let result = UpdateUserOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_dps_config(),
+      input,
+    )
+    .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -207,8 +223,13 @@ mod tests {
       metadata_json: None,
     };
 
-    let result =
-      UpdateUserOrchestrator::run(&databases, session_context, &create_test_config(), input).await;
+    let result = UpdateUserOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_dps_config(),
+      input,
+    )
+    .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -241,8 +262,13 @@ mod tests {
       metadata_json: None,
     };
 
-    let result =
-      UpdateUserOrchestrator::run(&databases, session_context, &create_test_config(), input).await;
+    let result = UpdateUserOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_dps_config(),
+      input,
+    )
+    .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -278,8 +304,13 @@ mod tests {
       metadata_json: None,
     };
 
-    let result =
-      UpdateUserOrchestrator::run(&databases, session_context, &create_test_config(), input).await;
+    let result = UpdateUserOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_dps_config(),
+      input,
+    )
+    .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -315,8 +346,13 @@ mod tests {
       metadata_json: None,
     };
 
-    let result =
-      UpdateUserOrchestrator::run(&databases, session_context, &create_test_config(), input).await;
+    let result = UpdateUserOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_dps_config(),
+      input,
+    )
+    .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -354,8 +390,13 @@ mod tests {
       metadata_json: None,
     };
 
-    let result =
-      UpdateUserOrchestrator::run(&databases, session_context, &create_test_config(), input).await;
+    let result = UpdateUserOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_dps_config(),
+      input,
+    )
+    .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -391,8 +432,13 @@ mod tests {
       metadata_json: None,
     };
 
-    let result =
-      UpdateUserOrchestrator::run(&databases, session_context, &create_test_config(), input).await;
+    let result = UpdateUserOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_dps_config(),
+      input,
+    )
+    .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -428,8 +474,13 @@ mod tests {
       metadata_json: None,
     };
 
-    let result =
-      UpdateUserOrchestrator::run(&databases, session_context, &create_test_config(), input).await;
+    let result = UpdateUserOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_dps_config(),
+      input,
+    )
+    .await;
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -465,8 +516,13 @@ mod tests {
       metadata_json: None,
     };
 
-    let result =
-      UpdateUserOrchestrator::run(&databases, session_context, &create_test_config(), input).await;
+    let result = UpdateUserOrchestrator::run(
+      &databases,
+      session_context,
+      &create_test_dps_config(),
+      input,
+    )
+    .await;
 
     assert!(result.is_ok());
     let user_with_role = result.unwrap();

@@ -2,8 +2,10 @@ use crate::database::Databases;
 use crate::graphql::types::UserRole;
 use crate::middleware::session::SessionContext;
 use crate::orchestrators::user::GetUserOrchestrator;
-use crate::types::{DpsAuthApiConfig, UserError};
+use crate::types::UserError;
 use async_graphql::{Context, Error, Object};
+use dps_config::DpsConfig;
+use std::sync::Arc;
 use tracing::instrument;
 
 /// GraphQL output type for complete user details (admin only)
@@ -51,7 +53,7 @@ impl UserResolver {
   #[graphql(name = "user")]
   async fn user(&self, ctx: &Context<'_>, id: i64) -> Result<UserDetailsResponse, Error> {
     let databases = ctx.data::<Databases>()?;
-    let config = ctx.data::<DpsAuthApiConfig>()?;
+    let config = ctx.data::<Arc<DpsConfig>>()?;
     let session_context = SessionContext::from_context(ctx)?;
 
     match GetUserOrchestrator::run(databases, session_context.clone(), config, id).await {
@@ -84,7 +86,7 @@ mod tests {
   use crate::middleware::session::SessionContext;
   use crate::queries::users::{CreateUserData, CreateUserQuery};
   use crate::test_utils::{
-    create_test_config, create_test_query_schema, create_test_role_model_with_databases,
+    create_test_dps_config, create_test_query_schema, create_test_role_model_with_databases,
     create_test_user_full_with_databases,
   };
   use dps_auth_session::DpsAuthSessionPayload as ServiceSessionPayload;
@@ -144,7 +146,7 @@ mod tests {
       query_resolver,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let query = format!(
@@ -213,7 +215,7 @@ mod tests {
       query_resolver,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let query = r#"
@@ -240,7 +242,7 @@ mod tests {
       query_resolver,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let query = r#"
@@ -293,7 +295,7 @@ mod tests {
       query_resolver,
       databases.clone(),
       Some(session_context),
-      Some(create_test_config()),
+      Some(create_test_dps_config()),
     );
 
     let query = r#"
