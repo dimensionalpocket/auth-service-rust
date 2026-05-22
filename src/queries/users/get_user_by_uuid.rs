@@ -1,50 +1,56 @@
 use crate::models::User;
-use sqlx::SqlitePool;
+use sqlx::SqliteConnection;
 
 pub struct GetUserByUuidQuery;
 
 impl GetUserByUuidQuery {
-  pub async fn run(pool: &SqlitePool, uuid: &str) -> Result<Option<User>, sqlx::Error> {
+  pub async fn run(
+    main_conn: &mut SqliteConnection,
+    uuid: &str,
+  ) -> Result<Option<User>, sqlx::Error> {
     sqlx::query_as::<_, User>(
       "SELECT id, uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json FROM users WHERE uuid = ?"
     )
     .bind(uuid)
-    .fetch_optional(pool)
+    .fetch_optional(&mut *main_conn)
     .await
   }
 }
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
-  use crate::database::test_utils::create_test_database;
+  use crate::test_utils::create_test_role_model_with_databases;
   use uuid::Uuid;
 
-  #[tokio::test]
+  #[dps_auth_db_test]
   async fn test_get_user_by_uuid_found() {
-    let (pool, _temp_file) = create_test_database().await;
-
     // Insert test role first
-    let role_result = sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
-    let role_id = role_result.last_insert_rowid();
+    let role =
+      create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true)
+        .await;
+    let role_id = role.id;
 
     // Insert test user
     let user_uuid = Uuid::new_v4().to_string();
-    sqlx::query(
-      "INSERT INTO users (uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json) VALUES (?, 1234567890, 1234567890, 'Test User', ?, 'hashed_password', NULL)"
-    )
-    .bind(&user_uuid)
-    .bind(role_id)
-    .execute(&pool)
-    .await
-    .unwrap();
+    sqlx::query("INSERT INTO users (uuid, name, role_id, password_hash, metadata_json, created_ts, updated_ts) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .bind(&user_uuid)
+      .bind("Test User")
+      .bind(role_id)
+      .bind("hashed_password")
+      .bind(None::<String>)
+      .bind(1234567890)
+      .bind(1234567890)
+      .execute(&main_pool)
+      .await
+      .unwrap();
 
-    let user = GetUserByUuidQuery::run(&pool, &user_uuid).await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let user = GetUserByUuidQuery::run(&mut main_conn, &user_uuid)
+      .await
+      .unwrap();
 
     assert!(user.is_some());
     let user = user.unwrap();
@@ -55,12 +61,13 @@ mod tests {
     assert_eq!(user.metadata_json, None);
   }
 
-  #[tokio::test]
+  #[dps_auth_db_test]
   async fn test_get_user_by_uuid_not_found() {
-    let (pool, _temp_file) = create_test_database().await;
-
     let user_uuid = Uuid::new_v4().to_string();
-    let user = GetUserByUuidQuery::run(&pool, &user_uuid).await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let user = GetUserByUuidQuery::run(&mut main_conn, &user_uuid)
+      .await
+      .unwrap();
 
     assert!(user.is_none());
   }

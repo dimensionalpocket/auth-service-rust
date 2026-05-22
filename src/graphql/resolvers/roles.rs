@@ -1,0 +1,275 @@
+use crate::database::Databases;
+use crate::middleware::session::SessionContext;
+use crate::orchestrators::role::GetRolesOrchestrator;
+use async_graphql::{Context, Object, Result, SimpleObject};
+use dps_config::DpsConfig;
+use std::sync::Arc;
+use tracing::instrument;
+
+/// GraphQL output type for role listing
+#[derive(SimpleObject, Debug)]
+pub struct RoleListing {
+  pub id: i64,
+  pub name: String,
+  pub permissions: Vec<String>,
+  /// Whether this role is the default role for new users
+  #[graphql(name = "isDefault")]
+  pub is_default: bool,
+  /// Timestamp when the role was created
+  #[graphql(name = "createdTs")]
+  pub created_ts: i64,
+  /// Timestamp when the role was last updated
+  #[graphql(name = "updatedTs")]
+  pub updated_ts: i64,
+}
+
+/// Roles query resolver for retrieving role information
+#[derive(Default, Debug)]
+pub struct RolesResolver;
+
+#[Object]
+impl RolesResolver {
+  /// Returns all roles in the database.
+  ///
+  /// This query requires authentication and either `can_manage_roles` OR `can_edit_user_role` permission.
+  /// Returns all roles with their permissions as string arrays.
+  ///
+  /// Example response:
+  /// ```json
+  /// {
+  ///   "roles": [
+  ///     {
+  ///       "id": 1,
+  ///       "name": "admin",
+  ///       "permissions": ["is_admin", "can_manage_roles"],
+  ///       "isDefault": false,
+  ///       "createdTs": 1640995200,
+  ///       "updatedTs": 1640995200
+  ///     }
+  ///   ]
+  /// }
+  /// ```
+  #[instrument(skip(self, ctx))]
+  #[graphql(name = "roles")]
+  async fn roles(&self, ctx: &Context<'_>) -> Result<Vec<RoleListing>> {
+    let databases = ctx.data::<Databases>()?;
+    let session_context = ctx.data::<SessionContext>()?;
+    let config = ctx.data::<Arc<DpsConfig>>()?;
+
+    let roles = GetRolesOrchestrator::run(databases, session_context.clone(), config)
+      .await
+      .map_err(|e| async_graphql::Error::new(e.to_string()))?;
+
+    let role_listings: Vec<RoleListing> = roles
+      .into_iter()
+      .map(|role| {
+        let permissions = role.permissions;
+        RoleListing {
+          id: role.id,
+          name: role.name,
+          permissions,
+          is_default: role.is_default,
+          created_ts: role.created_ts,
+          updated_ts: role.updated_ts,
+        }
+      })
+      .collect();
+
+    Ok(role_listings)
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
+  use crate::graphql::resolvers::RolesResolver;
+  use crate::middleware::session::SessionContext;
+  use crate::test_utils::{
+    create_test_dps_config, create_test_query_schema, create_test_role_with_databases,
+    create_test_user_with_databases,
+  };
+  use dps_auth_session::DpsAuthSessionPayload;
+
+  #[dps_auth_db_test]
+  async fn test_roles_admin_success() {
+    // Create admin role and user
+    let admin_role_id =
+      create_test_role_with_databases(&databases, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
+
+    // Create some roles to retrieve
+    create_test_role_with_databases(&databases, "user", &["can_view_user_self"]).await;
+    create_test_role_with_databases(&databases, "editor", &["can_edit_content"]).await;
+
+    // Create session context for admin user
+    let session_payload = DpsAuthSessionPayload {
+      sub: admin_user.id.to_string(),
+      iat: 1000,
+      exp: 2000,
+    };
+    let session_context = SessionContext::new(Some(session_payload));
+
+    let query = RolesResolver;
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_dps_config()),
+    );
+
+    let result = schema
+      .execute("{ roles { id name permissions isDefault createdTs updatedTs } }")
+      .await;
+
+    assert!(result.errors.is_empty());
+    let data = result.data.into_json().unwrap();
+    let roles = data["roles"].as_array().unwrap();
+    assert!(roles.len() >= 3); // admin, user, editor
+
+    // Verify field structure
+    for role in roles {
+      assert!(role["id"].is_number());
+      assert!(role["name"].is_string());
+      assert!(role["permissions"].is_array());
+      assert!(role["isDefault"].is_boolean());
+      assert!(role["createdTs"].is_number());
+      assert!(role["updatedTs"].is_number());
+    }
+  }
+
+  #[dps_auth_db_test]
+  async fn test_roles_role_editor_success() {
+    // Create role editor role and user
+    let role_editor_id =
+      create_test_role_with_databases(&databases, "role_editor", &["can_edit_user_role"]).await;
+    let role_editor_user =
+      create_test_user_with_databases(&databases, "role_editor", role_editor_id).await;
+
+    // Create some roles to retrieve
+    create_test_role_with_databases(&databases, "user", &["can_view_user_self"]).await;
+    create_test_role_with_databases(&databases, "editor", &["can_edit_content"]).await;
+
+    // Create session context for role editor user
+    let session_payload = DpsAuthSessionPayload {
+      sub: role_editor_user.id.to_string(),
+      iat: 1000,
+      exp: 2000,
+    };
+    let session_context = SessionContext::new(Some(session_payload));
+
+    let query = RolesResolver;
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_dps_config()),
+    );
+
+    let result = schema
+      .execute("{ roles { id name permissions isDefault createdTs updatedTs } }")
+      .await;
+
+    assert!(result.errors.is_empty());
+    let data = result.data.into_json().unwrap();
+    let roles = data["roles"].as_array().unwrap();
+    assert!(roles.len() >= 3); // admin, user, editor
+
+    // Verify field structure
+    for role in roles {
+      assert!(role["id"].is_number());
+      assert!(role["name"].is_string());
+      assert!(role["permissions"].is_array());
+      assert!(role["isDefault"].is_boolean());
+      assert!(role["createdTs"].is_number());
+      assert!(role["updatedTs"].is_number());
+    }
+  }
+
+  #[dps_auth_db_test]
+  async fn test_roles_unauthenticated() {
+    // Create session context without user (not authenticated)
+    let session_context = SessionContext::new(None);
+
+    let query = RolesResolver;
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_dps_config()),
+    );
+
+    let result = schema
+      .execute("{ roles { id name permissions isDefault createdTs updatedTs } }")
+      .await;
+
+    assert!(!result.errors.is_empty());
+    assert!(result.errors[0].message.contains("No valid session"));
+  }
+
+  #[dps_auth_db_test]
+  async fn test_roles_forbidden() {
+    // Create user role without required permissions
+    let user_role_id =
+      create_test_role_with_databases(&databases, "user", &["can_view_user_self"]).await;
+    let regular_user = create_test_user_with_databases(&databases, "user", user_role_id).await;
+
+    // Create session context for regular user
+    let session_payload = DpsAuthSessionPayload {
+      sub: regular_user.id.to_string(),
+      iat: 1000,
+      exp: 2000,
+    };
+    let session_context = SessionContext::new(Some(session_payload));
+
+    let query = RolesResolver;
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_dps_config()),
+    );
+
+    let result = schema
+      .execute("{ roles { id name permissions isDefault createdTs updatedTs } }")
+      .await;
+
+    assert!(!result.errors.is_empty());
+    assert!(result.errors[0].message.contains("Authorization error"));
+  }
+
+  #[dps_auth_db_test]
+  async fn test_roles_empty_database() {
+    // Create admin role and user
+    let admin_role_id =
+      create_test_role_with_databases(&databases, "admin", &["is_admin", "can_manage_roles"]).await;
+    let admin_user = create_test_user_with_databases(&databases, "admin", admin_role_id).await;
+
+    // Create session context for admin user
+    let session_payload = DpsAuthSessionPayload {
+      sub: admin_user.id.to_string(),
+      iat: 1000,
+      exp: 2000,
+    };
+    let session_context = SessionContext::new(Some(session_payload));
+
+    let query = RolesResolver;
+    let schema = create_test_query_schema(
+      query,
+      databases.clone(),
+      Some(session_context),
+      Some(create_test_dps_config()),
+    );
+
+    let result = schema
+      .execute("{ roles { id name permissions isDefault createdTs updatedTs } }")
+      .await;
+
+    assert!(result.errors.is_empty());
+    let data = result.data.into_json().unwrap();
+    let roles = data["roles"].as_array().unwrap();
+    // Should return the admin role that was created
+    assert_eq!(roles.len(), 1);
+    assert_eq!(roles[0]["name"].as_str().unwrap(), "admin");
+  }
+}

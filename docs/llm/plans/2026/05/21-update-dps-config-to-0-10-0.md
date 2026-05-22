@@ -1,0 +1,241 @@
+# Update dps-config to 0.10.2
+
+## Overview
+
+Update the `dps-config` dependency from `0.7.0` to `0.10.2` and integrate the two new session conversion function properties:
+
+1. **`session_sub_to_user_id_fn`** - Converts a session `sub` string to an `i64` user ID. Returns `anyhow::Result<i64>`.
+2. **`session_user_to_sub_fn`** - Extracts a `sub` string from a JSON record (`serde_json::Value`). Returns `anyhow::Result<String>`.
+
+These functions replace hardcoded logic for:
+- Extracting user ID from session `sub` (currently done in `session_context_sub_to_user_id`)
+- Storing user ID in session `sub` (currently done in `create_session_for_user` and many test session payloads)
+
+## Changelog Context
+
+From [PR #27](https://github.com/dimensionalpocket/dps-config/pull/27):
+- Added two function-typed properties to `DpsConfig` (Rust only)
+- Default for `session_sub_to_user_id_fn`: parses string as `i64`, returns `anyhow::Result<i64>` (parse error on failure)
+- Default for `session_user_to_sub_fn`: returns `id` property as string, `anyhow::Result<String>` (error on missing/invalid)
+- Both have getters and setters for customization
+- Uses `anyhow` crate for error handling
+
+## Current Code Analysis
+
+### Where user ID is saved to session `sub`:
+
+1. **Production code**: `src/services/session/create_session_for_user.rs:9`
+   - Uses `DpsAuthSession::create_payload(user.id.to_string(), None)`
+   - The `sub` is set to `user.id.to_string()`
+
+2. **Test code**: ~190+ places create `DpsAuthSessionPayload` or `ServiceSessionPayload` with:
+   - `sub: user.id.to_string()` or `sub: admin_user_id.to_string()`
+   - These are in orchestrator tests and resolver tests
+
+### Where user ID is extracted from session `sub`:
+
+1. **`src/utils/session_context_sub_to_user_id.rs`**:
+   - Parses `payload.sub` as `i64`
+   - Used by 15+ orchestrators and 1 service (`auth_get_current_user`)
+
+2. **Integration tests**: `tests/integration_tests.rs` uses `session_context_sub_to_user_id`
+
+## Implementation Plan
+
+### Phase 1: Update Dependencies
+
+**File: `Cargo.toml`**
+- Change `dps-config` version from `tag = "0.7.0"` to `tag = "0.10.2"`
+- Run `cargo build` to update `Cargo.lock`
+
+### Phase 2: Update `session_context_sub_to_user_id`
+
+**File: `src/utils/session_context_sub_to_user_id.rs`**
+- Update the function to use `config.get_session_sub_to_user_id_fn()` instead of manual parsing
+- Current logic: `payload.sub.parse::<i64>().map_err(...)`
+- New logic: Call the config's function and propagate the `anyhow::Error`
+- Parameter type: `config: &dps_config::DpsConfig` (DpsAuthApiConfig has been deleted)
+
+**Updated implementation**:
+```rust
+pub fn session_context_sub_to_user_id(
+  session_context: &SessionContext,
+  config: &dps_config::DpsConfig,
+) -> Result<i64, String> {
+  let payload = session_context
+    .payload
+    .as_ref()
+    .ok_or_else(|| "No valid session".to_string())?;
+
+  let sub_to_user_id_fn = config.get_session_sub_to_user_id_fn();
+  sub_to_user_id_fn(&payload.sub)
+    .map_err(|e| e.to_string())
+}
+```
+
+**Note**: Since `dps-config` now returns `anyhow::Result<i64>`, we can use `?` for error propagation and convert `anyhow::Error` to `String` via `.to_string()`. This preserves error context from the underlying parse failure.
+
+### Phase 3: Update `create_session_for_user`
+
+**File: `src/services/session/create_session_for_user.rs`**
+- Currently: `DpsAuthSession::create_payload(user.id.to_string(), None)`
+- Update to use `session_user_to_sub_fn` to extract `sub` from the user record
+- Add `config: &DpsConfig` parameter to the service
+- Serialize user to JSON, pass to `config.get_session_user_to_sub_fn()`, use result as `sub`
+
+**Updated implementation**:
+```rust
+pub async fn run(
+  conn: &SqliteConnection,
+  user: &User,
+  config: &dps_config::DpsConfig,
+) -> Result<DpsAuthSessionPayload, SessionError> {
+  let user_record = serde_json::to_value(user)
+    .map_err(|e| SessionError::InternalError(e.to_string()))?;
+
+  let sub = config.get_session_user_to_sub_fn()(&user_record)
+    .map_err(|e| SessionError::InternalError(e.to_string()))?;
+
+  DpsAuthSession::create_payload(sub, None)
+    .await
+    .map_err(SessionError::SessionCreationError)
+}
+```
+
+**Note**: All callers of `create_session_for_user::run()` will need to pass the config parameter. This includes:
+- `src/orchestrators/auth/auth_login.rs`
+- `src/orchestrators/auth/auth_signup.rs`
+- Any other orchestrators that call this service
+
+### Phase 4: Update All Callers of `session_context_sub_to_user_id`
+
+**Files affected** (all already pass config, just need internal function update):
+- `src/orchestrators/auth/auth_change_password.rs`
+- `src/orchestrators/role/get_role.rs`
+- `src/orchestrators/role/get_role_permissions.rs`
+- `src/orchestrators/role/get_roles.rs`
+- `src/orchestrators/role/remove_role.rs`
+- `src/orchestrators/role/set_default_role.rs`
+- `src/orchestrators/role/update_role.rs`
+- `src/orchestrators/role/add_role.rs`
+- `src/orchestrators/site/add_site.rs`
+- `src/orchestrators/site/update_site.rs`
+- `src/orchestrators/site/remove_site.rs`
+- `src/orchestrators/site/get_site.rs`
+- `src/orchestrators/user/delete_user.rs`
+- `src/orchestrators/user/get_user.rs`
+- `src/orchestrators/user/get_users.rs`
+- `src/orchestrators/user/update_user.rs`
+- `src/services/auth/auth_get_current_user.rs`
+- `tests/integration_tests.rs`
+
+**No code changes needed** in these files - they already call `session_context_sub_to_user_id(&session_context, config)`. Only the utility function implementation changes.
+
+### Phase 5: Update Tests
+
+**File: `src/utils/session_context_sub_to_user_id.rs` (tests)**
+- Update `create_test_config()` to return `DpsConfig` instead of `DpsAuthApiConfig`
+- Test with default function (parses string as i64, returns anyhow::Result)
+- Test error path: invalid sub string should produce an error message via `.map_err(|e| e.to_string())`
+
+**File: `tests/integration_tests.rs`**
+- Update tests that use `session_context_sub_to_user_id`
+- Use `create_test_dps_config()` from test_utils instead of `create_test_config()`
+
+**File: `src/test_utils/mod.rs`**
+- Ensure `create_test_dps_config()` exists and returns a properly configured `DpsConfig`
+
+### Phase 6: Checkpoint
+
+Before proceeding to session payload changes:
+1. Run `cargo build` to ensure compilation succeeds
+2. Run `cargo test --quiet` to ensure all tests pass
+3. Run `cargo clippy --allow-dirty --fix && cargo fmt` to lint and format
+
+### Phase 7: Update Test Session Payloads
+
+Update all test session payloads to use `session_user_to_sub_fn` instead of hardcoded `sub: user.id.to_string()`. This makes the codebase future-proof for custom sub extraction logic.
+
+**Step 1: Add helper to `src/test_utils/mod.rs`**
+
+```rust
+pub fn create_session_sub_for_user(user: &User, config: &DpsConfig) -> String {
+  let user_record = serde_json::to_value(user).unwrap();
+  config.get_session_user_to_sub_fn()(&user_record).unwrap()
+}
+```
+
+**Step 2: Replace all session payload constructions**
+
+**Files affected**: All test modules that create `DpsAuthSessionPayload` or `ServiceSessionPayload` with `sub: <user>.id.to_string()`:
+- `src/graphql/resolvers/user.rs` (tests)
+- `src/graphql/resolvers/site.rs` (tests)
+- `src/graphql/resolvers/set_default_role.rs` (tests)
+- `src/graphql/resolvers/role_permissions.rs` (tests)
+- `src/graphql/resolvers/role.rs` (tests)
+- `src/graphql/resolvers/remove_site.rs` (tests)
+- `src/graphql/resolvers/remove_role.rs` (tests)
+- `src/graphql/resolvers/delete_user.rs` (tests)
+- `src/orchestrators/auth/auth_change_password.rs` (tests)
+- `src/orchestrators/role/*.rs` (all tests)
+- `src/orchestrators/site/*.rs` (all tests)
+- `src/orchestrators/user/*.rs` (all tests)
+
+**Pattern to replace**:
+```rust
+// Before
+let session_payload = DpsAuthSessionPayload {
+  sub: user.id.to_string(),
+  iat: ...,
+  exp: ...,
+};
+
+// After - use helper
+let session_payload = DpsAuthSessionPayload {
+  sub: create_session_sub_for_user(&user, &config),
+  iat: ...,
+  exp: ...,
+};
+```
+
+**Note**: This is a large-scale change (~190 occurrences). Consider writing a Bun script to automate the replacement. The helper keeps each replacement to a single line change.
+
+### Phase 8: Final Verification
+
+1. Run `cargo build` to ensure compilation succeeds
+2. Run `cargo test --quiet` to ensure all tests pass
+3. Run `cargo clippy --allow-dirty --fix && cargo fmt` to lint and format
+
+## Files to Modify
+
+### Phase 1-5 (core integration):
+1. **`Cargo.toml`** - Update `dps-config` version
+2. **`src/utils/session_context_sub_to_user_id.rs`** - Use config's `session_sub_to_user_id_fn` with anyhow error propagation, change parameter to `&DpsConfig`
+3. **`src/services/session/create_session_for_user.rs`** - Use config's `session_user_to_sub_fn` instead of `user.id.to_string()`, add `config` parameter
+4. **All callers of `create_session_for_user`** - Pass config parameter (e.g., `auth_login.rs`, `auth_signup.rs`)
+5. **`src/test_utils/mod.rs`** - Ensure `create_test_dps_config()` helper exists
+6. **`tests/integration_tests.rs`** - Update to use `DpsConfig` instead of `DpsAuthApiConfig`
+
+### Phase 7 (session payloads):
+5. **`src/test_utils/mod.rs`** - Add `create_session_sub_for_user(user: &User, config: &DpsConfig)` helper
+6. **All orchestrator test modules** (~10 files) - Replace `sub: user.id.to_string()` with `sub: create_session_sub_for_user(&user, &config)`
+7. **All resolver test modules** (~8 files) - Same replacement
+
+**Note**: `anyhow` will be available transitively through `dps-config`. No need to add it as a direct dependency unless we want to use `anyhow!` macros for custom errors.
+
+## Order of Work
+
+1. Update `Cargo.toml` to use `dps-config = { ..., tag = "0.10.2" }`
+2. Run `cargo build` to see what breaks
+3. Update `session_context_sub_to_user_id` to use `config.get_session_sub_to_user_id_fn()` with `&DpsConfig` parameter
+4. Update test utilities to use `DpsConfig` instead of `DpsAuthApiConfig`
+5. Fix any compilation errors
+6. **Checkpoint**: Run `cargo test --quiet` and linter
+7. Update test session payloads to use `session_user_to_sub_fn`
+8. Final `cargo test --quiet` and linter run
+
+## Notes
+
+- `DpsAuthApiConfig` has been deleted; all config references now use `Arc<DpsConfig>` directly
+- `anyhow` is available transitively through `dps-config`
+- Phase 7 (session payload updates) is large (~190 occurrences) - consider a Bun script for automation

@@ -1,5 +1,7 @@
+pub mod role;
+pub mod site;
 pub mod user;
-pub mod user_role;
 
+pub use role::{is_valid_role_permission, Role, ROLE_PERMISSIONS};
+pub use site::Site;
 pub use user::User;
-pub use user_role::UserRole;

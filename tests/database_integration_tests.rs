@@ -1,79 +1,49 @@
-use dp_auth_service::{
-  database::Database,
+use dps_auth_api::test_utils;
+use dps_auth_api::{
   queries::{
-    user_roles::{GetAllRolesQuery, GetRoleByNameQuery},
+    roles::{GetAllRolesQuery, GetRoleByNameQuery},
     users::{CreateUserData, CreateUserQuery, GetUserByUuidQuery},
   },
-  services::PasswordService,
+  test_utils::{create_test_role_with_databases, create_test_user_full_with_databases},
 };
-use sqlx::SqlitePool;
-use tempfile::NamedTempFile;
+use dps_auth_test_macros::dps_auth_db_test;
 use uuid::Uuid;
 
-async fn create_test_database() -> (SqlitePool, NamedTempFile) {
-  let temp_file = NamedTempFile::new().expect("Failed to create temp file");
-  let database_url = format!("sqlite:{}", temp_file.path().display());
-
-  let pool = SqlitePool::connect(&database_url)
-    .await
-    .expect("Failed to connect to test database");
-
-  // Configure SQLite settings (same as production)
-  for command in Database::SQLITE_PRAGMA_COMMANDS.iter() {
-    sqlx::query(command)
-      .execute(&pool)
-      .await
-      .expect("Failed to configure SQLite");
-  }
-
-  // Run migrations
-  sqlx::migrate!("./config/database/migrations")
-    .run(&pool)
-    .await
-    .expect("Failed to run migrations");
-
-  (pool, temp_file)
-}
-
-#[tokio::test]
+#[dps_auth_db_test]
 async fn test_complete_user_creation_flow() {
   // Setup test database
-  let (pool, _temp_file) = create_test_database().await;
 
-  // Insert test roles manually for this test
-  sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('admin', 1234567890, FALSE), ('user', 1234567891, TRUE)")
-    .execute(&pool)
-    .await
-    .unwrap();
+  // Create test roles using test utilities
+  let _admin_role_id = create_test_role_with_databases(&databases, "admin", &[]).await;
+  let _user_role_id =
+    create_test_role_with_databases(&databases, "user", &["can_view_user_self"]).await;
 
   // Get user role
-  let user_role = GetRoleByNameQuery::run(&pool, "user")
-    .await
-    .unwrap()
-    .expect("User role should exist");
-
-  // Create password hash
-  let password_hash = PasswordService::generate("test_password").unwrap();
-
-  // Create user
-  let user_uuid = Uuid::new_v4().to_string();
-  let create_data = CreateUserData {
-    uuid: user_uuid.clone(),
-    name: "Test User".to_string(),
-    role_id: Some(user_role.id),
-    password_hash,
-    metadata_json: Some(r#"{"test": true}"#.to_string()),
+  let role = {
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    GetRoleByNameQuery::run(&mut main_conn, "user")
+      .await
+      .unwrap()
+      .expect("Role should exist")
   };
 
-  let created_user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+  // Create user using test utility (this tests the complete flow)
+  let created_user = create_test_user_full_with_databases(
+    &databases,
+    "Test User",
+    Some(role.id),
+    "test_password",
+    Some(serde_json::json!({"test": true})),
+  )
+  .await;
 
   // Verify user was created correctly
-  assert_eq!(created_user.uuid, user_uuid);
   assert_eq!(created_user.name, "Test User");
-  assert_eq!(created_user.role_id, user_role.id);
+  assert_eq!(created_user.role_id, role.id);
 
   // Verify user can be retrieved by UUID
-  let retrieved_user = GetUserByUuidQuery::run(&pool, &user_uuid)
+  let mut main_conn = main_pool.acquire().await.unwrap();
+  let retrieved_user = GetUserByUuidQuery::run(&mut main_conn, &created_user.uuid)
     .await
     .unwrap()
     .expect("User should be found");
@@ -82,19 +52,17 @@ async fn test_complete_user_creation_flow() {
   assert_eq!(retrieved_user.name, created_user.name);
 }
 
-#[tokio::test]
+#[dps_auth_db_test]
 async fn test_default_roles_seeded() {
   // Setup test database
-  let (pool, _temp_file) = create_test_database().await;
 
-  // Insert test roles manually to simulate seeding
-  sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('admin', 1234567890, FALSE), ('user', 1234567891, TRUE)")
-    .execute(&pool)
-    .await
-    .unwrap();
+  // Create test roles using test utilities to simulate seeding
+  create_test_role_with_databases(&databases, "admin", &[]).await;
+  create_test_role_with_databases(&databases, "user", &["can_view_user_self"]).await;
 
   // Verify default roles exist
-  let roles = GetAllRolesQuery::run(&pool).await.unwrap();
+  let mut main_conn = main_pool.acquire().await.unwrap();
+  let roles = GetAllRolesQuery::run(&mut main_conn).await.unwrap();
 
   assert_eq!(roles.len(), 2);
 
@@ -103,10 +71,9 @@ async fn test_default_roles_seeded() {
   assert!(role_names.contains(&"user"));
 }
 
-#[tokio::test]
+#[dps_auth_db_test]
 async fn test_foreign_key_constraint_enforced() {
   // Setup test database
-  let (pool, _temp_file) = create_test_database().await;
 
   // Try to create user with invalid role_id
   let user_uuid = Uuid::new_v4().to_string();
@@ -118,7 +85,8 @@ async fn test_foreign_key_constraint_enforced() {
     metadata_json: None,
   };
 
-  let result = CreateUserQuery::run(&pool, create_data).await;
+  let mut main_conn = main_pool.acquire().await.unwrap();
+  let result = CreateUserQuery::run(&mut main_conn, create_data).await;
 
   // Should fail due to foreign key constraint
   assert!(result.is_err());

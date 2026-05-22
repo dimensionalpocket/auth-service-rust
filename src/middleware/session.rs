@@ -1,11 +1,9 @@
-use dp_auth_session_service::DpAuthSessionService;
+use dps_auth_session::DpsAuthSession;
 
 // Re-export for backward compatibility
-use crate::utils::get_secret_from_env::{get_secret_from_env, SecretError};
 use async_graphql::Context;
 use axum::{extract::Request, middleware::Next, response::Response};
-pub use dp_auth_session_service::DpAuthSessionPayload as SessionPayload;
-use std::sync::OnceLock;
+pub use dps_auth_session::DpsAuthSessionPayload as SessionPayload;
 
 /// Session context that gets attached to GraphQL requests
 #[derive(Debug, Clone)]
@@ -20,10 +18,6 @@ impl SessionContext {
 
   pub fn authenticated(&self) -> bool {
     self.payload.is_some()
-  }
-
-  pub fn user_id(&self) -> Option<i64> {
-    self.payload.as_ref().map(|p| p.sub)
   }
 
   /// Get session context from GraphQL context
@@ -44,48 +38,30 @@ impl SessionContext {
 }
 
 /// Cookie name for session tokens
-pub const SESSION_COOKIE_NAME: &str = "DpAuthSession";
+pub const SESSION_COOKIE_NAME: &str = "DpsAuthSession";
 
-/// Global cached session secret, initialized once at startup
-static SESSION_SECRET: OnceLock<Vec<u8>> = OnceLock::new();
-
-/// Initialize the session secret from environment variable
-/// This should be called once during application startup
-pub fn init_session_secret() -> Result<(), SecretError> {
-  let secret = get_secret_from_env("DP_AUTH_SECRET_KEY", 32)?;
-
-  SESSION_SECRET
-    .set(secret)
-    .map_err(|_| SecretError::AlreadyInitialized)?;
-
-  Ok(())
-}
-
-/// Get the cached session secret
-/// Panics if the secret hasn't been initialized - this indicates a programming error
-pub fn get_session_secret() -> &'static [u8] {
-  SESSION_SECRET.get()
-    .expect("Session secret not initialized - this is a programming error. Ensure init_session_secret() is called during application startup before any session operations.")
-}
-
-/// Session middleware for GraphQL requests
-pub async fn session_middleware(mut request: Request, next: Next) -> Response {
-  let session_context = extract_and_validate_session_sync(&request);
-
-  // Attach session context to request extensions
-  request.extensions_mut().insert(session_context);
-
-  next.run(request).await
+/// Create session middleware with the provided secret
+/// Returns a middleware function that can be used with axum
+pub fn create_session_middleware(
+  secret: Vec<u8>,
+) -> impl Fn(Request, Next) -> std::pin::Pin<Box<dyn std::future::Future<Output = Response> + Send>>
+     + Clone {
+  move |request: Request, next: Next| {
+    let secret = secret.clone();
+    Box::pin(async move {
+      let session_context = extract_and_validate_session_sync(&request, &secret);
+      let mut request = request;
+      request.extensions_mut().insert(session_context);
+      next.run(request).await
+    })
+  }
 }
 
 /// Extract session token from request and validate it (synchronous version)
-fn extract_and_validate_session_sync(request: &Request) -> SessionContext {
-  // Get the cached secret - panic if not initialized (programming error)
-  let secret = get_session_secret();
-
+fn extract_and_validate_session_sync(request: &Request, secret: &[u8]) -> SessionContext {
   // Try header first
   if let Some(token) = extract_token_from_header(request) {
-    if let Ok(payload) = DpAuthSessionService::decode_token(&token, secret) {
+    if let Ok(payload) = DpsAuthSession::decode_token(&token, secret) {
       return SessionContext::new(Some(payload));
     }
     // If header token is invalid, don't try cookie
@@ -94,7 +70,7 @@ fn extract_and_validate_session_sync(request: &Request) -> SessionContext {
 
   // Try cookie if no header
   if let Some(token) = extract_token_from_cookie(request) {
-    if let Ok(payload) = DpAuthSessionService::decode_token(&token, secret) {
+    if let Ok(payload) = DpsAuthSession::decode_token(&token, secret) {
       return SessionContext::new(Some(payload));
     }
   }

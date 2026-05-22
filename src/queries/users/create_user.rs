@@ -1,6 +1,6 @@
 use crate::models::User;
-use crate::queries::user_roles::GetDefaultUserRoleQuery;
-use sqlx::SqlitePool;
+use crate::queries::roles::GetDefaultRoleQuery;
+use sqlx::SqliteConnection;
 
 #[derive(Debug)]
 pub struct CreateUserData {
@@ -14,7 +14,10 @@ pub struct CreateUserData {
 pub struct CreateUserQuery;
 
 impl CreateUserQuery {
-  pub async fn run(pool: &SqlitePool, data: CreateUserData) -> Result<User, sqlx::Error> {
+  pub async fn run(
+    main_conn: &mut SqliteConnection,
+    data: CreateUserData,
+  ) -> Result<User, sqlx::Error> {
     let now = chrono::Utc::now().timestamp();
 
     // Determine the role_id to use
@@ -22,7 +25,7 @@ impl CreateUserQuery {
       Some(id) => id,
       None => {
         // Get the default role
-        let default_role = GetDefaultUserRoleQuery::run(pool).await?;
+        let default_role = GetDefaultRoleQuery::run(main_conn).await?;
         match default_role {
           Some(role) => role.id,
           None => {
@@ -46,7 +49,7 @@ impl CreateUserQuery {
     .bind(role_id)
     .bind(&data.password_hash)
     .bind(&data.metadata_json)
-    .execute(pool)
+    .execute(&mut *main_conn)
     .await?;
 
     let user_id = result.last_insert_rowid();
@@ -56,29 +59,26 @@ impl CreateUserQuery {
       "SELECT id, uuid, created_ts, updated_ts, name, role_id, password_hash, metadata_json FROM users WHERE id = ?"
     )
     .bind(user_id)
-    .fetch_one(pool)
+    .fetch_one(&mut *main_conn)
     .await
   }
 }
 
 #[cfg(test)]
 mod tests {
+  use dps_auth_test_macros::dps_auth_db_test;
+
   use super::*;
-  use crate::database::test_utils::create_test_database;
+  use crate::test_utils::create_test_role_model_with_databases;
   use uuid::Uuid;
 
-  #[tokio::test]
+  #[dps_auth_db_test]
   async fn test_create_user_success() {
-    let (pool, _temp_file) = create_test_database().await;
-
     // Insert test role first
-    let role_result = sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
-    let role_id = role_result.last_insert_rowid();
+    let role =
+      create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true)
+        .await;
+    let role_id = role.id;
 
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {
@@ -89,7 +89,10 @@ mod tests {
       metadata_json: Some(r#"{"test": true}"#.to_string()),
     };
 
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let user = CreateUserQuery::run(&mut main_conn, create_data)
+      .await
+      .unwrap();
 
     assert_eq!(user.uuid, user_uuid);
     assert_eq!(user.name, "Test User");
@@ -100,18 +103,13 @@ mod tests {
     assert_eq!(user.created_ts, user.updated_ts);
   }
 
-  #[tokio::test]
+  #[dps_auth_db_test]
   async fn test_create_user_duplicate_uuid_fails() {
-    let (pool, _temp_file) = create_test_database().await;
-
     // Insert test role first
-    let role_result = sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567890, TRUE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
-    let role_id = role_result.last_insert_rowid();
+    let role =
+      create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true)
+        .await;
+    let role_id = role.id;
 
     let user_uuid = Uuid::new_v4().to_string();
     let create_data1 = CreateUserData {
@@ -122,8 +120,11 @@ mod tests {
       metadata_json: None,
     };
 
+    let mut main_conn = main_pool.acquire().await.unwrap();
     // First user should succeed
-    CreateUserQuery::run(&pool, create_data1).await.unwrap();
+    CreateUserQuery::run(&mut main_conn, create_data1)
+      .await
+      .unwrap();
 
     // Second user with same UUID should fail
     let create_data2 = CreateUserData {
@@ -134,14 +135,12 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = CreateUserQuery::run(&pool, create_data2).await;
+    let result = CreateUserQuery::run(&mut main_conn, create_data2).await;
     assert!(result.is_err());
   }
 
-  #[tokio::test]
+  #[dps_auth_db_test]
   async fn test_create_user_invalid_role_id_fails() {
-    let (pool, _temp_file) = create_test_database().await;
-
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {
       uuid: user_uuid,
@@ -151,19 +150,16 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = CreateUserQuery::run(&pool, create_data).await;
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let result = CreateUserQuery::run(&mut main_conn, create_data).await;
     assert!(result.is_err()); // Should fail due to foreign key constraint
   }
 
-  #[tokio::test]
+  #[dps_auth_db_test]
   async fn test_create_user_with_default_role() {
-    let (pool, _temp_file) = create_test_database().await;
-
     // Insert test roles with one default
-    sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('admin', 1234567890, FALSE), ('user', 1234567891, TRUE)")
-      .execute(&pool)
-      .await
-      .unwrap();
+    create_test_role_model_with_databases(&databases, "admin", &["is_admin"], false).await;
+    create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {
@@ -174,34 +170,28 @@ mod tests {
       metadata_json: Some(r#"{"test": true}"#.to_string()),
     };
 
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let user = CreateUserQuery::run(&mut main_conn, create_data)
+      .await
+      .unwrap();
 
     assert_eq!(user.uuid, user_uuid);
     assert_eq!(user.name, "Test User");
     // Should have the default role (user role)
-    let default_role = GetDefaultUserRoleQuery::run(&pool).await.unwrap().unwrap();
+    let default_role = GetDefaultRoleQuery::run(&mut main_conn)
+      .await
+      .unwrap()
+      .unwrap();
     assert_eq!(user.role_id, default_role.id);
   }
 
-  #[tokio::test]
+  #[dps_auth_db_test]
   async fn test_create_user_with_explicit_role() {
-    let (pool, _temp_file) = create_test_database().await;
-
     // Insert test roles with one default
-    let admin_result = sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('admin', 1234567890, FALSE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
-    let admin_role_id = admin_result.last_insert_rowid();
-
-    sqlx::query(
-      "INSERT INTO user_roles (name, created_ts, is_default) VALUES ('user', 1234567891, TRUE)",
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
+    let admin_role =
+      create_test_role_model_with_databases(&databases, "admin", &["is_admin"], false).await;
+    let admin_role_id = admin_role.id;
+    create_test_role_model_with_databases(&databases, "user", &["can_view_user_self"], true).await;
 
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {
@@ -212,22 +202,21 @@ mod tests {
       metadata_json: None,
     };
 
-    let user = CreateUserQuery::run(&pool, create_data).await.unwrap();
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let user = CreateUserQuery::run(&mut main_conn, create_data)
+      .await
+      .unwrap();
 
     assert_eq!(user.uuid, user_uuid);
     assert_eq!(user.name, "Test Admin");
     assert_eq!(user.role_id, admin_role_id); // Should have admin role, not default
   }
 
-  #[tokio::test]
+  #[dps_auth_db_test]
   async fn test_create_user_no_default_role_fails() {
-    let (pool, _temp_file) = create_test_database().await;
-
     // Insert test roles with no default
-    sqlx::query("INSERT INTO user_roles (name, created_ts, is_default) VALUES ('admin', 1234567890, FALSE), ('moderator', 1234567891, FALSE)")
-      .execute(&pool)
-      .await
-      .unwrap();
+    create_test_role_model_with_databases(&databases, "admin", &["is_admin"], false).await;
+    create_test_role_model_with_databases(&databases, "moderator", &["can_moderate"], false).await;
 
     let user_uuid = Uuid::new_v4().to_string();
     let create_data = CreateUserData {
@@ -238,7 +227,8 @@ mod tests {
       metadata_json: None,
     };
 
-    let result = CreateUserQuery::run(&pool, create_data).await;
+    let mut main_conn = main_pool.acquire().await.unwrap();
+    let result = CreateUserQuery::run(&mut main_conn, create_data).await;
     assert!(result.is_err()); // Should fail because no default role exists
   }
 }
