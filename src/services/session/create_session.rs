@@ -1,5 +1,6 @@
 use crate::services::{GetUserByNameService, VerifyPasswordService};
 use crate::types::SessionError;
+use dps_config::DpsConfig;
 use sqlx::SqliteConnection;
 
 use super::CreateSessionForUserService;
@@ -11,7 +12,7 @@ impl CreateSessionService {
     main_conn: &mut SqliteConnection,
     username: &str,
     password: &str,
-    secret: &[u8],
+    config: &DpsConfig,
   ) -> Result<String, SessionError> {
     // Input validation
     if username.trim().is_empty() {
@@ -70,7 +71,7 @@ impl CreateSessionService {
     }
 
     // Create session token for the authenticated user
-    let token = CreateSessionForUserService::run(&user, secret)?;
+    let token = CreateSessionForUserService::run(&user, config)?;
 
     tracing::info!(
       username = username,
@@ -88,14 +89,8 @@ mod tests {
 
   use super::*;
   use crate::services::CreateUserService;
-  use crate::test_utils::create_test_role_model_with_conn;
+  use crate::test_utils::{create_test_dps_config, create_test_role_model_with_conn};
   use dps_auth_session::DpsAuthSession;
-
-  // Test secret - 32 bytes for AES-256
-  const TEST_SECRET: &[u8] = &[
-    0x42, 0xf4, 0x25, 0xc2, 0x93, 0x2e, 0x8c, 0xaf, 0xaa, 0xcd, 0xd4, 0x5b, 0x50, 0x28, 0xa4, 0x8d,
-    0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74, 0x4d, 0xb8,
-  ];
 
   #[dps_auth_db_test]
   async fn test_create_session_success() {
@@ -105,18 +100,21 @@ mod tests {
     let user = CreateUserService::run(&mut main_conn, "testuser", "password123")
       .await
       .unwrap();
-    let token = CreateSessionService::run(&mut main_conn, "testuser", "password123", TEST_SECRET)
+    let config = create_test_dps_config();
+    let token = CreateSessionService::run(&mut main_conn, "testuser", "password123", &config)
       .await
       .unwrap();
 
-    let payload = DpsAuthSession::decode_token(&token, TEST_SECRET).unwrap();
+    let secret = config.get_auth_api_session_secret_bytes().unwrap();
+    let payload = DpsAuthSession::decode_token(&token, &secret).unwrap();
     assert_eq!(payload.sub, user.id.to_string());
   }
 
   #[dps_auth_db_test]
   async fn test_create_session_blank_username() {
     let mut main_conn = main_pool.acquire().await.unwrap();
-    let result = CreateSessionService::run(&mut main_conn, "", "password123", TEST_SECRET).await;
+    let config = create_test_dps_config();
+    let result = CreateSessionService::run(&mut main_conn, "", "password123", &config).await;
 
     assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
     assert!(result.unwrap_err().to_string().contains("User is blank"));
@@ -125,7 +123,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_create_session_whitespace_username() {
     let mut main_conn = main_pool.acquire().await.unwrap();
-    let result = CreateSessionService::run(&mut main_conn, "   ", "password123", TEST_SECRET).await;
+    let config = create_test_dps_config();
+    let result = CreateSessionService::run(&mut main_conn, "   ", "password123", &config).await;
 
     assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
     assert!(result.unwrap_err().to_string().contains("User is blank"));
@@ -134,7 +133,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_create_session_blank_password() {
     let mut main_conn = main_pool.acquire().await.unwrap();
-    let result = CreateSessionService::run(&mut main_conn, "testuser", "", TEST_SECRET).await;
+    let config = create_test_dps_config();
+    let result = CreateSessionService::run(&mut main_conn, "testuser", "", &config).await;
 
     assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
     assert!(result
@@ -146,8 +146,9 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_create_session_user_not_found() {
     let mut main_conn = main_pool.acquire().await.unwrap();
+    let config = create_test_dps_config();
     let result =
-      CreateSessionService::run(&mut main_conn, "nonexistent", "password123", TEST_SECRET).await;
+      CreateSessionService::run(&mut main_conn, "nonexistent", "password123", &config).await;
 
     assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
     assert!(result.unwrap_err().to_string().contains("User not found"));
@@ -161,8 +162,9 @@ mod tests {
     CreateUserService::run(&mut main_conn, "testuser", "correct_password")
       .await
       .unwrap();
+    let config = create_test_dps_config();
     let result =
-      CreateSessionService::run(&mut main_conn, "testuser", "wrong_password", TEST_SECRET).await;
+      CreateSessionService::run(&mut main_conn, "testuser", "wrong_password", &config).await;
 
     assert!(matches!(result, Err(SessionError::AuthenticationError(_))));
     assert!(result
@@ -179,11 +181,13 @@ mod tests {
     let user = CreateUserService::run(&mut main_conn, "TestUser", "password123")
       .await
       .unwrap();
-    let token = CreateSessionService::run(&mut main_conn, "testuser", "password123", TEST_SECRET)
+    let config = create_test_dps_config();
+    let token = CreateSessionService::run(&mut main_conn, "testuser", "password123", &config)
       .await
       .unwrap();
 
-    let payload = DpsAuthSession::decode_token(&token, TEST_SECRET).unwrap();
+    let secret = config.get_auth_api_session_secret_bytes().unwrap();
+    let payload = DpsAuthSession::decode_token(&token, &secret).unwrap();
     assert_eq!(payload.sub, user.id.to_string());
   }
 }

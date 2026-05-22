@@ -1,13 +1,23 @@
 use crate::models::user::User;
 use crate::types::SessionError;
 use dps_auth_session::DpsAuthSession;
+use dps_config::DpsConfig;
 
 pub struct CreateSessionForUserService;
 
 impl CreateSessionForUserService {
-  pub fn run(user: &User, secret: &[u8]) -> Result<String, SessionError> {
-    let payload = DpsAuthSession::create_payload(user.id.to_string(), None);
-    let token = DpsAuthSession::encode_token(&payload, secret)?;
+  pub fn run(user: &User, config: &DpsConfig) -> Result<String, SessionError> {
+    let user_record =
+      serde_json::to_value(user).map_err(|e| SessionError::AuthenticationError(e.to_string()))?;
+
+    let sub = config.get_session_user_to_sub_fn()(&user_record)
+      .map_err(|e| SessionError::AuthenticationError(e.to_string()))?;
+
+    let payload = DpsAuthSession::create_payload(sub, None);
+    let secret = config.get_auth_api_session_secret_bytes().ok_or_else(|| {
+      SessionError::ConfigurationError("Session secret not configured".to_string())
+    })?;
+    let token = DpsAuthSession::encode_token(&payload, &secret)?;
 
     Ok(token)
   }
@@ -19,14 +29,8 @@ mod tests {
 
   use super::*;
   use crate::services::CreateUserService;
-  use crate::test_utils::create_test_role_model_with_databases;
+  use crate::test_utils::{create_test_dps_config, create_test_role_model_with_databases};
   use dps_auth_session::DpsAuthSession;
-
-  // Test secret - 32 bytes for AES-256
-  const TEST_SECRET: &[u8] = &[
-    0x42, 0xf4, 0x25, 0xc2, 0x93, 0x2e, 0x8c, 0xaf, 0xaa, 0xcd, 0xd4, 0x5b, 0x50, 0x28, 0xa4, 0x8d,
-    0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74, 0x4d, 0xb8,
-  ];
 
   #[dps_auth_db_test]
   async fn test_create_session_for_user_success() {
@@ -39,11 +43,13 @@ mod tests {
         .unwrap()
     };
 
-    let token = CreateSessionForUserService::run(&user, TEST_SECRET).unwrap();
+    let config = create_test_dps_config();
+    let token = CreateSessionForUserService::run(&user, &config).unwrap();
 
     assert!(!token.is_empty());
 
-    let payload = DpsAuthSession::decode_token(&token, TEST_SECRET).unwrap();
+    let secret = config.get_auth_api_session_secret_bytes().unwrap();
+    let payload = DpsAuthSession::decode_token(&token, &secret).unwrap();
     assert_eq!(payload.sub, user.id.to_string());
   }
 
@@ -59,13 +65,15 @@ mod tests {
       .await
       .unwrap();
 
-    let token1 = CreateSessionForUserService::run(&user1, TEST_SECRET).unwrap();
-    let token2 = CreateSessionForUserService::run(&user2, TEST_SECRET).unwrap();
+    let config = create_test_dps_config();
+    let token1 = CreateSessionForUserService::run(&user1, &config).unwrap();
+    let token2 = CreateSessionForUserService::run(&user2, &config).unwrap();
 
     assert_ne!(token1, token2);
 
-    let payload1 = DpsAuthSession::decode_token(&token1, TEST_SECRET).unwrap();
-    let payload2 = DpsAuthSession::decode_token(&token2, TEST_SECRET).unwrap();
+    let secret = config.get_auth_api_session_secret_bytes().unwrap();
+    let payload1 = DpsAuthSession::decode_token(&token1, &secret).unwrap();
+    let payload2 = DpsAuthSession::decode_token(&token2, &secret).unwrap();
 
     assert_eq!(payload1.sub, user1.id.to_string());
     assert_eq!(payload2.sub, user2.id.to_string());

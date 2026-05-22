@@ -101,12 +101,6 @@ mod tests {
   };
   use sqlx::SqliteConnection;
 
-  // Test secret - 32 bytes for AES-256
-  const TEST_SECRET: &[u8] = &[
-    0x42, 0xf4, 0x25, 0xc2, 0x93, 0x2e, 0x8c, 0xaf, 0xaa, 0xcd, 0xd4, 0x5b, 0x50, 0x28, 0xa4, 0x8d,
-    0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74, 0x4d, 0xb8,
-  ];
-
   async fn create_authenticated_session(
     main_conn: &mut SqliteConnection,
     username: &str,
@@ -118,7 +112,8 @@ mod tests {
       .unwrap();
 
     // Create session (we don't need the result for this test)
-    let _auth_result = AuthLoginService::run(main_conn, username, password, TEST_SECRET)
+    let config = create_test_dps_config();
+    let _auth_result = AuthLoginService::run(main_conn, username, password, &config)
       .await
       .unwrap();
 

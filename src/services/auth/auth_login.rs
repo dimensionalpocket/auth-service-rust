@@ -1,6 +1,7 @@
 use crate::queries::users::GetUserByNameWithRoleQuery;
 use crate::services::CreateSessionService;
 use crate::types::SessionError;
+use dps_config::DpsConfig;
 use sqlx::SqliteConnection;
 use tracing::instrument;
 
@@ -9,12 +10,12 @@ use super::types::AuthResult;
 pub struct AuthLoginService;
 
 impl AuthLoginService {
-  #[instrument(skip(main_conn, session_secret, password), fields(username = %username))]
+  #[instrument(skip(main_conn, config, password), fields(username = %username))]
   pub async fn run(
     main_conn: &mut SqliteConnection,
     username: &str,
     password: &str,
-    session_secret: &[u8],
+    config: &DpsConfig,
   ) -> Result<AuthResult, SessionError> {
     // Find user by username with role information first
     let user_with_role = GetUserByNameWithRoleQuery::run(main_conn, username)
@@ -26,8 +27,7 @@ impl AuthLoginService {
       .ok_or_else(|| SessionError::AuthenticationError("User not found".to_string()))?;
 
     // Create session which includes password verification
-    let session_token =
-      CreateSessionService::run(main_conn, username, password, session_secret).await?;
+    let session_token = CreateSessionService::run(main_conn, username, password, config).await?;
 
     Ok(AuthResult {
       user_id: user_with_role.user.id,
@@ -44,13 +44,7 @@ mod tests {
 
   use super::*;
   use crate::services::CreateUserService;
-  use crate::test_utils::create_test_role_model_with_databases;
-
-  // Test secret - 32 bytes for AES-256
-  const TEST_SECRET: &[u8] = &[
-    0x42, 0xf4, 0x25, 0xc2, 0x93, 0x2e, 0x8c, 0xaf, 0xaa, 0xcd, 0xd4, 0x5b, 0x50, 0x28, 0xa4, 0x8d,
-    0xcd, 0x74, 0xd4, 0xe2, 0xad, 0xd4, 0xa1, 0xc4, 0xdf, 0xc6, 0x2a, 0xdf, 0xb5, 0x74, 0x4d, 0xb8,
-  ];
+  use crate::test_utils::{create_test_dps_config, create_test_role_model_with_databases};
 
   #[dps_auth_db_test]
   async fn test_auth_login_success() {
@@ -59,8 +53,8 @@ mod tests {
     CreateUserService::run(&mut main_conn, "testuser", "password123")
       .await
       .unwrap();
-    let result =
-      AuthLoginService::run(&mut main_conn, "testuser", "password123", TEST_SECRET).await;
+    let config = create_test_dps_config();
+    let result = AuthLoginService::run(&mut main_conn, "testuser", "password123", &config).await;
 
     assert!(result.is_ok());
     let auth_result = result.unwrap();
@@ -76,8 +70,8 @@ mod tests {
     CreateUserService::run(&mut main_conn, "testuser", "password123")
       .await
       .unwrap();
-    let result =
-      AuthLoginService::run(&mut main_conn, "testuser", "wrongpassword", TEST_SECRET).await;
+    let config = create_test_dps_config();
+    let result = AuthLoginService::run(&mut main_conn, "testuser", "wrongpassword", &config).await;
 
     assert!(result.is_err());
   }
@@ -85,8 +79,8 @@ mod tests {
   #[dps_auth_db_test]
   async fn test_auth_login_user_not_found() {
     let mut main_conn = main_pool.acquire().await.unwrap();
-    let result =
-      AuthLoginService::run(&mut main_conn, "nonexistent", "password123", TEST_SECRET).await;
+    let config = create_test_dps_config();
+    let result = AuthLoginService::run(&mut main_conn, "nonexistent", "password123", &config).await;
 
     assert!(result.is_err());
   }

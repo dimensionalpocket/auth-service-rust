@@ -31,7 +31,7 @@ tempfile = "3.0"
 aes-gcm = "0.10"
 base64 = "0.22"
 dps-auth-session = { git = "https://github.com/dimensionalpocket/dps-auth-session", tag = "0.3.0" }
-dps-config = { git = "https://github.com/dimensionalpocket/dps-config", tag = "0.7.0" }
+dps-config = { git = "https://github.com/dimensionalpocket/dps-config", tag = "0.10.2" }
 clap = { version = "4.0", features = ["derive", "env"] }
 
 [features]
@@ -42,6 +42,7 @@ test-utils = []
 tracing-test = { version = "0.2", features = ["no-env-filter"] }
 urlencoding = "2.1"
 dps-auth-test-macros = { path = "crates/dps-auth-test-macros" }
+anyhow = "1.0"
 
 # Local development script
 [[bin]]

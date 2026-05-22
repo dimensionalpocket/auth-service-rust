@@ -24,7 +24,7 @@ impl AuthRegisterOrchestrator {
       username,
       password,
       password_confirmation,
-      &config.get_auth_api_session_secret_bytes().unwrap(),
+      config,
     )
     .await
     .map_err(|e| SessionError::AuthenticationError(e.to_string()))?;

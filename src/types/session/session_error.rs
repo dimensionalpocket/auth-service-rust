@@ -12,6 +12,8 @@ pub enum SessionError {
   DatabaseError(String),
   /// Password verification failed
   PasswordVerificationError(String),
+  /// Server configuration error (e.g., missing session secret)
+  ConfigurationError(String),
 }
 
 impl fmt::Display for SessionError {
@@ -23,6 +25,7 @@ impl fmt::Display for SessionError {
       SessionError::PasswordVerificationError(msg) => {
         write!(f, "Password verification error: {msg}")
       }
+      SessionError::ConfigurationError(msg) => write!(f, "Configuration error: {msg}"),
     }
   }
 }

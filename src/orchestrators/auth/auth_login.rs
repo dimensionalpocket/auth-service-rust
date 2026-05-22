@@ -18,13 +18,7 @@ impl AuthLoginOrchestrator {
       .await
       .map_err(|e| SessionError::DatabaseError(e.to_string()))?;
 
-    let auth_result = AuthLoginService::run(
-      &mut main_conn,
-      username,
-      password,
-      &config.get_auth_api_session_secret_bytes().unwrap(),
-    )
-    .await?;
+    let auth_result = AuthLoginService::run(&mut main_conn, username, password, config).await?;
 
     let cookie_value = GenerateSessionCookieService::run(config, &auth_result.session_token);
 

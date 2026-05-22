@@ -122,6 +122,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyhow"
+version = "1.0.102"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
+
+[[package]]
 name = "argon2"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -676,6 +682,7 @@ name = "dps-auth-api"
 version = "0.1.0"
 dependencies = [
  "aes-gcm",
+ "anyhow",
  "argon2",
  "async-graphql",
  "async-graphql-axum",
@@ -729,8 +736,12 @@ dependencies = [
 
 [[package]]
 name = "dps-config"
-version = "0.7.0"
-source = "git+https://github.com/dimensionalpocket/dps-config?tag=0.7.0#d68e87f532e7a1c2fa984f0ef01d3452f0bfd552"
+version = "0.10.2"
+source = "git+https://github.com/dimensionalpocket/dps-config?tag=0.10.2#15fcbf75b9a66435cc0e8cd573a05fa4706fae31"
+dependencies = [
+ "anyhow",
+ "serde_json",
+]
 
 [[package]]
 name = "either"

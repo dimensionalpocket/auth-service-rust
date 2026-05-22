@@ -72,6 +72,7 @@ fn map_session_error_to_user_message(error: &SessionError) -> &'static str {
     SessionError::DatabaseError(_) => "Internal server error",
     SessionError::PasswordVerificationError(_) => "Internal server error",
     SessionError::AuthSessionError(_) => "Internal server error",
+    SessionError::ConfigurationError(_) => "Internal server error",
   }
 }
 

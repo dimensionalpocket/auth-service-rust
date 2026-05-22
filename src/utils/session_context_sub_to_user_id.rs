@@ -5,24 +5,22 @@ use dps_config::DpsConfig;
 ///
 /// # Arguments
 /// * `session_context` - The session context containing the payload
-/// * `_config` - The API config (reserved for future use, e.g., validation rules)
+/// * `config` - The API config containing the session_sub_to_user_id_fn
 ///
 /// # Returns
 /// * `Ok(i64)` - The parsed user ID
 /// * `Err(String)` - Error message if session is missing or sub cannot be parsed
 pub fn session_context_sub_to_user_id(
   session_context: &SessionContext,
-  _config: &DpsConfig,
+  config: &DpsConfig,
 ) -> Result<i64, String> {
   let payload = session_context
     .payload
     .as_ref()
     .ok_or_else(|| "No valid session".to_string())?;
 
-  payload
-    .sub
-    .parse::<i64>()
-    .map_err(|e| format!("Invalid user ID in session: {e}"))
+  let sub_to_user_id_fn = config.get_session_sub_to_user_id_fn();
+  sub_to_user_id_fn(&payload.sub).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
@@ -67,6 +65,5 @@ mod tests {
 
     let result = session_context_sub_to_user_id(&session_context, &config);
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("Invalid user ID"));
   }
 }

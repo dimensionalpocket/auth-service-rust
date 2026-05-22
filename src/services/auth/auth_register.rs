@@ -1,6 +1,7 @@
 use crate::queries::users::GetUserByNameWithRoleQuery;
 use crate::services::{CreateSessionForUserService, CreateUserService};
 use crate::types::UserError;
+use dps_config::DpsConfig;
 use sqlx::SqliteConnection;
 use tracing::instrument;
 
@@ -9,13 +10,13 @@ use super::types::RegisterResult;
 pub struct AuthRegisterService;
 
 impl AuthRegisterService {
-  #[instrument(skip(main_conn, session_secret), fields(username = %username))]
+  #[instrument(skip(main_conn, config), fields(username = %username))]
   pub async fn run(
     main_conn: &mut SqliteConnection,
     username: &str,
     password: &str,
     password_confirmation: &str,
-    session_secret: &[u8],
+    config: &DpsConfig,
   ) -> Result<RegisterResult, UserError> {
     // Validate password confirmation matches
     if password != password_confirmation {
@@ -34,7 +35,7 @@ impl AuthRegisterService {
       .ok_or_else(|| UserError::UserNotFound(user.id))?;
 
     // Create session for the newly created user
-    let session_token = CreateSessionForUserService::run(&user, session_secret)
+    let session_token = CreateSessionForUserService::run(&user, config)
       .map_err(|e| UserError::SessionError(e.to_string()))?;
 
     Ok(RegisterResult {
